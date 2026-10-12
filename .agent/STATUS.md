@@ -24,11 +24,11 @@
 
 | Subsystem / Application | Target Files | Aesthetic & Conventions | Status |
 | :--- | :--- | :--- | :--- |
-| **Fabric Commander PWA** | `stitch-core/bridge/templates/bridge.html`, `manifest.json` | **Flora & Breeze Edition**: Lawn Emerald (`#10b981`), Clover (`#34d399`), Air Breeze (`#38bdf8`), with Mandated Royal Purple Accents (Wisteria `#c084fc`, Lavender `#a855f7`). Default: `🌿 Loom Fabric Auto-Triage`. | **DEPLOYED & ACTIVE** |
-| **Loom Desktop GUI** | `loom/gui.py` | **Botanical Commander**: Forest Night Canvas (`#07120a`), Foliage Cards (`#122818`), Blooming Tabs (`🌱 The Weave`, `🌿 The Shuttle`, `🌸 Torque Enclave`, `🌾 The Spool`). | **STABLE & VERIFIED** |
-| **Loom Fabric CLI** | `loom/cli/formatters.py`, `loom/cli/main.py` | **Botanical Rich UI**: Windows cp1252-safe stream handling, meadow emerald panels, wisteria purple tables, floral glyphs. | **VERIFIED (`loom probe`, `loom shard`)** |
-| **Loom Gateway Web UI** | `loom/gateway/app.py` | **Flora & Breeze Dashboard**: Real-time SSE streaming console on `:8002`, compute-based triage, on-the-fly token rehydration. | **ONLINE ON PORT 8002** |
-| **Scientific Web UI** | `stitch-core/web/templates/index.html` | **Loom Fabric Commander WebUI**: Emerald lawns, breeze cyan, wisteria purple buttons on `:5000`. | **SYNCHRONIZED** |
+| **The Shuttle (PWA)** | `stitch-core/bridge/templates/bridge.html`, `manifest.json` | **Mechanistic Ingress / Botanical Palette**: Renamed to **The Shuttle — Loom Fabric**. Flora & Breeze Canvas (`#10b981`, `#38bdf8`), with Mandated Royal Purple Accents (`#a855f7`, `#c084fc`). Mechanistic taxonomy across all pills and tabs. Default: `Loom Fabric Mechanistic Triage (Dynamic Compute Arbitrage)`. | **DEPLOYED & ACTIVE** |
+| **Loom Fabric Commander (GUI)** | `loom/gui.py` | **Mechanistic Desktop Canvas**: Forest Night Canvas (`#07120a`), Foliage Cards (`#122818`), Blooming Tabs (`THE WEAVE`, `THE SHUTTLE`, `TORQUE VAULT`, `THE SPOOL`). | **STABLE & VERIFIED** |
+| **Loom Fabric CLI** | `loom/cli/formatters.py`, `loom/cli/main.py` | **Mechanistic Rich UI**: Windows cp1252-safe stream handling, meadow emerald panels, wisteria purple tables, mechanistic silicon allocation matrix. | **VERIFIED (`loom probe`, `loom shard`)** |
+| **Loom Gateway Web UI** | `loom/gateway/app.py` | **Mechanistic Dashboard**: Real-time SSE streaming console on `:8002`, compute-based triage, on-the-fly token rehydration. | **ONLINE ON PORT 8002** |
+| **Scientific Web UI** | `stitch-core/web/templates/index.html` | **Loom Fabric Connectome WebUI**: Emerald lawns, breeze cyan, wisteria purple buttons on `:5000`. | **SYNCHRONIZED** |
 
 ---
 

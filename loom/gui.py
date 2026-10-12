@@ -100,10 +100,10 @@ class LoomFabricCommandCenter(tk.Tk):
         title_container = tk.Frame(masthead, bg=CLR_SURFACE)
         title_container.pack(side="left")
 
-        lbl_logo = tk.Label(title_container, text="🌿 LOOM FABRIC COMMANDER", font=("Segoe UI", 18, "bold"), fg=CLR_LAWN, bg=CLR_SURFACE)
+        lbl_logo = tk.Label(title_container, text="LOOM FABRIC COMMANDER", font=("Segoe UI", 18, "bold"), fg=CLR_LAWN, bg=CLR_SURFACE)
         lbl_logo.pack(side="left")
 
-        lbl_subtitle = tk.Label(title_container, text="  // Sovereign Flora & Breeze Mesh", font=("Segoe UI", 10, "bold"), fg=CLR_AMETHYST, bg=CLR_SURFACE)
+        lbl_subtitle = tk.Label(title_container, text="  // Mechanistic Heterogeneous AI Operating System (Precursor to ClothOS)", font=("Segoe UI", 10, "bold"), fg=CLR_AMETHYST, bg=CLR_SURFACE)
         lbl_subtitle.pack(side="left", pady=3)
 
         # Right Telemetry Hub
@@ -115,9 +115,9 @@ class LoomFabricCommandCenter(tk.Tk):
 
         self.badge_status = tk.Label(
             right_meta,
-            text="● BLOOMING MESH",
+            text="● MECHANISTIC MESH SYNCHRONIZED",
             font=("Segoe UI", 9, "bold"),
-            fg=CLR_AMBER,
+            fg=CLR_EMERALD,
             bg="#0f2416",
             padx=12,
             pady=3,
@@ -126,28 +126,28 @@ class LoomFabricCommandCenter(tk.Tk):
         )
         self.badge_status.pack(side="bottom", pady=(4, 0))
 
-        # Main Navigator (The Four Pillars)
+        # Main Navigator (The Four Mechanistic Pillars)
         self.navigator = ttk.Notebook(self)
         self.navigator.pack(fill="both", expand=True, padx=20, pady=16)
 
-        # Pillar 1 & 3: THE WEAVE (Cluster Topology & Ray Mesh)
+        # Pillar 1 & 3: THE WEAVE (Physical Cluster Topology & Ray Mesh)
         self.tab_weave = tk.Frame(self.navigator, bg=CLR_OBSIDIAN, padx=16, pady=16)
-        self.navigator.add(self.tab_weave, text="🌱 The Weave (Cluster Topology)")
+        self.navigator.add(self.tab_weave, text="THE WEAVE (Physical Silicon Topology)")
         self._build_weave_tab(self.tab_weave)
 
         # Pillar 4: THE SHUTTLE (Inference Console & Dispatcher)
         self.tab_shuttle = tk.Frame(self.navigator, bg=CLR_OBSIDIAN, padx=16, pady=16)
-        self.navigator.add(self.tab_shuttle, text="🌿 The Shuttle (Model Triage & Compute)")
+        self.navigator.add(self.tab_shuttle, text="THE SHUTTLE (Inference & Compute Triage)")
         self._build_shuttle_tab(self.tab_shuttle)
 
         # Pillar 1: TORQUE VAULT (Zero-Trust De-identification)
         self.tab_torque = tk.Frame(self.navigator, bg=CLR_OBSIDIAN, padx=16, pady=16)
-        self.navigator.add(self.tab_torque, text="🌸 Torque Enclave (Zero-Trust Vault)")
+        self.navigator.add(self.tab_torque, text="TORQUE VAULT (Zero-Trust Enclave)")
         self._build_torque_tab(self.tab_torque)
 
         # Pillar 2: THE SPOOL (Model Presets & Zero-OOM Budgets)
         self.tab_spool = tk.Frame(self.navigator, bg=CLR_OBSIDIAN, padx=16, pady=16)
-        self.navigator.add(self.tab_spool, text="🌾 The Spool (Hardware Models & Sharding)")
+        self.navigator.add(self.tab_spool, text="THE SPOOL (Silicon Budgets & Sharding)")
         self._build_spool_tab(self.tab_spool)
 
     def _build_weave_tab(self, parent):

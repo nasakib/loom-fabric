@@ -26,9 +26,9 @@ console = Console(force_terminal=True, highlight=False)
 
 
 def render_hardware_table(hardware_dict: dict) -> Table:
-    """Builds a rich botanical table of detected accelerators and system memory."""
+    """Builds a rich table of detected accelerators and system memory."""
     table = Table(
-        title="[bold green]Loom Fabric Cluster Accelerator Flora[/bold green] [bold magenta]*[/bold magenta]",
+        title="[bold green]Loom Fabric Mechanistic Silicon & VRAM Diagnostics[/bold green] [bold magenta]*[/bold magenta]",
         show_header=True,
         border_style="green",
         header_style="bold magenta",
@@ -65,7 +65,7 @@ def render_hardware_table(hardware_dict: dict) -> Table:
 def render_sharding_table(plan_dict: dict) -> Table:
     """Builds a rich table visualizing calculated zero-OOM layer splits."""
     table = Table(
-        title="[bold magenta]Zero-OOM Layer Allocation & Triage Matrix[/bold magenta] [bold green]*[/bold green]",
+        title="[bold magenta]Zero-OOM Mathematical MMU Allocation Matrix[/bold magenta] [bold green]*[/bold green]",
         show_header=True,
         border_style="green",
         header_style="bold bright_magenta",
@@ -92,13 +92,13 @@ def render_sharding_table(plan_dict: dict) -> Table:
 
 
 def render_cluster_banner() -> None:
-    """Renders the Loom Fabric Commander botanical breeze terminal banner."""
+    """Renders the Loom Fabric Commander mechanistic terminal banner."""
     banner_text = Text()
     banner_text.append("LOOM FABRIC COMMANDER ", style="bold green")
-    banner_text.append("v0.1.0 [Flora & Breeze]\n", style="bold bright_magenta")
-    banner_text.append("Sovereign Heterogeneous AI Compute Fabric — Precursor to ClothOS\n", style="dim white")
+    banner_text.append("v0.1.0 // Mechanistic AI Compute Engine\n", style="bold bright_magenta")
+    banner_text.append("Sovereign Heterogeneous Silicon Architecture — Precursor to ClothOS (RISC-V/TPU)\n", style="dim white")
     banner_text.append("Topology: ", style="bright_cyan")
     banner_text.append("RTX 3060 (12GB CUDA) + RX 580 (8GB Vulkan) + Ryzen 7 7730U Head (16 vCPUs)\n", style="white")
     banner_text.append("Invariants: ", style="magenta")
-    banner_text.append("Zero-Trust Torque Enclave [Scrubbing] * Zero-OOM MMU Allocator * Air-Gap Moltbook", style="bold bright_magenta")
-    console.print(Panel(banner_text, border_style="green", subtitle="[dim cyan]~ fresh meadow zephyr & wisteria accents ~[/dim cyan]"))
+    banner_text.append("Torque Zero-Trust Enclave * Stitch Zero-OOM MMU * Moltbook Egress Air-Gap", style="bold bright_magenta")
+    console.print(Panel(banner_text, border_style="green", subtitle="[dim cyan]~ mechanistic silicon fabric & royal wisteria accents ~[/dim cyan]"))

@@ -279,29 +279,29 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <body>
     <div class="header">
         <div>
-            <div class="title">🌿 LOOM FABRIC COMMANDER</div>
-            <div class="subtitle">Sovereign Heterogeneous AI Compute Engine &bull; Flora &amp; Breeze Edition (ClothOS Precursor)</div>
+            <div class="title">LOOM FABRIC COMMANDER</div>
+            <div class="subtitle">Mechanistic Heterogeneous AI Compute Engine (Ray Mesh + Stitch MMU + Torque Enclave + Loom Shell) &bull; Precursor to ClothOS</div>
         </div>
-        <div class="status-badge" id="cluster-status">CLUSTER HEALTHY &bull; PORT 8002</div>
+        <div class="status-badge" id="cluster-status">SILICON MESH HEALTHY &bull; PORT 8002</div>
     </div>
 
     <div class="grid">
         <div class="card">
-            <div class="card-title">Compute Worker Node (SkyTech)</div>
-            <div class="stat-row"><span>IP Address</span><span class="stat-val">192.168.99.1</span></div>
-            <div class="stat-row"><span>GPU 0 (Primary)</span><span class="stat-val">RTX 3060 12GB (CUDA)</span></div>
-            <div class="stat-row"><span>GPU 1 (Secondary)</span><span class="stat-val">RX 580 8GB (Vulkan)</span></div>
+            <div class="card-title">Worker Silicon Node (skyTech // Dual-GPU)</div>
+            <div class="stat-row"><span>IP Address</span><span class="stat-val">192.168.99.1 (1Gbps Direct Wire)</span></div>
+            <div class="stat-row"><span>GPU 0 (Primary)</span><span class="stat-val">RTX 3060 12GB (CUDA 12.x)</span></div>
+            <div class="stat-row"><span>GPU 1 (Secondary)</span><span class="stat-val">RX 580 8GB (Vulkan 1.3)</span></div>
             <div class="stat-row"><span>Host Memory</span><span class="stat-val">40 GB DDR4</span></div>
-            <div class="stat-row"><span>Process Guard</span><span class="stat-val">Win32 Job Object</span></div>
+            <div class="stat-row"><span>Process Guard</span><span class="stat-val">Win32 Job Object (Kernel Limit)</span></div>
         </div>
 
         <div class="card">
-            <div class="card-title">Cluster Head Node (Ryzen)</div>
-            <div class="stat-row"><span>IP Address</span><span class="stat-val">192.168.99.2</span></div>
-            <div class="stat-row"><span>Processor</span><span class="stat-val">AMD Ryzen 7 7730U (16 vCPUs)</span></div>
+            <div class="card-title">Head Coordinator Node (Ryzen 7 7730U)</div>
+            <div class="stat-row"><span>IP Address</span><span class="stat-val">192.168.99.2 (1Gbps Direct Wire)</span></div>
+            <div class="stat-row"><span>Processor</span><span class="stat-val">AMD Ryzen 7 7730U (16 vCPUs, 32 GB RAM)</span></div>
             <div class="stat-row"><span>Ray GCS Redis</span><span class="stat-val">Port 6379</span></div>
             <div class="stat-row"><span>Loom Gateway</span><span class="stat-val">Port 8002 (SSE Active)</span></div>
-            <div class="stat-row"><span>Nightwatch Watchdog</span><span class="stat-val">Active (Auto-Healing)</span></div>
+            <div class="stat-row"><span>Nightwatch Watchdog</span><span class="stat-val">Autonomous Silicon Guard</span></div>
         </div>
 
         <div class="card">
