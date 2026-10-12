@@ -727,3 +727,9 @@ async def api_pull_model(req: Request) -> Dict[str, Any]:
     recommender = ModelHardwareRecommender()
     success = recommender.install_model_cli(model)
     return {"status": "success" if success else "failed", "model": model}
+
+
+# Mount OpenClaw Autonomic Bridge
+from loom.gateway.openclaw_bridge import router as openclaw_router
+app.include_router(openclaw_router)
+

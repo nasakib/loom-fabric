@@ -88,3 +88,9 @@ class InferenceDirector:
             "last_heartbeat": self.last_heartbeat,
             "ray_gcs_port": self.settings.head_node.ray_port,
         }
+
+
+# Aliases for cross-subsystem naming compatibility
+WorkerNodeSupervisor = PrimaryInferenceActor
+DraftInferenceActor = AuxiliaryInferenceActor
+

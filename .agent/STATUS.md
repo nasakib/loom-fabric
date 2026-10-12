@@ -1,8 +1,8 @@
 # Loom Fabric: Local Autonomous Status & Telemetry
 
-**Current Phase**: Phase 5 Complete — Botanical Restyling (Flora & Breeze + Purple Accents) & Sovereign Compute Delegation  
-**Timestamp**: 2026-10-12T15:10:00-04:00  
-**Overall Cluster Status**: HEALTHY, LIVE & STYLED (18/18 Unit Tests Passing)  
+**Current Phase**: Phase 6 Complete — Sovereign Abstraction Lockdown & OpenClaw Autonomic Bridge  
+**Timestamp**: 2026-10-12T17:11:00-04:00  
+**Overall Cluster Status**: HEALTHY, SOVEREIGN & BRIDGED (30/30 Unit Tests Passing)  
 
 ---
 
@@ -10,25 +10,28 @@
 
 | Node | Hostname / IP | Role | Processors & Accelerators | Sockets Verified | Operational State |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Worker Node** | `skyTech` / `192.168.99.1` | Heavy Compute / MMU | NVIDIA RTX 3060 12GB (CUDA) + AMD RX 580 8GB (Vulkan) + 40GB RAM | `:5555` (Fabric Commander Bridge), Local CUDA Active | **ONLINE / HEALTHY** |
-| **Head Node** | `WIN-7CMAQLVP8MV` / `192.168.99.2` | Coordinator / Router | AMD Ryzen 7 7730U (16 vCPUs, 32 GB RAM) | `:6379` (Ray GCS), `:8002` (Gateway), `:18789` (Claw) | **ONLINE / HEALTHY** |
+| **Worker Node** | `skyTech` / `192.168.99.1` | Heavy Compute / MMU | NVIDIA RTX 3060 12GB (CUDA) + AMD RX 580 8GB (Vulkan) + 40GB RAM | `:5555` (Fabric Bridge), `:8080` (Direct), Local CUDA Active | **ONLINE / HEALTHY** |
+| **Head Node** | `WIN-7CMAQLVP8MV` / `192.168.99.2` | Coordinator / Router | AMD Ryzen 7 7730U (16 vCPUs, 32 GB RAM) | `:6379` (Ray GCS), `:8002` (Gateway), `:18789` (OpenClaw) | **ONLINE / HEALTHY** |
 
 ### Probed Physical Accelerators
-- **NVIDIA GeForce RTX 3060 12GB**: Driver `617.14` | Total VRAM: `12,288 MB` | Usable Margin: `~10,330 MB` | Backend: `CUDA 12.x`
-- **AMD Radeon RX 580 2048SP**: Driver `31.0.21925.1001` | Total VRAM: `8,192 MB` | Backend: `Vulkan 1.3`
-- **Host Memory Topology**: `40,829.5 MB` Total DDR4 | Available: `19,023 MB`
+- **NVIDIA GeForce RTX 3060 12GB**: Driver `617.14` | Total VRAM: `12,288 MB` | Usable Margin: `~10,321 MB` | Backend: `CUDA 12.x`
+- **AMD Radeon RX 580 2048SP**: Driver `31.0.21925.1001` | Total VRAM: `4,095 MB` | Usable Margin: `~3,583 MB` | Backend: `Vulkan 1.3`
+- **Host Memory Topology**: `40,829.5 MB` Total DDR4 | Available: `22,307 MB`
 
 ---
 
-## 2. Kernel Subsystems & Applications Styling Harmonization
+## 2. Kernel Subsystems & Bridge Integration
 
 | Subsystem / Application | Target Files | Aesthetic & Conventions | Status |
 | :--- | :--- | :--- | :--- |
-| **The Shuttle (PWA)** | `stitch-core/bridge/templates/bridge.html`, `manifest.json` | **Mechanistic Ingress / Botanical Palette**: Renamed to **The Shuttle — Loom Fabric**. Flora & Breeze Canvas (`#10b981`, `#38bdf8`), with Mandated Royal Purple Accents (`#a855f7`, `#c084fc`). Mechanistic taxonomy across all pills and tabs. Default: `Loom Fabric Mechanistic Triage (Dynamic Compute Arbitrage)`. | **DEPLOYED & ACTIVE** |
-| **Loom Fabric Commander (GUI)** | `loom/gui.py` | **Mechanistic Desktop Canvas**: Forest Night Canvas (`#07120a`), Foliage Cards (`#122818`), Blooming Tabs (`THE WEAVE`, `THE SHUTTLE`, `TORQUE VAULT`, `THE SPOOL`). | **STABLE & VERIFIED** |
-| **Loom Fabric CLI** | `loom/cli/formatters.py`, `loom/cli/main.py` | **Mechanistic Rich UI**: Windows cp1252-safe stream handling, meadow emerald panels, wisteria purple tables, mechanistic silicon allocation matrix. | **VERIFIED (`loom probe`, `loom shard`)** |
-| **Loom Gateway Web UI** | `loom/gateway/app.py` | **Mechanistic Dashboard**: Real-time SSE streaming console on `:8002`, compute-based triage, on-the-fly token rehydration. | **ONLINE ON PORT 8002** |
-| **Scientific Web UI** | `stitch-core/web/templates/index.html` | **Loom Fabric Connectome WebUI**: Emerald lawns, breeze cyan, wisteria purple buttons on `:5000`. | **SYNCHRONIZED** |
+| **OpenClaw API Bridge** | `loom/gateway/openclaw_bridge.py` | Mounted at `/v1/openclaw` on `:8002`. Zero-trust Enclave scrubbing, QCTRouter triage, Ray cluster dispatch, and async webhook callback (`:18789`). | **DEPLOYED & VERIFIED** |
+| **QCT Hybrid Router** | `loom/torque/scheduler.py` | Tier 1 Deterministic (RTX 3060), Tier 2 Thermodynamic (Z3 SMT/QUBO on simulated p-bit solvers), Tier 3 Quantum/Cloud Fallback (>300s alert). | **ONLINE & VERIFIED** |
+| **Zero-Trust Enclave** | `loom/torque/enclave.py` | `RehydrationVault`, `Scrubber`, `EgressFirewall` (`SecurityEgressViolation`), `Rehydrator`, `Enclave` facade. Strict IP airgap. | **LOCKDOWN ACTIVE** |
+| **The Moltbook Protocol** | `loom/torque/moltbook.py` | OPSEC Enclave research discussion pipeline (`mb_disc_17dd35598aca`) on Thermodynamic Computing seeded. Pivoted to passive listening mode. | **TRANSMITTED & LISTENING** |
+| **The Shuttle (PWA)** | `stitch-core/bridge/templates/bridge.html` | Flora & Breeze Canvas (`#10b981`, `#38bdf8`) with Royal Purple Accents (`#a855f7`, `#c084fc`). | **DEPLOYED & ACTIVE** |
+| **Loom Fabric Commander (GUI)** | `loom/gui.py` | Mechanistic Desktop Canvas with Blooming Tabs. | **STABLE & VERIFIED** |
+| **Loom Fabric CLI** | `loom/cli/main.py` | Windows cp1252-safe stream handling, meadow emerald panels. | **VERIFIED (`loom probe`, `loom shard`)** |
+| **Loom Gateway Web UI** | `loom/gateway/app.py` | Real-time SSE streaming console on `:8002`, token rehydration on the fly. | **ONLINE ON PORT 8002** |
 
 ---
 
@@ -43,7 +46,19 @@ tests/test_enclave.py::test_egress_firewall_drops_protected_ip PASSED
 tests/test_enclave.py::test_egress_firewall_allows_clean_or_local_payloads PASSED
 tests/test_mmu.py::test_mmu_layer_allocation_rtx3060_envelope PASSED
 tests/test_mmu.py::test_mmu_spillover_to_cpu_when_vram_exceeded PASSED
+tests/test_moltbook_ad010.py::test_moltbook_opsec_violation_drops_packet PASSED
+tests/test_moltbook_ad010.py::test_moltbook_initiate_research_discussion_ad010 PASSED
+tests/test_openclaw_bridge.py::test_openclaw_dispatch_scrubbed_payload PASSED
+tests/test_openclaw_bridge.py::test_openclaw_dispatch_clean_payload PASSED
+tests/test_openclaw_bridge.py::test_openclaw_telemetry PASSED
 tests/test_profiler.py::test_hardware_profiler_probing PASSED
+tests/test_qct_router.py::test_core_abstractions_immutability PASSED
+tests/test_qct_router.py::test_protocol_implementations PASSED
+tests/test_qct_router.py::test_zero_trust_enclave_facade_and_rehydration PASSED
+tests/test_qct_router.py::test_egress_firewall_raises_security_egress_violation PASSED
+tests/test_qct_router.py::test_qct_router_tier1_deterministic PASSED
+tests/test_qct_router.py::test_qct_router_tier2_thermodynamic PASSED
+tests/test_qct_router.py::test_qct_router_tier3_quantum_cloud_fallback PASSED
 tests/test_scheduler.py::test_scheduler_compaction_turn_triage PASSED
 tests/test_scheduler.py::test_scheduler_formal_reasoning_triage PASSED
 tests/test_scheduler.py::test_scheduler_heavy_code_distributed_dag_triage PASSED
@@ -54,13 +69,17 @@ tests/test_torque.py::test_torque_scrubber_pii_and_keys PASSED
 tests/test_torque.py::test_torque_router_local_override PASSED
 tests/test_torque.py::test_torque_router_rapid_query PASSED
 
-Total: 18 PASSED, 0 FAILED, 0 ERRORS in 2.69s
+Total: 30 PASSED, 0 FAILED, 0 ERRORS in 4.29s
 ```
 
 ---
 
-## 4. Next Actions in Directives Inbox
+## 4. Operational Invariants Verified
 
-- [x] All application interfaces, PWA, GUIs, and CLIs restyled to Flora & Breeze with Purple accents.
-- [x] Fabric default routing with intelligent compute triage established across both PWA and Gateway.
-- System standing by for ClothOS kernel specifications or cluster workload dispatch.
+- [x] Immutable Pydantic v2 Models (`RoutingDecision`, `SanitizedPayload`, `EnclaveToken` with `frozen=True`).
+- [x] Runtime Protocols (`ScrubberProtocol`, `VaultProtocol`, `RouterProtocol`).
+- [x] Zero-Trust Enclave with `RehydrationVault`, `Scrubber`, `EgressFirewall` (`SecurityEgressViolation`), and `Rehydrator`.
+- [x] QCT Hybrid Router (Deterministic, Thermodynamic, Quantum/Cloud Fallback).
+- [x] OpenClaw API Bridge (`/v1/openclaw/dispatch`, `/v1/openclaw/telemetry`, async callback webhook).
+- [x] AD-010 Moltbook research discussion on Thermodynamic Computing seeded with strict OPSEC and active passive ingress listening.
+- [x] Live cluster diagnostics probed and validated across `skyTech` (worker) and `WIN-7CMAQLVP8MV` (head).

@@ -104,6 +104,9 @@ class ExecutionTier(str, Enum):
     TIER_1_LOCAL_RAPID = "tier_1_local_rapid"          # Low-latency RTX 3060 CUDA (14B/7B)
     TIER_2_DISTRIBUTED_DAG = "tier_2_distributed_dag"  # Heterogeneous Ray Cluster (Ryzen + RX 580)
     TIER_3_SOVEREIGN_CLOUD = "tier_3_sovereign_cloud"  # Scrubbed Zero-Trust Cloud Arbitrage (>300s compute)
+    TIER_1_DETERMINISTIC = "tier_1_deterministic"      # Standard sequential inference on local RTX 3060
+    TIER_2_THERMODYNAMIC = "tier_2_thermodynamic"      # Z3 SMT constraints / QUBO on simulated p-bit solvers
+    TIER_3_QUANTUM_CLOUD = "tier_3_quantum_cloud"      # Quantum / Cloud fallback (>300s) with Zero-Trust scrub
 
 
 class AcceleratorVendor(str, Enum):
@@ -193,6 +196,38 @@ class RoutingDecision(BaseModel):
     reasoning: str = Field(..., description="Audit rationale explaining the routing choice")
     circuit_breaker_triggered: bool = Field(False, description="Whether 300s limit tripped manual confirmation")
     requires_manual_approval: bool = Field(False, description="Whether user approval is needed before cloud dispatch")
+    routing_alert: Optional[str] = Field(None, description="Optional security or cloud fallback alert message")
+    task_id: Optional[str] = Field(None, description="Dispatched task identifier")
+
+
+class SanitizedPayload(BaseModel):
+    """Immutable DTO holding sanitized prompt payload with synthetic token mappings."""
+    model_config = ConfigDict(frozen=True)
+
+    original_text: str = Field(..., description="Original unscrubbed prompt text")
+    sanitized_text: str = Field(..., description="Anonymized text containing synthetic tokens")
+    replacements_count: int = Field(0, description="Total replacements performed")
+    vault_token_map: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Lookup mapping of {token_tag: original_sensitive_entity}",
+    )
+    contains_protected_ip: bool = Field(False, description="True if proprietary IP assets were detected")
+    is_scrubbed: bool = Field(False, description="True if any sensitive entity was scrubbed")
+
+    @property
+    def scrubbed_text(self) -> str:
+        """Compatibility property matching ScrubbedPayload."""
+        return self.sanitized_text
+
+
+class EnclaveToken(BaseModel):
+    """Immutable synthetic token record managed by the RehydrationVault."""
+    model_config = ConfigDict(frozen=True)
+
+    token_tag: str = Field(..., description="Synthetic token identifier e.g. <<ENCLAVE_VAR_1>>")
+    original_value: str = Field(..., description="Original sensitive IP or PII entity")
+    category: str = Field("IP", description="Classification e.g. 'IP', 'PII', 'KEY'")
+    created_at: float = Field(default=0.0, description="Timestamp token was registered")
 
 
 class ScrubbedPayload(BaseModel):
@@ -298,6 +333,27 @@ class ShardingPlan(BaseModel):
 # ============================================================================
 
 @runtime_checkable
+class VaultProtocol(Protocol):
+    """Rust Trait equivalent: `pub trait RehydrationVault`"""
+
+    def get_or_create_token(self, original_value: str) -> str:
+        """Returns existing synthetic tag for original_value or registers a new one."""
+        ...
+
+    def resolve(self, token: str) -> Optional[str]:
+        """Resolves synthetic token back to original sovereign entity."""
+        ...
+
+    def snapshot(self) -> Dict[str, str]:
+        """Returns an immutable copy of the active token map."""
+        ...
+
+    def clear(self) -> None:
+        """Flushes the active vault."""
+        ...
+
+
+@runtime_checkable
 class ScrubberProtocol(Protocol):
     """Rust Trait equivalent: `pub trait Scrubber`"""
 
@@ -305,7 +361,7 @@ class ScrubberProtocol(Protocol):
         """Strips proprietary IP and PII, replacing them with synthetic tags stored in Vault."""
         ...
 
-    def rehydrate(self, scrubbed_text: str, vault_map: Dict[str, str]) -> str:
+    def rehydrate(self, scrubbed_text: str, vault_map: Optional[Mapping[str, str]] = None) -> str:
         """Restores synthetic tags with original proprietary terms."""
         ...
 

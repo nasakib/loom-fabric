@@ -17,14 +17,20 @@ from typing import Dict, List, Mapping, Optional, Pattern, Tuple
 from loom.config import get_settings
 from loom.types import (
     EgressFirewallProtocol,
+    SanitizedPayload,
     ScrubbedPayload,
     ScrubberProtocol,
+    VaultProtocol,
 )
 
 
-class EgressViolationError(PermissionError):
+class SecurityEgressViolation(PermissionError):
     """Raised when the Egress Firewall detects prohibited sovereign IP in an outbound payload."""
     pass
+
+
+# Compatibility alias for existing callers
+EgressViolationError = SecurityEgressViolation
 
 
 class RehydrationVault:
@@ -136,6 +142,22 @@ class TorqueEnclaveScrubber(ScrubberProtocol):
             contains_protected_ip=detected_ip,
         )
 
+    def sanitize(self, text: str) -> SanitizedPayload:
+        """Scrubs protected IP and sensitive PII returning immutable SanitizedPayload."""
+        res = self.tokenize_and_store(text)
+        return SanitizedPayload(
+            original_text=res.original_text,
+            sanitized_text=res.scrubbed_text,
+            replacements_count=res.replacements_count,
+            vault_token_map=res.vault_token_map,
+            contains_protected_ip=res.contains_protected_ip,
+            is_scrubbed=res.replacements_count > 0,
+        )
+
+    def scrub(self, text: str) -> SanitizedPayload:
+        """Alias for sanitize() returning immutable SanitizedPayload."""
+        return self.sanitize(text)
+
     def rehydrate(self, scrubbed_text: str, vault_map: Optional[Mapping[str, str]] = None) -> str:
         """Restores synthetic tokens back to original sovereign entities."""
         if not scrubbed_text:
@@ -150,6 +172,32 @@ class TorqueEnclaveScrubber(ScrubberProtocol):
             if token in result:
                 result = result.replace(token, original)
         return result
+
+
+class Rehydrator:
+    """Reverse mapping to replace synthetic tokens with original entities for local delivery."""
+
+    def __init__(self, vault: Optional[RehydrationVault] = None) -> None:
+        self.vault = vault
+
+    def rehydrate(self, scrubbed_text: str, vault_map: Optional[Mapping[str, str]] = None) -> str:
+        """Restores synthetic tokens back to original entities."""
+        if not scrubbed_text:
+            return ""
+
+        mapping = vault_map if vault_map is not None else (self.vault.snapshot() if self.vault else {})
+        if not mapping:
+            return scrubbed_text
+
+        result = scrubbed_text
+        for token, original in mapping.items():
+            if token in result:
+                result = result.replace(token, original)
+        return result
+
+
+# Core class aliases matching architectural directives
+Scrubber = TorqueEnclaveScrubber
 
 
 class EgressFirewall(EgressFirewallProtocol):
@@ -183,3 +231,15 @@ class EgressFirewall(EgressFirewallProtocol):
                 )
 
         return True
+
+
+class Enclave:
+    """Zero-Trust Enclave namespace facade exposing core components."""
+    Vault = RehydrationVault
+    RehydrationVault = RehydrationVault
+    Scrubber = TorqueEnclaveScrubber
+    TorqueEnclaveScrubber = TorqueEnclaveScrubber
+    EgressFirewall = EgressFirewall
+    Rehydrator = Rehydrator
+    SecurityEgressViolation = SecurityEgressViolation
+    EgressViolationError = SecurityEgressViolation

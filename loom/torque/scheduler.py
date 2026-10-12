@@ -189,3 +189,136 @@ class TorqueCascadeScheduler(RouterProtocol):
             circuit_breaker_triggered=False,
             requires_manual_approval=False,
         )
+
+
+class SimulatedPBitSolver:
+    """Mock simulated p-bit (probabilistic bits) thermodynamic solver for QUBO and SMT problems."""
+
+    @staticmethod
+    def solve_qubo(qubo_matrix: Any, num_samples: int = 1000) -> dict[str, Any]:
+        """Simulates thermodynamic energy minimization over stochastic p-bits."""
+        return {
+            "status": "CONVERGED",
+            "lowest_energy": -42.0,
+            "sample_count": num_samples,
+            "state_vector": [1, -1, 1, 1, -1],
+            "solver_backend": "Simulated-Thermodynamic-PBit",
+        }
+
+    @staticmethod
+    def solve_smt(formula: str) -> dict[str, Any]:
+        """Simulates thermodynamic acceleration for Z3 SMT constraint systems."""
+        return {
+            "status": "SAT",
+            "solver_backend": "Simulated-Thermodynamic-PBit-Z3",
+            "metrics": {"entropy_harvested_uj": 1.42, "iterations": 85},
+        }
+
+
+class QCTHybridRouter(RouterProtocol):
+    """QCT Hybrid Router implementing deterministic, thermodynamic, and quantum/cloud tiers.
+
+    - Tier 1 (Deterministic): Route standard sequential inference to local RTX 3060.
+    - Tier 2 (Thermodynamic): Route Z3 SMT constraints/QUBO mappings to simulated p-bit solvers.
+    - Tier 3 (Quantum/Cloud Fallback): If solve time > 300s, trigger Enclave.Scrubber to strip IP
+      and raise a routing alert for external cloud fallback.
+    """
+
+    def __init__(self) -> None:
+        self.settings = get_settings()
+        self.cascade_scheduler = TorqueCascadeScheduler()
+        self.pbit_solver = SimulatedPBitSolver()
+
+    def estimate_solve_time(self, prompt: str) -> float:
+        """Estimates execution duration heuristic in seconds."""
+        words = len(prompt.split())
+        est_tokens = words * 1.33 + min(4096.0, max(120.0, words * 1.8))
+        base_sec = est_tokens / 28.0
+        multiplier = 1.0
+        lower = prompt.lower()
+        if "qubo" in lower or "smt" in lower or "z3" in lower or "ising" in lower:
+            multiplier += 0.8
+        if "prove" in lower or "exhaustive" in lower:
+            multiplier += 0.6
+        return round(base_sec * multiplier, 2)
+
+    def route_task(
+        self,
+        raw_prompt: str,
+        task_type: str = "inference",
+        execution_tier: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> RoutingDecision:
+        """Evaluates raw prompt and task specification to determine execution tier."""
+        from loom.torque.enclave import TorqueEnclaveScrubber
+        from loom.types import ChatMessageDTO
+
+        duration = self.estimate_solve_time(raw_prompt)
+        lower = raw_prompt.lower()
+        tier_str = (execution_tier or "").lower()
+
+        # Check for Tier 3 Cloud Fallback (>300s)
+        if duration > 300.0 or "tier_3" in tier_str or "cloud" in tier_str or "quantum" in tier_str:
+            # Trigger Enclave Scrubber to strip IP
+            scrubber = TorqueEnclaveScrubber()
+            scrub_res = scrubber.tokenize_and_store(raw_prompt)
+            alert = (
+                f"ROUTING_ALERT_TIER3_CLOUD_FALLBACK: Estimated solve time {duration:.1f}s exceeds 300s threshold. "
+                f"Zero-Trust Enclave scrubber triggered ({scrub_res.replacements_count} tokens anonymized)."
+            )
+            return RoutingDecision(
+                tier=ExecutionTier.TIER_3_QUANTUM_CLOUD,
+                estimated_duration_seconds=duration,
+                target_endpoint=self.settings.torque.cloud_api_url,
+                is_scrubbed=True,
+                model_name=self.settings.torque.cloud_model,
+                reasoning=f"Tier 3 Cloud/Quantum Fallback: {alert}",
+                circuit_breaker_triggered=True,
+                requires_manual_approval=True,
+                routing_alert=alert,
+                task_id=session_id,
+            )
+
+        # Check for Tier 2 Thermodynamic (Z3 SMT, QUBO, Ising, p-bits)
+        is_thermo = (
+            "thermodynamic" in tier_str
+            or "tier_2" in tier_str
+            or task_type in ["smt", "qubo", "thermodynamic", "pbit"]
+            or any(k in lower for k in ["qubo", "ising", "p-bit", "pbit", "z3", "smt constraint", "max-cut"])
+        )
+        if is_thermo:
+            return RoutingDecision(
+                tier=ExecutionTier.TIER_2_THERMODYNAMIC,
+                estimated_duration_seconds=min(duration, 45.0),
+                target_endpoint="http://127.0.0.1:8002/simulated-pbit",
+                is_scrubbed=False,
+                model_name="simulated-pbit-solver:v1",
+                reasoning="Tier 2 Thermodynamic: Routed Z3 SMT constraints / QUBO to simulated p-bit solver.",
+                circuit_breaker_triggered=False,
+                requires_manual_approval=False,
+                routing_alert=None,
+                task_id=session_id,
+            )
+
+        # Tier 1 Deterministic: standard sequential inference to local RTX 3060
+        return RoutingDecision(
+            tier=ExecutionTier.TIER_1_DETERMINISTIC,
+            estimated_duration_seconds=duration,
+            target_endpoint=self.settings.endpoints.worker_native_url,
+            is_scrubbed=False,
+            model_name="qwen2.5:7b",
+            reasoning="Tier 1 Deterministic: Routed standard sequential inference to local RTX 3060 CUDA accelerator.",
+            circuit_breaker_triggered=False,
+            requires_manual_approval=False,
+            routing_alert=None,
+            task_id=session_id,
+        )
+
+    def route(self, payload: PromptPayload) -> RoutingDecision:
+        """Route method fulfilling RouterProtocol."""
+        full_text = " ".join([m.content for m in payload.messages])
+        return self.route_task(full_text)
+
+
+# Aliases matching directives
+QCTRouter = QCTHybridRouter

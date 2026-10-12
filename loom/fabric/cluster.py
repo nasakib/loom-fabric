@@ -126,3 +126,8 @@ class FabricClusterOrchestrator:
             "head_node": self.settings.head_node.model_dump(),
             "worker_node": self.settings.worker_nodes[0].model_dump() if self.settings.worker_nodes else None,
         }
+
+
+# Aliases for cross-subsystem compatibility
+RayClusterManager = FabricClusterOrchestrator
+

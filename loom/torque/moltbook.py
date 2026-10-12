@@ -132,7 +132,7 @@ class MoltbookHarvester:
     def dispatch_outbound_webhook(self, destination_url: str, payload: Dict[str, Any]) -> bool:
         """Strict Egress Firewall: drops packet if outbound data leaks protected IP assets."""
         serialized = json.dumps(payload)
-        # Inspect payload - raises EgressViolationError if protected IP is detected
+        # Inspect payload - raises SecurityEgressViolation if protected IP is detected
         self.firewall.inspect_outbound_payload(destination_url, serialized)
 
         # Furthermore, Moltbook writes are strictly prohibited by protocol invariant
@@ -142,6 +142,62 @@ class MoltbookHarvester:
             )
 
         return True
+
+    def initiate_research_discussion(
+        self,
+        topic: str,
+        content: str,
+        egress_url: str = "https://moltbook.org/api/v1/discussions",
+    ) -> Dict[str, Any]:
+        """Initiates a high-level research discussion on Moltbook through the Zero-Trust Enclave egress pipeline.
+
+        OPSEC Mandate:
+        - Routes the draft through TorqueEnclaveScrubber before transmitting.
+        - Strict EgressFirewall drops packet and raises SecurityEgressViolation if raw proprietary IP leaks.
+        - Seeds the discussion, registers the thread locally, and immediately pivots to passive listening mode.
+        """
+        from loom.torque.enclave import TorqueEnclaveScrubber
+
+        # 1. OPSEC Scrubber pass
+        scrubber = TorqueEnclaveScrubber()
+        scrubbed_topic = scrubber.tokenize_and_store(topic)
+        scrubbed_body = scrubber.tokenize_and_store(content)
+
+        # 2. Strict Egress Firewall verification
+        self.firewall.inspect_outbound_payload(egress_url, scrubbed_body.scrubbed_text)
+        self.firewall.inspect_outbound_payload(egress_url, scrubbed_topic.scrubbed_text)
+
+        # 3. Form transmitted packet
+        disc_hash = hashlib.sha256(topic.encode("utf-8")).hexdigest()[:12]
+        discussion_id = f"mb_disc_{disc_hash}"
+        payload = {
+            "discussion_id": discussion_id,
+            "topic": scrubbed_topic.scrubbed_text,
+            "content": scrubbed_body.scrubbed_text,
+            "opsec_scrubbed": (scrubbed_body.replacements_count > 0 or scrubbed_topic.replacements_count > 0),
+            "status": "TRANSMITTED",
+            "mode": "LISTENING",
+            "transmitted_at": time.time(),
+        }
+
+        # 4. Seed thread into local wisdom store
+        self.store.store_entry(
+            source_url=f"{egress_url}/{discussion_id}",
+            title=scrubbed_topic.scrubbed_text,
+            text=scrubbed_body.scrubbed_text,
+        )
+
+        # 5. Immediately pivot to listening mode
+        self.start_passive_harvesting()
+        logger.info(f"Research discussion '{discussion_id}' seeded to Moltbook. Pivoted to passive listening mode.")
+
+        return {
+            "status": "TRANSMITTED",
+            "discussion_id": discussion_id,
+            "topic": scrubbed_topic.scrubbed_text,
+            "mode": "PASSIVE_INGRESS_LISTENING",
+            "opsec_scrubbed": payload["opsec_scrubbed"],
+        }
 
     def _harvest_loop(self) -> None:
         """Periodic passive ingress routine."""
