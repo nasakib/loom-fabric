@@ -337,10 +337,36 @@ async def chat_completions(req: Request):
     telemetry = CompletionTelemetry()
     body_dict = await req.json()
 
+    # 1. Normalize model name (strip provider prefix like 'loom-fabric/' or 'ollama/')
+    raw_model = body_dict.get("model", "qwen2.5:32b")
+    clean_model = raw_model.split("/", 1)[1] if "/" in raw_model else raw_model
+    body_dict["model"] = clean_model
+
+    # 2. Normalize messages so content is always a flat string
+    # (prevents Ollama and backend 'format' errors with array/multimodal content)
+    normalized_messages = []
+    for m in body_dict.get("messages", []):
+        if isinstance(m, dict):
+            m_copy = dict(m)
+            m_copy["content"] = ChatMessageDTO.normalize_content(m.get("content", ""))
+            normalized_messages.append(m_copy)
+        else:
+            normalized_messages.append(m)
+    body_dict["messages"] = normalized_messages
+
     # Parse into typed DTOs (Rust Struct equivalent)
-    messages_dto = [ChatMessageDTO(role=m.get("role", "user"), content=m.get("content", "")) for m in body_dict.get("messages", [])]
+    messages_dto = [
+        ChatMessageDTO(
+            role=m.get("role", "user") if isinstance(m, dict) else "user",
+            content=m.get("content", "") if isinstance(m, dict) else str(m),
+            name=m.get("name") if isinstance(m, dict) else None,
+            tool_call_id=m.get("tool_call_id") if isinstance(m, dict) else None,
+            tool_calls=m.get("tool_calls") if isinstance(m, dict) else None,
+        )
+        for m in body_dict.get("messages", [])
+    ]
     payload = PromptPayload(
-        model=body_dict.get("model", "qwen2.5:32b"),
+        model=clean_model,
         messages=messages_dto,
         temperature=body_dict.get("temperature", 0.7),
         top_p=body_dict.get("top_p", 0.95),

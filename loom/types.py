@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Any, AsyncIterator, Dict, List, Optional, Protocol, runtime_checkable
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ============================================================================
@@ -47,9 +47,31 @@ class ComputeBackend(str, Enum):
 # ============================================================================
 
 class ChatMessageDTO(BaseModel):
-    """Single chat message matching OpenAI message schema."""
-    role: str = Field(..., description="Message author role: 'system', 'user', or 'assistant'")
-    content: str = Field(..., description="Raw text payload of the message")
+    """Single chat message matching OpenAI message schema, with multimodal block normalization."""
+    role: str = Field("user", description="Message author role: 'system', 'user', or 'assistant'")
+    content: str = Field("", description="Raw text payload of the message")
+    name: Optional[str] = None
+    tool_call_id: Optional[str] = None
+    tool_calls: Optional[List[Dict[str, Any]]] = None
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def normalize_content(cls, v: Any) -> str:
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return v
+        if isinstance(v, list):
+            parts = []
+            for item in v:
+                if isinstance(item, dict) and item.get("type") == "text":
+                    parts.append(str(item.get("text", "")))
+                elif isinstance(item, str):
+                    parts.append(item)
+                elif isinstance(item, dict) and "text" in item:
+                    parts.append(str(item["text"]))
+            return "\n".join(parts)
+        return str(v)
 
 
 class PromptPayload(BaseModel):

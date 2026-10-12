@@ -93,6 +93,8 @@ class GatewayRouter:
     ) -> AsyncIterator[str]:
         """Streams Server-Sent Events (SSE) from the underlying backend to the gateway client."""
         model_name = payload.get("model", "default")
+        if "/" in model_name:
+            model_name = model_name.split("/", 1)[1]
         preset = ModelRegistry.get_model(model_name)
         sharding_info = f"Layers: {preset.total_layers} ({preset.quant_label})" if preset else "Dynamic"
 
@@ -160,6 +162,8 @@ class GatewayRouter:
     ) -> Dict[str, Any]:
         """Dispatches a synchronous/non-streaming completion request."""
         model_name = payload.get("model", "default")
+        if "/" in model_name:
+            model_name = model_name.split("/", 1)[1]
         preset = ModelRegistry.get_model(model_name)
 
         if "Ollama" in provider_name:
@@ -169,6 +173,7 @@ class GatewayRouter:
                 "stream": False,
                 "options": {
                     "temperature": payload.get("temperature", 0.7),
+                    "num_ctx": payload.get("max_tokens", 8192),
                 },
             }
             res = await self.client.post(f"{target_url}/api/chat", json=ollama_payload, timeout=300.0)

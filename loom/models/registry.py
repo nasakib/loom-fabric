@@ -144,8 +144,10 @@ class ModelRegistry:
 
     @classmethod
     def get_model(cls, model_id_or_tag: str) -> Optional[ModelPreset]:
-        """Find a model preset by ID or alias tag."""
+        """Find a model preset by ID or alias tag, ignoring any provider prefix."""
         normalized = model_id_or_tag.strip().lower()
+        if "/" in normalized:
+            normalized = normalized.split("/", 1)[1]
         if normalized in BUILTIN_PRESETS:
             return BUILTIN_PRESETS[normalized]
         for preset in BUILTIN_PRESETS.values():
