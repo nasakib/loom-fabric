@@ -1,18 +1,98 @@
 """
 Protocol Interfaces (Traits) and Strict Data Transfer Objects (Structs) for Loom Fabric.
 
-Rust Migration Mapping:
-    This file corresponds directly to `loom-core/src/types.rs` in the native Rust rewrite:
-    - `typing.Protocol` maps 1:1 to `pub trait ...`
-    - `pydantic.BaseModel` maps 1:1 to `#[derive(Debug, Clone, Serialize, Deserialize)] pub struct ...`
-    - Explicit enumerations map to `#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)] pub enum ...`
+Rust & ClothOS Invariants:
+    This file maps 1:1 to `loom-core/src/types.rs` in the native Rust / ClothOS codebase:
+    - `typing.Protocol` maps to `pub trait TraitName`
+    - `pydantic.BaseModel` with `frozen=True` maps to `#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)] pub struct`
+    - Explicit enumerations map to `pub enum`
+    - Generic `Result[T, E]` maps to `std::result::Result<T, E>`
 """
 
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, AsyncIterator, Dict, List, Optional, Protocol, runtime_checkable
-from pydantic import BaseModel, Field, field_validator
+from typing import (
+    Any,
+    AsyncIterator,
+    Callable,
+    Dict,
+    Generic,
+    List,
+    Mapping,
+    Optional,
+    Protocol,
+    Tuple,
+    TypeVar,
+    Union,
+    runtime_checkable,
+)
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+# ============================================================================
+# DETERMINISTIC RESULT MONAD (Rust: std::result::Result<T, E>)
+# ============================================================================
+
+T = TypeVar("T")
+E = TypeVar("E")
+
+
+class Ok(Generic[T]):
+    """Represents a successful outcome holding value of type T."""
+    __slots__ = ("_value",)
+
+    def __init__(self, value: T) -> None:
+        self._value = value
+
+    @property
+    def value(self) -> T:
+        return self._value
+
+    def is_ok(self) -> bool:
+        return True
+
+    def is_err(self) -> bool:
+        return False
+
+    def unwrap(self) -> T:
+        return self._value
+
+    def unwrap_err(self) -> Any:
+        raise ValueError("Called unwrap_err on Ok")
+
+    def __repr__(self) -> str:
+        return f"Ok({self._value!r})"
+
+
+class Err(Generic[E]):
+    """Represents a failed outcome holding error of type E."""
+    __slots__ = ("_error",)
+
+    def __init__(self, error: E) -> None:
+        self._error = error
+
+    @property
+    def error(self) -> E:
+        return self._error
+
+    def is_ok(self) -> bool:
+        return False
+
+    def is_err(self) -> bool:
+        return True
+
+    def unwrap(self) -> Any:
+        raise ValueError(f"Called unwrap on Err: {self._error!r}")
+
+    def unwrap_err(self) -> E:
+        return self._error
+
+    def __repr__(self) -> str:
+        return f"Err({self._error!r})"
+
+
+Result = Union[Ok[T], Err[E]]
 
 
 # ============================================================================
@@ -42,14 +122,27 @@ class ComputeBackend(str, Enum):
     CPU = "cpu"
 
 
+class QuantizationType(str, Enum):
+    """Supported GGUF weight quantization formats."""
+    FP16 = "FP16"
+    Q8_0 = "Q8_0"
+    Q6_K = "Q6_K"
+    Q5_K_M = "Q5_K_M"
+    Q4_K_M = "Q4_K_M"
+    Q4_0 = "Q4_0"
+    Q3_K_M = "Q3_K_M"
+
+
 # ============================================================================
-# DATA TRANSFER OBJECTS (Rust: pub struct)
+# IMMUTABLE DATA TRANSFER OBJECTS (Rust: pub struct)
 # ============================================================================
 
 class ChatMessageDTO(BaseModel):
-    """Single chat message matching OpenAI message schema, with multimodal block normalization."""
+    """Single chat message with multimodal block flattening."""
+    model_config = ConfigDict(frozen=True)
+
     role: str = Field("user", description="Message author role: 'system', 'user', or 'assistant'")
-    content: str = Field("", description="Raw text payload of the message")
+    content: str = Field("", description="Raw flat text payload of the message")
     name: Optional[str] = None
     tool_call_id: Optional[str] = None
     tool_calls: Optional[List[Dict[str, Any]]] = None
@@ -76,6 +169,8 @@ class ChatMessageDTO(BaseModel):
 
 class PromptPayload(BaseModel):
     """Complete incoming generation request DTO."""
+    model_config = ConfigDict(frozen=True)
+
     model: str = Field(..., description="Model identifier requested by caller")
     messages: List[ChatMessageDTO] = Field(..., description="Chronological conversation transcript")
     temperature: float = Field(0.7, ge=0.0, le=2.0, description="Sampling randomness")
@@ -83,20 +178,27 @@ class PromptPayload(BaseModel):
     max_tokens: int = Field(4096, ge=1, le=131072, description="Maximum completion tokens")
     stream: bool = Field(False, description="Whether to emit Server-Sent Events (SSE)")
     force_local: bool = Field(False, description="Forced override to bypass cloud routing")
+    airgap: bool = Field(False, description="Strict air-gap flag: absolutely zero external egress")
 
 
 class RoutingDecision(BaseModel):
     """Decision output generated by the Torque complexity router."""
+    model_config = ConfigDict(frozen=True)
+
     tier: ExecutionTier = Field(..., description="Selected execution tier")
     estimated_duration_seconds: float = Field(..., description="Calculated duration heuristic")
     target_endpoint: str = Field(..., description="HTTP or RPC address where inference will execute")
     is_scrubbed: bool = Field(..., description="Whether prompt requires Vault anonymization")
     model_name: str = Field(..., description="Resolved model identifier")
     reasoning: str = Field(..., description="Audit rationale explaining the routing choice")
+    circuit_breaker_triggered: bool = Field(False, description="Whether 300s limit tripped manual confirmation")
+    requires_manual_approval: bool = Field(False, description="Whether user approval is needed before cloud dispatch")
 
 
 class ScrubbedPayload(BaseModel):
     """Result of Torque zero-trust anonymization."""
+    model_config = ConfigDict(frozen=True)
+
     original_text: str = Field(..., description="Original unscrubbed prompt text")
     scrubbed_text: str = Field(..., description="Anonymized text with synthetic vault tokens")
     replacements_count: int = Field(..., description="Number of sensitive entities replaced")
@@ -104,27 +206,91 @@ class ScrubbedPayload(BaseModel):
         default_factory=dict,
         description="Lookup mapping of {token_tag: original_sensitive_entity}",
     )
+    contains_protected_ip: bool = Field(False, description="True if proprietary IP assets were detected")
 
 
 class GPUSpec(BaseModel):
     """Hardware descriptor for physical accelerator."""
+    model_config = ConfigDict(frozen=True)
+
     index: int
     name: str
     vendor: AcceleratorVendor
     backend: ComputeBackend
-    total_vram_mb: int
-    free_vram_mb: int
+    total_vram_mb: float
+    free_vram_mb: float
+    driver_version: Optional[str] = None
     compute_capability: Optional[str] = None
     is_primary_display: bool = False
 
 
 class HardwareProfile(BaseModel):
     """Probed physical hardware snapshot across node."""
+    model_config = ConfigDict(frozen=True)
+
     node_name: str
     cpu_cores_logical: int
-    total_ram_mb: int
-    available_ram_mb: int
+    total_ram_mb: float
+    available_ram_mb: float
     gpus: List[GPUSpec] = Field(default_factory=list)
+
+
+class ModelArchitectureProfile(BaseModel):
+    """Mathematical parameter layout of an LLM."""
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    total_layers: int
+    hidden_dim: int
+    num_heads: int
+    num_heads_kv: int
+    head_dim: int
+    model_size_mb: float
+    quant_type: str = "Q4_K_M"
+    context_length: int = 8192
+    bytes_per_kv_element: float = 2.0
+
+
+class DeviceAllocation(BaseModel):
+    """Layer sharding boundary assigned to a single physical device."""
+    model_config = ConfigDict(frozen=True)
+
+    device_id: str
+    device_name: str
+    device_backend: str
+    layer_start_idx: int
+    layer_end_idx: int
+    layer_count: int
+    weights_memory_mb: float
+    kv_memory_mb: float
+    total_memory_mb: float
+    memory_headroom_mb: float
+
+
+class ShardingPlan(BaseModel):
+    """Zero-OOM mathematical placement plan."""
+    model_config = ConfigDict(frozen=True)
+
+    model_name: str
+    total_layers: int
+    context_length: int
+    allocations: List[DeviceAllocation] = Field(default_factory=list)
+    spilled_to_cpu: bool = False
+    spilled_layer_count: int = 0
+    calculated_at: float = 0.0
+
+    def render_cli_argument_string(self) -> str:
+        """Renders llama-server --tensor-split argument string."""
+        gpu_allocs = [a for a in self.allocations if a.device_backend != "CPU"]
+        if not gpu_allocs:
+            return "-ngl 0"
+        total_gpu_layers = sum(a.layer_count for a in gpu_allocs)
+        total_mem = sum(a.total_memory_mb for a in gpu_allocs)
+        if total_mem <= 0:
+            return f"-ngl {total_gpu_layers}"
+        fractions = [f"{a.total_memory_mb / total_mem:.3f}" for a in gpu_allocs]
+        split_arg = ",".join(fractions)
+        return f"-ngl {total_gpu_layers} --tensor-split {split_arg}"
 
 
 # ============================================================================
@@ -145,6 +311,15 @@ class ScrubberProtocol(Protocol):
 
 
 @runtime_checkable
+class EgressFirewallProtocol(Protocol):
+    """Rust Trait equivalent: `pub trait EgressFirewall`"""
+
+    def inspect_outbound_payload(self, destination_url: str, payload_text: str) -> bool:
+        """Returns True if egress is permitted, or False if outbound transmission must be dropped."""
+        ...
+
+
+@runtime_checkable
 class RouterProtocol(Protocol):
     """Rust Trait equivalent: `pub trait ComplexityRouter`"""
 
@@ -157,12 +332,11 @@ class RouterProtocol(Protocol):
 class AllocatorProtocol(Protocol):
     """Rust Trait equivalent: `pub trait LayerAllocator`"""
 
-    def calculate_layer_splits(
+    def calculate_plan(
         self,
-        total_layers: int,
-        model_size_mb: float,
-        context_length: int,
-    ) -> Dict[str, Any]:
+        profile: ModelArchitectureProfile,
+        allow_cpu_spill: bool = True,
+    ) -> ShardingPlan:
         """Calculates zero-OOM layer splits across available accelerators."""
         ...
 

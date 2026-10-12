@@ -24,10 +24,12 @@ class NodeEndpointConfig(BaseModel):
     name: str = Field(..., description="Unique node identifier (e.g., 'skyTech', 'ryzenHead').")
     ip: str = Field(..., description="IPv4 address across the direct-wire or overlay mesh.")
     role: str = Field(..., description="Cluster role: 'head', 'worker', or 'hybrid'.")
+    tailscale_ip: Optional[str] = Field(default="100.100.99.1", description="Secondary Tailscale overlay mesh IP.")
+    wol_mac: Optional[str] = Field(default="00:D8:61:A4:7B:12", description="MAC address for Wake-on-LAN dispatch.")
     ray_port: int = Field(default=6379, description="Ray GCS connection port.")
     dashboard_port: int = Field(default=8265, description="Ray dashboard and job submission port.")
     stitch_port: int = Field(default=5555, description="Stitch Bridge node synchronization port.")
-    gateway_port: int = Field(default=8000, description="Loom HTTP API Gateway port.")
+    gateway_port: int = Field(default=8002, description="Loom HTTP API Gateway port.")
     ollama_port: int = Field(default=11434, description="Local Ollama daemon port if present.")
     is_local: bool = Field(default=False, description="Whether this node corresponds to the local execution host.")
 
@@ -96,16 +98,18 @@ class TorqueSecurityConfig(BaseModel):
             "Fourier's Library",
             "VectorForge",
             "Mycos",
-            "Gnorbit",
             "BabelForge",
+            "Gnorbit",
+            "Spotlight Local",
+            "ClothOS",
             "StitchBridge",
             "LoomFabric",
         ],
-        description="Proprietary IP keywords that must never leave sovereign local hardware.",
+        description="Proprietary Protected IP keywords that must never leave sovereign local hardware.",
     )
     pii_patterns: Dict[str, str] = Field(
         default_factory=lambda: {
-            "EMAIL": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b",
+            "EMAIL": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,24}\b",
             "IPV4": r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b",
             "API_KEY": r"\b(?:sk-[a-zA-Z0-9]{32,}|ghp_[a-zA-Z0-9]{36,}|AIzaSy[a-zA-Z0-9_-]{33})\b",
             "ETH_ADDR": r"\b0x[a-fA-F0-9]{40}\b",
@@ -117,11 +121,11 @@ class TorqueSecurityConfig(BaseModel):
         description="Compute time threshold in seconds before offloading to cloud with scrubbing.",
     )
     cloud_api_url: str = Field(
-        default="https://api.openai.com/v1/chat/completions",
+        default="https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
         description="Target upstream cloud endpoint for Tier 3 scrubbed queries.",
     )
     cloud_model: str = Field(
-        default="gpt-4o-mini",
+        default="gemini-2.5-flash",
         description="Upstream model to use for Tier 3 scrubbed completions.",
     )
 
