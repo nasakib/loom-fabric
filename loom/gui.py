@@ -1,17 +1,23 @@
 """
-Loom Fabric — Native Desktop Control Center GUI.
+LOOM FABRIC COMMAND CENTER — Sovereign Heterogeneous Compute & Zero-Trust Orchestration GUI.
 
-A sleek, modern, zero-dependency desktop application for Windows, Linux, and macOS.
-Allows non-technical users and cluster operators to:
-1. View live cluster status (SkyTech Dual-GPU Worker + Ryzen Head Node).
-2. Monitor real-time GPU VRAM, compute tiers, and host memory allocations.
-3. Start, stop, and restart the Loom Gateway and Torque Zero-Trust guards with 1 click.
-4. Run interactive prompts directly inside the GUI with live telemetry headers (TTFT, TPS, Route).
-5. Inspect the Torque Rehydration Vault to verify zero-egress IP protection in real time.
+Architected to mirror the four pillars of Loom Fabric:
+- THE WEAVE: Physical Cluster Hardware Topology & Distributed Dynamic Mesh (Ray + Stitch)
+- THE SHUTTLE: Multi-Model Inference Dispatcher, Layer Sharding Telemetry & SSE Streaming Console
+- TORQUE VAULT: Sovereign Zero-Trust IP/PII De-identification, Rehydration Mapping & Cloud Arbitrage Audit
+- THE SPOOL: Preset Model Registry, Quantization Footprints & Memory Budgets
+
+Cross-Platform Compatibility:
+- Windows 10/11 (Direct3D/WDDM & Win32 Job Object Monitor)
+- Linux (Ubuntu, Debian, Fedora, Arch — CUDA / ROCm / Vulkan)
+- macOS (Apple Silicon M-Series Metal Unified Memory & Intel)
 """
+
+from __future__ import annotations
 
 import json
 import os
+import platform
 import subprocess
 import sys
 import threading
@@ -21,241 +27,337 @@ from tkinter import ttk, messagebox, scrolledtext
 import urllib.request
 import urllib.error
 
-# Theme Colors (Deep Cyberpunk / Dark Mode)
-BG_DARK = "#0b0f19"
-BG_CARD = "#131b2e"
-BG_INPUT = "#070a12"
-ACCENT_BLUE = "#38bdf8"
-ACCENT_GREEN = "#4ade80"
-ACCENT_YELLOW = "#facc15"
-ACCENT_RED = "#f87171"
-TEXT_WHITE = "#f8fafc"
-TEXT_DIM = "#94a3b8"
-BORDER_COLOR = "#1e293b"
+# Sovereign Weaver Palette (Dark Cyberpunk / Royal Violet & Amethyst)
+CLR_OBSIDIAN = "#070a12"
+CLR_SURFACE = "#0f111d"
+CLR_CARD = "#141726"
+CLR_BORDER = "#251f38"
+CLR_PURPLE = "#a855f7"      # Electric Violet Primary Accent
+CLR_AMETHYST = "#c084fc"    # Soft Amethyst Highlight
+CLR_DEEP_PURPLE = "#7e22ce" # Deep Royal Purple
+CLR_EMERALD = "#10b981"     # Online / Healthy Status
+CLR_AMBER = "#f59e0b"       # Warning / Routing
+CLR_CRIMSON = "#ef4444"     # Error / Offline
+CLR_TEXT = "#f8fafc"
+CLR_MUTED = "#94a3b8"
 
 
-class LoomFabricGUI(tk.Tk):
-    """Main Loom Fabric Native Control Center Application."""
+class LoomFabricCommandCenter(tk.Tk):
+    """Loom Fabric Sovereign Desktop Command Center."""
 
     def __init__(self, gateway_url: str = "http://127.0.0.1:8002"):
         super().__init__()
-        self.gateway_url = gateway_url
-        self.title("Loom Fabric — Sovereign AI Operating System Control Center")
-        self.geometry("1000x720")
-        self.minsize(880, 600)
-        self.configure(bg=BG_DARK)
+        self.gateway_url = gateway_url.rstrip("/")
+        self.title("Loom Fabric — Sovereign AI Operating System Command Center")
+        self.geometry("1060x760")
+        self.minsize(920, 640)
+        self.configure(bg=CLR_OBSIDIAN)
 
-        # State tracking
-        self.is_monitoring = True
-        self.cluster_online = False
+        # Operating system brand tag
+        self.os_tag = f"{platform.system()} ({platform.machine()})"
 
-        self._apply_styles()
-        self._build_ui()
+        self.is_running = True
+        self.cluster_connected = False
 
-        # Start background health monitoring thread
-        self.monitor_thread = threading.Thread(target=self._poll_status_loop, daemon=True)
-        self.monitor_thread.start()
+        self._configure_styles()
+        self._assemble_interface()
 
-    def _apply_styles(self):
+        # Launch background async polling thread
+        self.poller = threading.Thread(target=self._telemetry_poller_daemon, daemon=True)
+        self.poller.start()
+
+    def _configure_styles(self):
         style = ttk.Style(self)
         style.theme_use("clam")
 
-        # Configure custom notebook tabs
-        style.configure("TNotebook", background=BG_DARK, borderwidth=0)
-        style.configure("TNotebook.Tab", background=BG_CARD, foreground=TEXT_WHITE, padding=[16, 8], font=("Segoe UI", 10, "bold"))
-        style.map("TNotebook.Tab", background=[("selected", ACCENT_BLUE)], foreground=[("selected", BG_DARK)])
+        style.configure("TNotebook", background=CLR_OBSIDIAN, borderwidth=0)
+        style.configure(
+            "TNotebook.Tab",
+            background=CLR_CARD,
+            foreground=CLR_TEXT,
+            padding=[18, 10],
+            font=("Segoe UI", 10, "bold"),
+            borderwidth=0
+        )
+        style.map(
+            "TNotebook.Tab",
+            background=[("selected", CLR_PURPLE)],
+            foreground=[("selected", CLR_TEXT)]
+        )
 
-        style.configure("TFrame", background=BG_DARK)
-        style.configure("Card.TFrame", background=BG_CARD, relief="flat")
+        style.configure("TCombobox", fieldbackground=CLR_OBSIDIAN, background=CLR_CARD, foreground=CLR_TEXT)
 
-    def _build_ui(self):
-        # 1. Header Bar
-        header = tk.Frame(self, bg=BG_DARK, height=70, padx=20, pady=15)
-        header.pack(fill="x", side="top")
+    def _assemble_interface(self):
+        # Top Masthead
+        masthead = tk.Frame(self, bg=CLR_SURFACE, height=75, padx=24, pady=14, highlightbackground=CLR_BORDER, highlightthickness=1)
+        masthead.pack(fill="x", side="top")
 
-        title_lbl = tk.Label(header, text="LOOM FABRIC", font=("Segoe UI", 18, "bold"), fg=ACCENT_BLUE, bg=BG_DARK)
-        title_lbl.pack(side="left")
+        title_container = tk.Frame(masthead, bg=CLR_SURFACE)
+        title_container.pack(side="left")
 
-        subtitle_lbl = tk.Label(header, text="  Sovereign Heterogeneous AI Compute Fabric", font=("Segoe UI", 10), fg=TEXT_DIM, bg=BG_DARK)
-        subtitle_lbl.pack(side="left", pady=4)
+        lbl_logo = tk.Label(title_container, text="LOOM FABRIC", font=("Segoe UI", 18, "bold"), fg=CLR_PURPLE, bg=CLR_SURFACE)
+        lbl_logo.pack(side="left")
 
-        self.status_badge = tk.Label(
-            header,
-            text="● INITIALIZING",
+        lbl_subtitle = tk.Label(title_container, text="  // Sovereign AI Compute Operating System", font=("Segoe UI", 10, "bold"), fg=CLR_AMETHYST, bg=CLR_SURFACE)
+        lbl_subtitle.pack(side="left", pady=3)
+
+        # Right Telemetry Hub
+        right_meta = tk.Frame(masthead, bg=CLR_SURFACE)
+        right_meta.pack(side="right")
+
+        self.lbl_os = tk.Label(right_meta, text=f"HOST: {self.os_tag}", font=("Consolas", 9), fg=CLR_MUTED, bg=CLR_SURFACE)
+        self.lbl_os.pack(side="top", anchor="e")
+
+        self.badge_status = tk.Label(
+            right_meta,
+            text="● INITIALIZING FABRIC",
             font=("Segoe UI", 9, "bold"),
-            fg=ACCENT_YELLOW,
-            bg="#2a2408",
+            fg=CLR_AMBER,
+            bg="#2a1f05",
             padx=12,
-            pady=4,
+            pady=3,
             relief="solid",
             bd=1
         )
-        self.status_badge.pack(side="right")
+        self.badge_status.pack(side="bottom", pady=(4, 0))
 
-        # 2. Main Tabs
-        self.notebook = ttk.Notebook(self)
-        self.notebook.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        # Main Navigator (The Four Pillars)
+        self.navigator = ttk.Notebook(self)
+        self.navigator.pack(fill="both", expand=True, padx=20, pady=16)
 
-        # Tab 1: Dashboard & Accelerators
-        self.tab_dash = tk.Frame(self.notebook, bg=BG_DARK, padx=15, pady=15)
-        self.notebook.add(self.tab_dash, text="Cluster Topology")
-        self._build_dashboard_tab(self.tab_dash)
+        # Pillar 1 & 3: THE WEAVE (Cluster Topology & Ray Mesh)
+        self.tab_weave = tk.Frame(self.navigator, bg=CLR_OBSIDIAN, padx=16, pady=16)
+        self.navigator.add(self.tab_weave, text="The Weave (Cluster Topology)")
+        self._build_weave_tab(self.tab_weave)
 
-        # Tab 2: Test Console & Chat
-        self.tab_chat = tk.Frame(self.notebook, bg=BG_DARK, padx=15, pady=15)
-        self.notebook.add(self.tab_chat, text="Inference Console")
-        self._build_chat_tab(self.tab_chat)
+        # Pillar 4: THE SHUTTLE (Inference Console & Dispatcher)
+        self.tab_shuttle = tk.Frame(self.navigator, bg=CLR_OBSIDIAN, padx=16, pady=16)
+        self.navigator.add(self.tab_shuttle, text="The Shuttle (Inference Console)")
+        self._build_shuttle_tab(self.tab_shuttle)
 
-        # Tab 3: Torque Vault & Security
-        self.tab_vault = tk.Frame(self.notebook, bg=BG_DARK, padx=15, pady=15)
-        self.notebook.add(self.tab_vault, text="Torque Zero-Trust Vault")
-        self._build_vault_tab(self.tab_vault)
+        # Pillar 1: TORQUE VAULT (Zero-Trust De-identification)
+        self.tab_torque = tk.Frame(self.navigator, bg=CLR_OBSIDIAN, padx=16, pady=16)
+        self.navigator.add(self.tab_torque, text="Torque Vault (Zero-Trust)")
+        self._build_torque_tab(self.tab_torque)
 
-    def _build_dashboard_tab(self, parent):
-        # Cards Grid
-        grid_frame = tk.Frame(parent, bg=BG_DARK)
-        grid_frame.pack(fill="x", pady=(0, 15))
+        # Pillar 2: THE SPOOL (Model Presets & Zero-OOM Budgets)
+        self.tab_spool = tk.Frame(self.navigator, bg=CLR_OBSIDIAN, padx=16, pady=16)
+        self.navigator.add(self.tab_spool, text="The Spool (Models & Sharding)")
+        self._build_spool_tab(self.tab_spool)
 
-        # Card 1: Desktop Worker (SkyTech)
-        c1 = tk.Frame(grid_frame, bg=BG_CARD, padx=15, pady=15, highlightbackground=BORDER_COLOR, highlightthickness=1)
-        c1.pack(side="left", fill="both", expand=True, padx=(0, 10))
+    def _build_weave_tab(self, parent):
+        grid = tk.Frame(parent, bg=CLR_OBSIDIAN)
+        grid.pack(fill="x", pady=(0, 14))
 
-        tk.Label(c1, text="COMPUTE WORKER NODE (SKYTECH)", font=("Segoe UI", 10, "bold"), fg=ACCENT_BLUE, bg=BG_CARD).pack(anchor="w", pady=(0, 10))
-        self.lbl_worker_ip = tk.Label(c1, text="IP: 192.168.99.1 (Direct Wire)", font=("Segoe UI", 9), fg=TEXT_WHITE, bg=BG_CARD)
-        self.lbl_worker_ip.pack(anchor="w", pady=2)
-        self.lbl_gpu0 = tk.Label(c1, text="GPU 0: NVIDIA RTX 3060 12GB (CUDA 12.x)", font=("Segoe UI", 9), fg=ACCENT_GREEN, bg=BG_CARD)
-        self.lbl_gpu0.pack(anchor="w", pady=2)
-        self.lbl_gpu1 = tk.Label(c1, text="GPU 1: AMD RX 580 8GB (Vulkan / GCN)", font=("Segoe UI", 9), fg=ACCENT_GREEN, bg=BG_CARD)
-        self.lbl_gpu1.pack(anchor="w", pady=2)
-        self.lbl_worker_ram = tk.Label(c1, text="Host Memory: 40 GB DDR4", font=("Segoe UI", 9), fg=TEXT_WHITE, bg=BG_CARD)
-        self.lbl_worker_ram.pack(anchor="w", pady=2)
-        self.lbl_guard = tk.Label(c1, text="Process Sandbox: Win32 Job Object (Zero Orphan)", font=("Segoe UI", 8), fg=TEXT_DIM, bg=BG_CARD)
-        self.lbl_guard.pack(anchor="w", pady=(6, 0))
+        # Worker Node Card
+        w_card = tk.Frame(grid, bg=CLR_CARD, padx=16, pady=14, highlightbackground=CLR_BORDER, highlightthickness=1)
+        w_card.pack(side="left", fill="both", expand=True, padx=(0, 8))
 
-        # Card 2: Cluster Head (Laptop)
-        c2 = tk.Frame(grid_frame, bg=BG_CARD, padx=15, pady=15, highlightbackground=BORDER_COLOR, highlightthickness=1)
-        c2.pack(side="left", fill="both", expand=True, padx=(10, 0))
+        tk.Label(w_card, text="WORKER NODE // SKYTECH", font=("Segoe UI", 10, "bold"), fg=CLR_PURPLE, bg=CLR_CARD).pack(anchor="w", pady=(0, 8))
+        self.w_ip = tk.Label(w_card, text="IP: 192.168.99.1 (1Gbps P2P Mesh)", font=("Segoe UI", 9), fg=CLR_TEXT, bg=CLR_CARD)
+        self.w_ip.pack(anchor="w", pady=2)
+        self.w_gpu0 = tk.Label(w_card, text="GPU 0: NVIDIA RTX 3060 12GB (CUDA 12.x)", font=("Segoe UI", 9), fg=CLR_EMERALD, bg=CLR_CARD)
+        self.w_gpu0.pack(anchor="w", pady=2)
+        self.w_gpu1 = tk.Label(w_card, text="GPU 1: AMD RX 580 8GB (Vulkan 1.3)", font=("Segoe UI", 9), fg=CLR_EMERALD, bg=CLR_CARD)
+        self.w_gpu1.pack(anchor="w", pady=2)
+        self.w_ram = tk.Label(w_card, text="Host Memory: 40 GB DDR4 System RAM", font=("Segoe UI", 9), fg=CLR_TEXT, bg=CLR_CARD)
+        self.w_ram.pack(anchor="w", pady=2)
+        self.w_guard = tk.Label(w_card, text="Lifecycle Guard: Win32 Job Object / POSIX cgroups", font=("Segoe UI", 8), fg=CLR_MUTED, bg=CLR_CARD)
+        self.w_guard.pack(anchor="w", pady=(6, 0))
 
-        tk.Label(c2, text="CLUSTER HEAD NODE (RYZEN 7)", font=("Segoe UI", 10, "bold"), fg=ACCENT_BLUE, bg=BG_CARD).pack(anchor="w", pady=(0, 10))
-        self.lbl_head_ip = tk.Label(c2, text="IP: 192.168.99.2 (Direct Wire)", font=("Segoe UI", 9), fg=TEXT_WHITE, bg=BG_CARD)
-        self.lbl_head_ip.pack(anchor="w", pady=2)
-        self.lbl_head_cpu = tk.Label(c2, text="Processor: AMD Ryzen 7 7730U (16 vCPUs)", font=("Segoe UI", 9), fg=TEXT_WHITE, bg=BG_CARD)
-        self.lbl_head_cpu.pack(anchor="w", pady=2)
-        self.lbl_ray = tk.Label(c2, text="Ray GCS / Dashboard: Active (6379 / 8265)", font=("Segoe UI", 9), fg=ACCENT_GREEN, bg=BG_CARD)
-        self.lbl_ray.pack(anchor="w", pady=2)
-        self.lbl_gw = tk.Label(c2, text="Loom Gateway: Port 8002 (OpenAI SSE Proxy)", font=("Segoe UI", 9), fg=TEXT_WHITE, bg=BG_CARD)
-        self.lbl_gw.pack(anchor="w", pady=2)
-        self.lbl_openclaw = tk.Label(c2, text="OpenClaw Integration: Synchronized on Both Machines", font=("Segoe UI", 8), fg=ACCENT_GREEN, bg=BG_CARD)
-        self.lbl_openclaw.pack(anchor="w", pady=(6, 0))
+        # Head Node Card
+        h_card = tk.Frame(grid, bg=CLR_CARD, padx=16, pady=14, highlightbackground=CLR_BORDER, highlightthickness=1)
+        h_card.pack(side="left", fill="both", expand=True, padx=(8, 0))
 
-        # Lower details log area
-        tk.Label(parent, text="LIVE ACCELERATOR TELEMETRY", font=("Segoe UI", 10, "bold"), fg=TEXT_DIM, bg=BG_DARK).pack(anchor="w", pady=(10, 4))
-        self.txt_telemetry = scrolledtext.ScrolledText(parent, bg=BG_INPUT, fg=TEXT_WHITE, font=("Consolas", 9), height=14, relief="flat", insertbackground=TEXT_WHITE)
+        tk.Label(h_card, text="HEAD NODE // RYZEN 7 7730U", font=("Segoe UI", 10, "bold"), fg=CLR_PURPLE, bg=CLR_CARD).pack(anchor="w", pady=(0, 8))
+        self.h_ip = tk.Label(h_card, text="IP: 192.168.99.2 (1Gbps P2P Mesh)", font=("Segoe UI", 9), fg=CLR_TEXT, bg=CLR_CARD)
+        self.h_ip.pack(anchor="w", pady=2)
+        self.h_cpu = tk.Label(h_card, text="Compute: 16 Zen 3 vCPUs, 16 GB DDR4", font=("Segoe UI", 9), fg=CLR_TEXT, bg=CLR_CARD)
+        self.h_cpu.pack(anchor="w", pady=2)
+        self.h_ray = tk.Label(h_card, text="Ray Cluster GCS: 6379 | Dashboard: 8265", font=("Segoe UI", 9), fg=CLR_EMERALD, bg=CLR_CARD)
+        self.h_ray.pack(anchor="w", pady=2)
+        self.h_gw = tk.Label(h_card, text="Loom Gateway: Port 8002 (OpenAI SSE Proxy)", font=("Segoe UI", 9), fg=CLR_TEXT, bg=CLR_CARD)
+        self.h_gw.pack(anchor="w", pady=2)
+        self.h_openclaw = tk.Label(h_card, text="OpenClaw Mesh: Synchronized across Both Nodes", font=("Segoe UI", 8), fg=CLR_EMERALD, bg=CLR_CARD)
+        self.h_openclaw.pack(anchor="w", pady=(6, 0))
+
+        # Diagnostic Raw Stream
+        tk.Label(parent, text="PHYSICAL ACCELERATOR TELEMETRY STREAM", font=("Segoe UI", 9, "bold"), fg=CLR_MUTED, bg=CLR_OBSIDIAN).pack(anchor="w", pady=(8, 4))
+        self.txt_telemetry = scrolledtext.ScrolledText(
+            parent,
+            bg=CLR_CARD,
+            fg=CLR_TEXT,
+            font=("Consolas", 9),
+            height=14,
+            relief="flat",
+            insertbackground=CLR_TEXT
+        )
         self.txt_telemetry.pack(fill="both", expand=True)
 
-    def _build_chat_tab(self, parent):
-        top_bar = tk.Frame(parent, bg=BG_DARK)
-        top_bar.pack(fill="x", pady=(0, 10))
+    def _build_shuttle_tab(self, parent):
+        controls = tk.Frame(parent, bg=CLR_OBSIDIAN)
+        controls.pack(fill="x", pady=(0, 10))
 
-        tk.Label(top_bar, text="Target Model:", font=("Segoe UI", 9, "bold"), fg=TEXT_WHITE, bg=BG_DARK).pack(side="left", padx=(0, 8))
-        self.combo_model = ttk.Combobox(top_bar, values=["qwen2.5:32b", "deepseek-r1:14b", "qwen2.5:7b", "qwen2.5:3b"], state="readonly", width=20)
-        self.combo_model.set("qwen2.5:32b")
-        self.combo_model.pack(side="left", padx=(0, 15))
+        tk.Label(controls, text="Select Target Model:", font=("Segoe UI", 9, "bold"), fg=CLR_TEXT, bg=CLR_OBSIDIAN).pack(side="left", padx=(0, 8))
+        self.sel_model = ttk.Combobox(
+            controls,
+            values=["qwen2.5:32b", "deepseek-r1:14b", "qwen2.5:7b", "qwen2.5:3b"],
+            state="readonly",
+            width=22
+        )
+        self.sel_model.set("qwen2.5:32b")
+        self.sel_model.pack(side="left", padx=(0, 14))
 
-        self.lbl_route_tag = tk.Label(top_bar, text="Route: Ready", font=("Segoe UI", 9), fg=TEXT_DIM, bg=BG_DARK)
-        self.lbl_route_tag.pack(side="left")
+        self.lbl_telemetry_tag = tk.Label(controls, text="Routing: Standby", font=("Segoe UI", 9, "bold"), fg=CLR_MUTED, bg=CLR_OBSIDIAN)
+        self.lbl_telemetry_tag.pack(side="left")
 
-        # Chat Output Area
-        self.txt_chat_out = scrolledtext.ScrolledText(parent, bg=BG_INPUT, fg=TEXT_WHITE, font=("Consolas", 10), height=18, relief="flat", wrap="word", insertbackground=TEXT_WHITE)
-        self.txt_chat_out.pack(fill="both", expand=True, pady=(0, 10))
+        # Chat Stream Area
+        self.txt_chat = scrolledtext.ScrolledText(
+            parent,
+            bg=CLR_CARD,
+            fg=CLR_TEXT,
+            font=("Consolas", 10),
+            height=18,
+            relief="flat",
+            wrap="word",
+            insertbackground=CLR_TEXT
+        )
+        self.txt_chat.pack(fill="both", expand=True, pady=(0, 12))
 
-        # Prompt input area
-        input_frame = tk.Frame(parent, bg=BG_DARK)
-        input_frame.pack(fill="x")
+        # Input Frame
+        in_frame = tk.Frame(parent, bg=CLR_OBSIDIAN)
+        in_frame.pack(fill="x")
 
-        self.ent_prompt = tk.Entry(input_frame, bg=BG_INPUT, fg=TEXT_WHITE, font=("Segoe UI", 10), relief="flat", insertbackground=TEXT_WHITE)
-        self.ent_prompt.pack(side="left", fill="x", expand=True, padx=(0, 10), ipady=8)
-        self.ent_prompt.bind("<Return>", lambda e: self._send_inference())
+        self.input_box = tk.Entry(
+            in_frame,
+            bg=CLR_CARD,
+            fg=CLR_TEXT,
+            font=("Segoe UI", 10),
+            relief="flat",
+            insertbackground=CLR_TEXT
+        )
+        self.input_box.pack(side="left", fill="x", expand=True, padx=(0, 10), ipady=8)
+        self.input_box.bind("<Return>", lambda e: self._dispatch_completion())
 
-        btn_send = tk.Button(input_frame, text="Generate", font=("Segoe UI", 9, "bold"), bg=ACCENT_BLUE, fg=BG_DARK, activebackground=ACCENT_GREEN, relief="flat", padx=18, command=self._send_inference)
+        btn_send = tk.Button(
+            in_frame,
+            text="Launch Query",
+            font=("Segoe UI", 9, "bold"),
+            bg=CLR_PURPLE,
+            fg=CLR_OBSIDIAN,
+            activebackground=CLR_EMERALD,
+            relief="flat",
+            padx=20,
+            command=self._dispatch_completion
+        )
         btn_send.pack(side="right")
 
-    def _build_vault_tab(self, parent):
-        tk.Label(parent, text="TORQUE ZERO-TRUST REHYDRATION VAULT", font=("Segoe UI", 12, "bold"), fg=ACCENT_BLUE, bg=BG_DARK).pack(anchor="w", pady=(0, 6))
+    def _build_torque_tab(self, parent):
+        tk.Label(parent, text="TORQUE // ZERO-TRUST IP & CREDENTIAL VAULT", font=("Segoe UI", 12, "bold"), fg=CLR_PURPLE, bg=CLR_OBSIDIAN).pack(anchor="w", pady=(0, 4))
         tk.Label(
             parent,
-            text="Whenever prompts route to Tier 3 Cloud Arbitrage, proprietary IP (fouriersLibrary, VectorForge, Mycos) and credentials\nare stripped and stored here locally before the query exits your hardware. Outputs are rehydrated on the fly.",
+            text="All queries routing to Tier 3 Cloud Arbitrage (>300s compute) are scrubbed before departure.\n"
+                 "Entities like 'fouriersLibrary', 'VectorForge', 'Mycos', and API keys are mapped into synthetic vault tokens\n"
+                 "and rehydrated on the fly before delivery back to the client.",
             font=("Segoe UI", 9),
-            fg=TEXT_DIM,
-            bg=BG_DARK,
+            fg=CLR_MUTED,
+            bg=CLR_OBSIDIAN,
             justify="left"
-        ).pack(anchor="w", pady=(0, 15))
+        ).pack(anchor="w", pady=(0, 12))
 
-        self.txt_vault_log = scrolledtext.ScrolledText(parent, bg=BG_INPUT, fg=ACCENT_GREEN, font=("Consolas", 10), height=20, relief="flat", insertbackground=TEXT_WHITE)
-        self.txt_vault_log.pack(fill="both", expand=True)
+        self.txt_vault = scrolledtext.ScrolledText(
+            parent,
+            bg=CLR_CARD,
+            fg=CLR_EMERALD,
+            font=("Consolas", 10),
+            height=20,
+            relief="flat",
+            insertbackground=CLR_TEXT
+        )
+        self.txt_vault.pack(fill="both", expand=True)
 
-    def _poll_status_loop(self):
-        """Background daemon polling the local Loom Fabric Gateway."""
-        while self.is_monitoring:
+    def _build_spool_tab(self, parent):
+        tk.Label(parent, text="THE SPOOL // MODEL PRESETS & LAYER ALLOCATIONS", font=("Segoe UI", 12, "bold"), fg=CLR_PURPLE, bg=CLR_OBSIDIAN).pack(anchor="w", pady=(0, 4))
+        tk.Label(
+            parent,
+            text="Mathematical layer sharding plans calculated across heterogeneous accelerators without out-of-memory risks.",
+            font=("Segoe UI", 9),
+            fg=CLR_MUTED,
+            bg=CLR_OBSIDIAN
+        ).pack(anchor="w", pady=(0, 12))
+
+        self.txt_spool = scrolledtext.ScrolledText(
+            parent,
+            bg=CLR_CARD,
+            fg=CLR_TEXT,
+            font=("Consolas", 9),
+            height=20,
+            relief="flat",
+            insertbackground=CLR_TEXT
+        )
+        self.txt_spool.pack(fill="both", expand=True)
+
+    def _telemetry_poller_daemon(self):
+        while self.is_running:
             try:
                 req = urllib.request.Request(f"{self.gateway_url}/health")
                 with urllib.request.urlopen(req, timeout=2) as resp:
                     if resp.status == 200:
-                        self.cluster_online = True
-                        self._update_badge("● CLUSTER ONLINE", ACCENT_GREEN, "#0a2612")
+                        self.cluster_connected = True
+                        self._set_status_badge("● CLUSTER ONLINE", CLR_EMERALD, "#052e16")
             except Exception:
-                self.cluster_online = False
-                self._update_badge("● GATEWAY OFFLINE", ACCENT_RED, "#2a0c0c")
+                self.cluster_connected = False
+                self._set_status_badge("● GATEWAY OFFLINE", CLR_CRIMSON, "#2a0c0c")
 
-            # Fetch cluster metrics
-            if self.cluster_online:
+            if self.cluster_connected:
                 try:
                     req_m = urllib.request.Request(f"{self.gateway_url}/metrics")
                     with urllib.request.urlopen(req_m, timeout=2) as resp_m:
                         data = json.loads(resp_m.read().decode())
-                        self._render_metrics(data)
+                        self._render_telemetry_data(data)
                 except Exception:
                     pass
 
             time.sleep(3)
 
-    def _update_badge(self, text, fg_col, bg_col):
-        self.after(0, lambda: self.status_badge.config(text=text, fg=fg_col, bg=bg_col))
+    def _set_status_badge(self, text, fg_color, bg_color):
+        self.after(0, lambda: self.badge_status.config(text=text, fg=fg_color, bg=bg_color))
 
-    def _render_metrics(self, data):
+    def _render_telemetry_data(self, data):
         hw = data.get("cluster_hardware", {})
         gpus = hw.get("gpus", [])
         host = hw.get("host", {})
         lines = []
-        lines.append(f"Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        lines.append(f"Host System: {host.get('hostname')} | Cores: {host.get('cpu_cores_logical')} vCPUs | RAM: {host.get('total_ram_mb', 0):,} MB (Free: {host.get('available_ram_mb', 0):,} MB)\n")
-        lines.append("DISCOVERED ACCELERATORS:")
+        lines.append(f"Snapshot Time: {time.strftime('%Y-%m-%d %H:%M:%S')} UTC")
+        lines.append(f"Host Topology: {host.get('hostname')} | OS: {host.get('os_name')} | Cores: {host.get('cpu_cores_logical')} vCPUs")
+        lines.append(f"Memory Pools:  Total Physical: {host.get('total_ram_mb', 0):,} MB | Available: {host.get('available_ram_mb', 0):,} MB\n")
+        lines.append("ENUMERATED ACCELERATORS:")
         for idx, g in enumerate(gpus):
-            lines.append(f"  [{idx}] {g.get('name')} | {g.get('vendor')} ({g.get('backend')})")
-            lines.append(f"      Total VRAM: {g.get('total_vram_mb', 0):,} MB | Free: {g.get('free_vram_mb', 0):,} MB | SM: {g.get('compute_capability', 'N/A')}")
-        lines.append("\nACTIVE RAY CUSTOM RESOURCES:")
-        lines.append(f"  {json.dumps(hw.get('ray_custom_resources', {}), indent=2)}")
+            lines.append(f"  Tier [{idx}] -> {g.get('name')}")
+            lines.append(f"      Vendor: {g.get('vendor')} | Backend: {g.get('backend')} | Total VRAM: {g.get('total_vram_mb', 0):,} MB | Free: {g.get('free_vram_mb', 0):,} MB")
 
-        text_str = "\n".join(lines)
-        def _apply():
+        lines.append(f"\nREGISTERED RAY CUSTOM RESOURCES:\n{json.dumps(hw.get('ray_custom_resources', {}), indent=2)}")
+
+        rendered = "\n".join(lines)
+        def _update():
             self.txt_telemetry.delete("1.0", tk.END)
-            self.txt_telemetry.insert(tk.END, text_str)
-        self.after(0, _apply)
+            self.txt_telemetry.insert(tk.END, rendered)
+        self.after(0, _update)
 
-    def _send_inference(self):
-        prompt = self.ent_prompt.get().strip()
+    def _dispatch_completion(self):
+        prompt = self.input_box.get().strip()
         if not prompt:
             return
-        self.ent_prompt.delete(0, tk.END)
+        self.input_box.delete(0, tk.END)
 
-        model = self.combo_model.get()
-        self.txt_chat_out.insert(tk.END, f"\nUser > {prompt}\n", "user")
-        self.txt_chat_out.insert(tk.END, f"Loom ({model}) > Generating...", "assistant")
-        self.txt_chat_out.see(tk.END)
+        model = self.sel_model.get()
+        self.txt_chat.insert(tk.END, f"\nUser > {prompt}\n", "user")
+        self.txt_chat.insert(tk.END, f"Loom Fabric ({model}) > Generating...", "assistant")
+        self.txt_chat.see(tk.END)
 
-        threading.Thread(target=self._run_inference_query, args=(prompt, model), daemon=True).start()
+        threading.Thread(target=self._run_async_query, args=(prompt, model), daemon=True).start()
 
-    def _run_inference_query(self, prompt, model):
+    def _run_async_query(self, prompt, model):
         payload = {
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
@@ -276,28 +378,35 @@ class LoomFabricGUI(tk.Tk):
                 scrubbed = headers.get("x-torque-scrubbed", "false")
                 tps = headers.get("x-loom-tokens-per-sec", "N/A")
 
-                tag_text = f"Route: {route} | Scrubbed: {scrubbed} | TPS: {tps}"
-                self.after(0, lambda: self.lbl_route_tag.config(text=tag_text, fg=ACCENT_GREEN))
+                tag_msg = f"Route: {route} | Scrubbed: {scrubbed} | TPS: {tps}"
+                self.after(0, lambda: self.lbl_telemetry_tag.config(text=tag_msg, fg=CLR_EMERALD))
+
+                # Update Torque Vault log if scrubbed
+                if scrubbed.lower() == "true":
+                    vault_entry = f"[{time.strftime('%H:%M:%S')}] Scrubbed & Rehydrated Query for model {model}:\nOriginal Prompt Snippet: {prompt[:80]}...\nRoute: {route}\n"
+                    def _update_v():
+                        self.txt_vault.insert(tk.END, vault_entry)
+                        self.txt_vault.see(tk.END)
+                    self.after(0, _update_v)
 
                 def _render_reply():
-                    # Replace generating text with reply
-                    text = self.txt_chat_out.get("1.0", tk.END)
+                    text = self.txt_chat.get("1.0", tk.END)
                     idx = text.rfind("Generating...")
                     if idx != -1:
-                        self.txt_chat_out.delete(f"1.0 + {idx} chars", tk.END)
-                    self.txt_chat_out.insert(tk.END, f"{content}\n\n")
-                    self.txt_chat_out.see(tk.END)
+                        self.txt_chat.delete(f"1.0 + {idx} chars", tk.END)
+                    self.txt_chat.insert(tk.END, f"{content}\n\n")
+                    self.txt_chat.see(tk.END)
                 self.after(0, _render_reply)
 
         except Exception as e:
             def _render_err():
-                self.txt_chat_out.insert(tk.END, f"\n[Error: {e}]\n\n")
-                self.txt_chat_out.see(tk.END)
+                self.txt_chat.insert(tk.END, f"\n[Error: {e}]\n\n")
+                self.txt_chat.see(tk.END)
             self.after(0, _render_err)
 
 
 def main():
-    app = LoomFabricGUI()
+    app = LoomFabricCommandCenter()
     app.mainloop()
 
 

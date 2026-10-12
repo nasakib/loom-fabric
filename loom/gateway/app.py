@@ -76,13 +76,15 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     <title>Loom Fabric — Sovereign Local AI Operating System</title>
     <style>
         :root {
-            --bg: #0b0f19;
-            --card: #131b2e;
-            --border: #1e293b;
-            --accent: #38bdf8;
-            --green: #4ade80;
-            --yellow: #facc15;
-            --text: #f1f5f9;
+            --bg: #070a12;
+            --card: #121524;
+            --border: #261f38;
+            --accent: #a855f7;
+            --accent-glow: rgba(168, 85, 247, 0.25);
+            --amethyst: #c084fc;
+            --green: #10b981;
+            --yellow: #f59e0b;
+            --text: #f8fafc;
             --text-dim: #94a3b8;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }

@@ -72,8 +72,8 @@ def render_sharding_table(plan_dict: dict) -> Table:
 def render_cluster_banner() -> None:
     """Renders the Loom Fabric terminal banner."""
     banner_text = Text()
-    banner_text.append("LOOM FABRIC ", style="bold bright_magenta")
-    banner_text.append("v0.1.0\n", style="bold cyan")
-    banner_text.append("Heterogeneous Distributed AI Compute Fabric (Ray + Stitch + Loom)\n", style="dim white")
-    banner_text.append("NVIDIA RTX 3060 (CUDA) + AMD RX 580 (Vulkan) + AMD Ryzen 7 7730U Head", style="green")
-    console.print(Panel(banner_text, border_style="bright_blue"))
+    banner_text.append("LOOM FABRIC ", style="bold magenta")
+    banner_text.append("v0.1.0\n", style="bold bright_magenta")
+    banner_text.append("Heterogeneous Distributed AI Compute Fabric (Ray + Stitch + Torque + Loom)\n", style="dim white")
+    banner_text.append("NVIDIA RTX 3060 (CUDA) + AMD RX 580 (Vulkan) + AMD Ryzen 7 7730U Head", style="bright_magenta")
+    console.print(Panel(banner_text, border_style="magenta"))
