@@ -73,27 +73,35 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loom Fabric — Sovereign Local AI Operating System</title>
+    <title>Loom Fabric Commander — Sovereign AI Operating System (Flora &amp; Breeze Edition)</title>
     <style>
         :root {
-            --bg: #070712;
-            --card: #131224;
-            --border: #33264f;
-            --border-hover: #7e22ce;
-            --accent: #a855f7;
-            --accent-glow: rgba(168, 85, 247, 0.35);
+            --bg: #07120a;
+            --card: #0d1e12;
+            --border: #1d3d28;
+            --border-hover: #10b981;
+            --accent: #10b981;
+            --accent-glow: rgba(16, 185, 129, 0.35);
             --amethyst: #c084fc;
+            --purple: #a855f7;
             --royal: #7e22ce;
             --green: #10b981;
+            --clover: #34d399;
+            --dew: #6ee7b7;
+            --breeze: #38bdf8;
             --yellow: #f59e0b;
             --red: #f43f5e;
-            --text: #f8fafc;
-            --text-dim: #a1a1aa;
+            --text: #f0fdf4;
+            --text-dim: #bbf7d0;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
             background: var(--bg);
+            background-image: 
+                radial-gradient(circle at 10% 15%, rgba(16, 185, 129, 0.14) 0%, transparent 45%),
+                radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.18) 0%, transparent 50%),
+                radial-gradient(circle at 50% 30%, rgba(56, 189, 248, 0.08) 0%, transparent 60%);
             color: var(--text);
             padding: 24px;
             line-height: 1.5;
@@ -106,8 +114,8 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             border-bottom: 1px solid var(--border);
             margin-bottom: 24px;
         }
-        .title { font-size: 26px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px; }
-        .subtitle { font-size: 13px; color: var(--text-dim); }
+        .title { font-size: 26px; font-weight: 800; color: var(--clover); letter-spacing: 0.5px; }
+        .subtitle { font-size: 13px; color: var(--amethyst); }
         .status-badge {
             background: rgba(16, 185, 129, 0.15);
             color: var(--green);
@@ -115,7 +123,8 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             border-radius: 999px;
             font-size: 12px;
             font-weight: 700;
-            border: 1px solid rgba(16, 185, 129, 0.3);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            box-shadow: 0 0 12px rgba(168, 85, 247, 0.2);
         }
         .grid {
             display: grid;
@@ -270,8 +279,8 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <body>
     <div class="header">
         <div>
-            <div class="title">LOOM FABRIC</div>
-            <div class="subtitle">Sovereign Heterogeneous AI Compute Engine (Ray + Stitch + Torque + Loom)</div>
+            <div class="title">🌿 LOOM FABRIC COMMANDER</div>
+            <div class="subtitle">Sovereign Heterogeneous AI Compute Engine &bull; Flora &amp; Breeze Edition (ClothOS Precursor)</div>
         </div>
         <div class="status-badge" id="cluster-status">CLUSTER HEALTHY &bull; PORT 8002</div>
     </div>

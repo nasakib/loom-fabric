@@ -27,29 +27,34 @@ from tkinter import ttk, messagebox, scrolledtext
 import urllib.request
 import urllib.error
 
-# Sovereign Weaver Palette (Dark Cyberpunk / Royal Violet & Amethyst)
-CLR_OBSIDIAN = "#070a12"
-CLR_SURFACE = "#0f111d"
-CLR_CARD = "#141726"
-CLR_BORDER = "#251f38"
-CLR_PURPLE = "#a855f7"      # Electric Violet Primary Accent
-CLR_AMETHYST = "#c084fc"    # Soft Amethyst Highlight
-CLR_DEEP_PURPLE = "#7e22ce" # Deep Royal Purple
-CLR_EMERALD = "#10b981"     # Online / Healthy Status
-CLR_AMBER = "#f59e0b"       # Warning / Routing
-CLR_CRIMSON = "#ef4444"     # Error / Offline
-CLR_TEXT = "#f8fafc"
-CLR_MUTED = "#94a3b8"
+# Botanical Meadow & Floral Breeze Palette (Air, Breeze, Lawns, Flowers, Plants) with Purple Accents
+CLR_OBSIDIAN = "#07120a"      # Deep Forest Night Canvas
+CLR_SURFACE = "#0d1e12"       # Meadow Surface
+CLR_CARD = "#122818"          # Foliage Card Surface
+CLR_BORDER = "#1d3d28"        # Dewstem Border
+CLR_PURPLE = "#a855f7"        # Electric Violet Primary Accent (Mandated)
+CLR_AMETHYST = "#c084fc"      # Wisteria Blossom Highlight
+CLR_DEEP_PURPLE = "#7e22ce"   # Deep Royal Orchid
+CLR_LILAC = "#e9d5ff"         # Morning Lilac Text
+CLR_LAWN = "#10b981"          # Lush Lawn Emerald
+CLR_CLOVER = "#34d399"        # Spring Clover Accent
+CLR_MINT = "#6ee7b7"          # Morning Dew Mint
+CLR_BREEZE = "#38bdf8"        # Air & Morning Breeze Sky
+CLR_EMERALD = "#10b981"       # Online / Healthy Status
+CLR_AMBER = "#f59e0b"         # Warning / Routing
+CLR_CRIMSON = "#ef4444"       # Error / Offline
+CLR_TEXT = "#f0fdf4"          # Pure Spring White
+CLR_MUTED = "#bbf7d0"         # Pale Foliage Muted Text
 
 
 class LoomFabricCommandCenter(tk.Tk):
-    """Loom Fabric Sovereign Desktop Command Center."""
+    """Loom Fabric Sovereign Desktop Command Center — Botanical Edition."""
 
     def __init__(self, gateway_url: str = "http://127.0.0.1:8002"):
         super().__init__()
         self.gateway_url = gateway_url.rstrip("/")
-        self.title("Loom Fabric — Sovereign AI Operating System Command Center")
-        self.geometry("1060x760")
+        self.title("Loom Fabric Commander — Sovereign AI Operating System (Flora & Breeze)")
+        self.geometry("1080x780")
         self.minsize(920, 640)
         self.configure(bg=CLR_OBSIDIAN)
 
@@ -95,10 +100,10 @@ class LoomFabricCommandCenter(tk.Tk):
         title_container = tk.Frame(masthead, bg=CLR_SURFACE)
         title_container.pack(side="left")
 
-        lbl_logo = tk.Label(title_container, text="LOOM FABRIC", font=("Segoe UI", 18, "bold"), fg=CLR_PURPLE, bg=CLR_SURFACE)
+        lbl_logo = tk.Label(title_container, text="🌿 LOOM FABRIC COMMANDER", font=("Segoe UI", 18, "bold"), fg=CLR_LAWN, bg=CLR_SURFACE)
         lbl_logo.pack(side="left")
 
-        lbl_subtitle = tk.Label(title_container, text="  // Sovereign AI Compute Operating System", font=("Segoe UI", 10, "bold"), fg=CLR_AMETHYST, bg=CLR_SURFACE)
+        lbl_subtitle = tk.Label(title_container, text="  // Sovereign Flora & Breeze Mesh", font=("Segoe UI", 10, "bold"), fg=CLR_AMETHYST, bg=CLR_SURFACE)
         lbl_subtitle.pack(side="left", pady=3)
 
         # Right Telemetry Hub
@@ -110,10 +115,10 @@ class LoomFabricCommandCenter(tk.Tk):
 
         self.badge_status = tk.Label(
             right_meta,
-            text="● INITIALIZING FABRIC",
+            text="● BLOOMING MESH",
             font=("Segoe UI", 9, "bold"),
             fg=CLR_AMBER,
-            bg="#2a1f05",
+            bg="#0f2416",
             padx=12,
             pady=3,
             relief="solid",
@@ -127,22 +132,22 @@ class LoomFabricCommandCenter(tk.Tk):
 
         # Pillar 1 & 3: THE WEAVE (Cluster Topology & Ray Mesh)
         self.tab_weave = tk.Frame(self.navigator, bg=CLR_OBSIDIAN, padx=16, pady=16)
-        self.navigator.add(self.tab_weave, text="The Weave (Cluster Topology)")
+        self.navigator.add(self.tab_weave, text="🌱 The Weave (Cluster Topology)")
         self._build_weave_tab(self.tab_weave)
 
         # Pillar 4: THE SHUTTLE (Inference Console & Dispatcher)
         self.tab_shuttle = tk.Frame(self.navigator, bg=CLR_OBSIDIAN, padx=16, pady=16)
-        self.navigator.add(self.tab_shuttle, text="The Shuttle (Inference Console)")
+        self.navigator.add(self.tab_shuttle, text="🌿 The Shuttle (Model Triage & Compute)")
         self._build_shuttle_tab(self.tab_shuttle)
 
         # Pillar 1: TORQUE VAULT (Zero-Trust De-identification)
         self.tab_torque = tk.Frame(self.navigator, bg=CLR_OBSIDIAN, padx=16, pady=16)
-        self.navigator.add(self.tab_torque, text="Torque Vault (Zero-Trust)")
+        self.navigator.add(self.tab_torque, text="🌸 Torque Enclave (Zero-Trust Vault)")
         self._build_torque_tab(self.tab_torque)
 
         # Pillar 2: THE SPOOL (Model Presets & Zero-OOM Budgets)
         self.tab_spool = tk.Frame(self.navigator, bg=CLR_OBSIDIAN, padx=16, pady=16)
-        self.navigator.add(self.tab_spool, text="The Spool (Models & Sharding)")
+        self.navigator.add(self.tab_spool, text="🌾 The Spool (Hardware Models & Sharding)")
         self._build_spool_tab(self.tab_spool)
 
     def _build_weave_tab(self, parent):
