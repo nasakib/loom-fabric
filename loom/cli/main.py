@@ -110,6 +110,18 @@ def serve_command(
     uvicorn.run("loom.gateway.app:app", host=host, port=port, reload=reload)
 
 
+@cli.command("gui")
+def gui_command(
+    gateway_url: str = typer.Option("http://127.0.0.1:8002", "--gateway", "-g", help="Target Loom Gateway URL")
+):
+    """Launch the Loom Fabric Native Desktop Control Center GUI."""
+    from loom.gui import LoomFabricGUI
+    render_cluster_banner()
+    console.print(f"[bold green]Launching Loom Fabric Desktop GUI connecting to {gateway_url}...[/bold green]")
+    app = LoomFabricGUI(gateway_url=gateway_url)
+    app.mainloop()
+
+
 @cli.command("run")
 def run_command(
     model: str = typer.Argument("qwen2.5:32b", help="Model preset ID to chat with"),
