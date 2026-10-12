@@ -39,12 +39,22 @@ class GatewayRouter:
         self.ray_manager = ray_manager or RayClusterManager()
         self.client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=5.0))
 
-    async def determine_target_endpoint(self, model_name: str) -> Tuple[str, str]:
+    async def determine_target_endpoint(
+        self,
+        model_name: str,
+        tier: Optional[Any] = None,
+        cloud_url: Optional[str] = None,
+    ) -> Tuple[str, str]:
         """Determines the best available backend URL and provider name for the request.
 
         Returns:
             Tuple of (endpoint_url, provider_name)
         """
+        # 0. Check if routed to Tier 3 Sovereign Cloud
+        if tier and ("cloud" in str(tier).lower() or "tier_3" in str(tier).lower()):
+            target = cloud_url or self.settings.torque.cloud_api_url
+            return target, "Sovereign-Cloud-Arbitrage"
+
         # 1. Check if Ray cluster is active with registered director
         if self.ray_manager.is_connected:
             try:

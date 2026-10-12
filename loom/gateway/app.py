@@ -76,16 +76,19 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     <title>Loom Fabric — Sovereign Local AI Operating System</title>
     <style>
         :root {
-            --bg: #070a12;
-            --card: #121524;
-            --border: #261f38;
+            --bg: #070712;
+            --card: #131224;
+            --border: #33264f;
+            --border-hover: #7e22ce;
             --accent: #a855f7;
-            --accent-glow: rgba(168, 85, 247, 0.25);
+            --accent-glow: rgba(168, 85, 247, 0.35);
             --amethyst: #c084fc;
+            --royal: #7e22ce;
             --green: #10b981;
             --yellow: #f59e0b;
+            --red: #f43f5e;
             --text: #f8fafc;
-            --text-dim: #94a3b8;
+            --text-dim: #a1a1aa;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -103,16 +106,16 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             border-bottom: 1px solid var(--border);
             margin-bottom: 24px;
         }
-        .title { font-size: 24px; font-weight: 700; color: var(--accent); }
+        .title { font-size: 26px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px; }
         .subtitle { font-size: 13px; color: var(--text-dim); }
         .status-badge {
-            background: rgba(74, 222, 128, 0.15);
+            background: rgba(16, 185, 129, 0.15);
             color: var(--green);
-            padding: 6px 12px;
+            padding: 6px 14px;
             border-radius: 999px;
             font-size: 12px;
-            font-weight: 600;
-            border: 1px solid rgba(74, 222, 128, 0.3);
+            font-weight: 700;
+            border: 1px solid rgba(16, 185, 129, 0.3);
         }
         .grid {
             display: grid;
@@ -123,15 +126,17 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         .card {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 18px;
+            transition: border-color 0.2s;
         }
+        .card:hover { border-color: var(--border-hover); }
         .card-title {
             font-size: 14px;
-            font-weight: 600;
-            color: var(--accent);
+            font-weight: 700;
+            color: var(--amethyst);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.6px;
             margin-bottom: 12px;
             display: flex;
             justify-content: space-between;
@@ -140,70 +145,135 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             display: flex;
             justify-content: space-between;
             font-size: 13px;
-            padding: 6px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding: 7px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
         }
         .stat-val { font-weight: 600; color: #fff; }
         .interactive-section {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 20px;
+            border-radius: 12px;
+            padding: 22px;
+            margin-bottom: 24px;
+        }
+        .controls-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        select, input[type="text"] {
+            background: #0b0a17;
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
         }
         textarea {
             width: 100%;
-            height: 90px;
-            background: #070a12;
+            height: 95px;
+            background: #080713;
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: 10px;
             color: #fff;
             padding: 12px;
             font-family: inherit;
             font-size: 14px;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
             resize: vertical;
         }
+        textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
         button {
-            background: var(--accent);
-            color: #0b0f19;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--royal) 100%);
+            color: #ffffff;
             font-weight: 700;
             border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-        button:hover { opacity: 0.9; }
-        .output-box {
-            background: #070a12;
-            border: 1px solid var(--border);
+            padding: 10px 22px;
             border-radius: 8px;
-            padding: 14px;
+            cursor: pointer;
+            transition: transform 0.15s, opacity 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 14px var(--accent-glow);
+        }
+        button:hover { opacity: 0.95; transform: translateY(-1px); }
+        button.secondary {
+            background: #1c1830;
+            color: var(--amethyst);
+            border: 1px solid var(--border);
+            box-shadow: none;
+        }
+        .progress-bar-container {
+            width: 100%;
+            height: 4px;
+            background: #1a162b;
+            border-radius: 999px;
+            overflow: hidden;
+            margin-top: 12px;
+            display: none;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), var(--amethyst));
+            transition: width 0.1s linear;
+        }
+        .output-box {
+            background: #080713;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
             margin-top: 14px;
             font-size: 13px;
-            min-height: 80px;
+            min-height: 110px;
+            max-height: 400px;
+            overflow-y: auto;
             white-space: pre-wrap;
+            font-family: "JetBrains Mono", Consolas, monospace;
+            line-height: 1.6;
         }
         .tag {
             display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
+            padding: 3px 10px;
+            border-radius: 6px;
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 700;
             margin-right: 6px;
         }
-        .tag-tier1 { background: rgba(56, 189, 248, 0.2); color: var(--accent); }
-        .tag-tier2 { background: rgba(250, 204, 21, 0.2); color: var(--yellow); }
-        .tag-tier3 { background: rgba(248, 113, 113, 0.2); color: #f87171; }
+        .tag-tier1 { background: rgba(168, 85, 247, 0.2); color: var(--amethyst); border: 1px solid rgba(168, 85, 247, 0.4); }
+        .tag-tier2 { background: rgba(245, 158, 11, 0.2); color: var(--yellow); border: 1px solid rgba(245, 158, 11, 0.4); }
+        .tag-tier3 { background: rgba(244, 63, 94, 0.2); color: var(--red); border: 1px solid rgba(244, 63, 94, 0.4); }
+        .table-recs {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+        .table-recs th {
+            text-align: left;
+            padding: 10px;
+            background: rgba(255,255,255,0.03);
+            color: var(--amethyst);
+            border-bottom: 1px solid var(--border);
+        }
+        .table-recs td {
+            padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <div>
             <div class="title">LOOM FABRIC</div>
-            <div class="subtitle">Heterogeneous AI Compute Operating System (Ray + Stitch + Torque + Loom)</div>
+            <div class="subtitle">Sovereign Heterogeneous AI Compute Engine (Ray + Stitch + Torque + Loom)</div>
         </div>
-        <div class="status-badge" id="cluster-status">CLUSTER HEALTHY</div>
+        <div class="status-badge" id="cluster-status">CLUSTER HEALTHY &bull; PORT 8002</div>
     </div>
 
     <div class="grid">
@@ -213,7 +283,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             <div class="stat-row"><span>GPU 0 (Primary)</span><span class="stat-val">RTX 3060 12GB (CUDA)</span></div>
             <div class="stat-row"><span>GPU 1 (Secondary)</span><span class="stat-val">RX 580 8GB (Vulkan)</span></div>
             <div class="stat-row"><span>Host Memory</span><span class="stat-val">40 GB DDR4</span></div>
-            <div class="stat-row"><span>Native Process Guard</span><span class="stat-val">Win32 Job Object (Zero Orphan)</span></div>
+            <div class="stat-row"><span>Process Guard</span><span class="stat-val">Win32 Job Object</span></div>
         </div>
 
         <div class="card">
@@ -221,67 +291,204 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             <div class="stat-row"><span>IP Address</span><span class="stat-val">192.168.99.2</span></div>
             <div class="stat-row"><span>Processor</span><span class="stat-val">AMD Ryzen 7 7730U (16 vCPUs)</span></div>
             <div class="stat-row"><span>Ray GCS Redis</span><span class="stat-val">Port 6379</span></div>
-            <div class="stat-row"><span>Ray Dashboard</span><span class="stat-val">Port 8265</span></div>
-            <div class="stat-row"><span>Loom Gateway</span><span class="stat-val">Port 8000 (OpenAI SSE)</span></div>
+            <div class="stat-row"><span>Loom Gateway</span><span class="stat-val">Port 8002 (SSE Active)</span></div>
+            <div class="stat-row"><span>Nightwatch Watchdog</span><span class="stat-val">Active (Auto-Healing)</span></div>
         </div>
 
         <div class="card">
-            <div class="card-title">Torque Zero-Trust Security</div>
-            <div class="stat-row"><span>Guarded IP Sets</span><span class="stat-val">fouriersLibrary, VectorForge, Mycos</span></div>
-            <div class="stat-row"><span>PII / Key Scrubbing</span><span class="stat-val">Active (Regex + Vault)</span></div>
-            <div class="stat-row"><span>Cloud Arbitrage Limit</span><span class="stat-val">&gt;300s compute</span></div>
-            <div class="stat-row"><span>Local Force Tag</span><span class="stat-val">[LOCAL] override enabled</span></div>
-            <div class="stat-row"><span>Stream Rehydration</span><span class="stat-val">On-the-Fly Byte-Level</span></div>
+            <div class="card-title">Torque Sovereign Triage &amp; Vault</div>
+            <div class="stat-row"><span>Delegation Mode</span><span class="stat-val">Dynamic Compute-Based</span></div>
+            <div class="stat-row"><span>Guarded IP Terms</span><span class="stat-val">fouriersLibrary, VectorForge, Mycos</span></div>
+            <div class="stat-row"><span>Cloud Arbitrage Limit</span><span class="stat-val">&gt;300s / &gt;65k Tokens</span></div>
+            <div class="stat-row"><span>Local Force Tag</span><span class="stat-val">[LOCAL] / [SOVEREIGN]</span></div>
+            <div class="stat-row"><span>Stream Rehydration</span><span class="stat-val">On-The-Fly Active</span></div>
         </div>
     </div>
 
     <div class="interactive-section">
-        <div class="card-title">Sovereign Gateway Test Console</div>
-        <p style="font-size: 13px; color: var(--text-dim); margin-bottom: 10px;">
-            Send a prompt through the Torque Scrubber and Gateway. Test proprietary terms like <code>fouriersLibrary</code> or include <code>[LOCAL]</code>.
-        </p>
-        <textarea id="prompt-input" placeholder="Type a prompt... e.g.: Explain the core algorithm of fouriersLibrary and verify its proof with VectorForge."></textarea>
-        <div>
-            <button onclick="sendPrompt()">Execute via Loom Gateway</button>
-            <span id="routing-badge" style="margin-left: 14px;"></span>
+        <div class="card-title">Interactive Model Dispatch &amp; Real-Time Streaming Console</div>
+        <div class="controls-bar">
+            <div>
+                <label style="font-size: 12px; color: var(--text-dim); display: block; margin-bottom: 4px;">Target Model</label>
+                <select id="model-select">
+                    <option value="auto">auto (Dynamic Compute Triage &amp; Delegation)</option>
+                    <option value="qwen2.5:32b">qwen2.5:32b (Distributed Dual-GPU + Host RAM)</option>
+                    <option value="deepseek-r1:14b">deepseek-r1:14b (Formal Reasoning &amp; Math)</option>
+                    <option value="qwen2.5:7b">qwen2.5:7b (Pure RTX 3060 CUDA)</option>
+                    <option value="qwen2.5:3b">qwen2.5:3b (Fast Drafter)</option>
+                </select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; margin-top: 18px;">
+                <input type="checkbox" id="stream-toggle" checked>
+                <label for="stream-toggle" style="font-size: 13px; color: #fff; cursor: pointer;">Real-Time SSE Stream</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; margin-top: 18px;">
+                <input type="checkbox" id="sovereign-toggle">
+                <label for="sovereign-toggle" style="font-size: 13px; color: #fff; cursor: pointer;">Force [SOVEREIGN] (No Cloud)</label>
+            </div>
         </div>
-        <div class="output-box" id="output-box">Gateway output will appear here...</div>
+
+        <textarea id="prompt-input" placeholder="Type a prompt to test dynamic triage... e.g.: Prove the Fourier transform convergence theorem, or synthesize a microkernel scheduler, or summarize the conversation..."></textarea>
+
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <button onclick="sendPrompt()">Execute via Loom Gateway</button>
+            <button class="secondary" onclick="previewTriage()">Preview Triage Only</button>
+            <span id="routing-badge" style="margin-left: 8px;"></span>
+        </div>
+
+        <div class="progress-bar-container" id="stream-progress">
+            <div class="progress-bar-fill" id="progress-fill"></div>
+        </div>
+
+        <div class="output-box" id="output-box">Ready. Send a prompt to watch Loom triage and stream tokens in real time...</div>
+    </div>
+
+    <div class="interactive-section">
+        <div class="card-title">Hardware-Matched Model Recommender (MMLU / HumanEval Benchmarks)</div>
+        <p style="font-size: 13px; color: var(--text-dim); margin-bottom: 12px;">
+            Hardware profiling evaluates VRAM margins, memory bandwidth, and compute capabilities to recommend the highest benchmark model for this cluster.
+        </p>
+        <button class="secondary" onclick="loadRecommendations()" style="margin-bottom: 14px;">Refresh Recommendations</button>
+        <div id="recs-table-container">Loading recommendations...</div>
     </div>
 
     <script>
-        async function sendPrompt() {
+        async function loadRecommendations() {
+            const container = document.getElementById('recs-table-container');
+            container.innerHTML = '<span style="color: var(--amethyst);">Analyzing cluster hardware benchmarks...</span>';
+            try {
+                const res = await fetch('/api/recommend');
+                const recs = await res.json();
+                let html = '<table class="table-recs"><thead><tr><th>Model</th><th>MMLU / Code</th><th>Hardware Fit</th><th>Speed (Est.)</th><th>Status</th><th>Rationale</th></tr></thead><tbody>';
+                recs.forEach(r => {
+                    const bench = `${r.benchmark.mmlu_score}% / ${r.benchmark.humaneval_coding}%`;
+                    const status = r.is_installed ? '<span style="color: var(--green);">Installed</span>' : '<span style="color: var(--text-dim);">Available</span>';
+                    html += `<tr>
+                        <td style="font-weight: 700; color: #fff;">${r.preset.id}</td>
+                        <td style="color: var(--amethyst);">${bench}</td>
+                        <td style="color: #38bdf8;">${r.fit_status}</td>
+                        <td style="color: var(--green);">${r.estimated_speed_tps.toFixed(1)} tps</td>
+                        <td>${status}</td>
+                        <td style="color: var(--text-dim);">${r.recommendation_reason}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            } catch (err) {
+                container.innerHTML = `<span style="color: var(--red);">Error loading recommendations: ${err.message}</span>`;
+            }
+        }
+
+        async function previewTriage() {
             const input = document.getElementById('prompt-input').value.trim();
-            const outBox = document.getElementById('output-box');
             const badge = document.getElementById('routing-badge');
+            const outBox = document.getElementById('output-box');
             if (!input) return;
 
-            outBox.innerText = 'Routing and generating response...';
+            badge.innerHTML = '<span style="color: var(--amethyst);">Evaluating complexity heuristics...</span>';
+            try {
+                const res = await fetch('/api/triage/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: input,
+                        force_local: document.getElementById('sovereign-toggle').checked
+                    })
+                });
+                const d = await res.json();
+                const tierClass = d.tier.includes('Tier 1') ? 'tag-tier1' : (d.tier.includes('Tier 2') ? 'tag-tier2' : 'tag-tier3');
+                badge.innerHTML = `<span class="tag ${tierClass}">${d.tier}</span> <span class="tag tag-tier1">Model: ${d.model_selected}</span> <span class="tag tag-tier2">${d.estimated_duration_seconds.toFixed(1)}s est</span>`;
+                outBox.innerText = `[TRIAGE PREVIEW]\nSelected Model: ${d.model_selected}\nExecution Tier: ${d.tier}\nTarget Endpoint: ${d.target_endpoint}\nZero-Trust Scrubbing: ${d.is_scrubbed}\nReasoning: ${d.reasoning}`;
+            } catch (err) {
+                badge.innerHTML = `<span style="color: var(--red);">Triage error: ${err.message}</span>`;
+            }
+        }
+
+        async function sendPrompt() {
+            const input = document.getElementById('prompt-input').value.trim();
+            const model = document.getElementById('model-select').value;
+            const isStream = document.getElementById('stream-toggle').checked;
+            const forceLocal = document.getElementById('sovereign-toggle').checked;
+            const outBox = document.getElementById('output-box');
+            const badge = document.getElementById('routing-badge');
+            const pBar = document.getElementById('stream-progress');
+            const pFill = document.getElementById('progress-fill');
+
+            if (!input) return;
+
+            outBox.innerText = 'Loom triaging compute and initiating execution...\\n';
             badge.innerHTML = '';
+            pBar.style.display = 'block';
+            pFill.style.width = '10%';
+
+            const startTime = performance.now();
+            let tokenCount = 0;
 
             try {
                 const res = await fetch('/v1/chat/completions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        model: 'qwen2.5:32b',
+                        model: model,
                         messages: [{ role: 'user', content: input }],
-                        stream: false
+                        stream: isStream,
+                        force_local: forceLocal
                     })
                 });
 
-                const routeHeader = res.headers.get('X-Torque-Route') || 'Tier 1/2 Local';
-                const scrubbedHeader = res.headers.get('X-Torque-Scrubbed') || 'false';
-                const tps = res.headers.get('X-Loom-Tokens-Per-Sec') || 'N/A';
-                
-                badge.innerHTML = `<span class="tag tag-tier1">${routeHeader}</span> <span class="tag tag-tier2">Scrubbed: ${scrubbedHeader}</span> <span class="tag tag-tier1">${tps} tps</span>`;
+                const routeHdr = res.headers.get('X-Torque-Route') || 'Tier 1/2 Local';
+                const modelHdr = res.headers.get('X-Torque-Model-Selected') || model;
+                const scrubHdr = res.headers.get('X-Torque-Scrubbed') || 'false';
+                const tierClass = routeHdr.includes('Tier 1') ? 'tag-tier1' : (routeHdr.includes('Tier 2') ? 'tag-tier2' : 'tag-tier3');
 
-                const data = await res.json();
-                const content = data.choices && data.choices[0] ? data.choices[0].message.content : JSON.stringify(data);
-                outBox.innerText = content;
+                if (isStream) {
+                    outBox.innerText = '';
+                    const reader = res.body.getReader();
+                    const decoder = new TextDecoder();
+                    let done = false;
+
+                    while (!done) {
+                        const chunk = await reader.read();
+                        done = chunk.done;
+                        if (chunk.value) {
+                            const text = decoder.decode(chunk.value);
+                            const lines = text.split('\\n');
+                            for (const line of lines) {
+                                if (line.startsWith('data: ') && line.trim() !== 'data: [DONE]') {
+                                    try {
+                                        const parsed = JSON.parse(line.slice(6));
+                                        const delta = parsed.choices[0]?.delta?.content || '';
+                                        if (delta) {
+                                            outBox.innerText += delta;
+                                            tokenCount++;
+                                            pFill.style.width = `${Math.min(95, 10 + tokenCount * 1.5)}%`;
+                                        }
+                                    } catch (_) {}
+                                }
+                            }
+                        }
+                    }
+
+                    pFill.style.width = '100%';
+                    const elapsedSec = (performance.now() - startTime) / 1000.0;
+                    const tps = (tokenCount / Math.max(0.001, elapsedSec)).toFixed(1);
+                    badge.innerHTML = `<span class="tag ${tierClass}">${routeHdr}</span> <span class="tag tag-tier1">${modelHdr}</span> <span class="tag tag-tier2">Scrubbed: ${scrubHdr}</span> <span class="tag tag-tier1">${tps} tps</span>`;
+                } else {
+                    const data = await res.json();
+                    pFill.style.width = '100%';
+                    const tps = res.headers.get('X-Loom-Tokens-Per-Sec') || 'N/A';
+                    badge.innerHTML = `<span class="tag ${tierClass}">${routeHdr}</span> <span class="tag tag-tier1">${modelHdr}</span> <span class="tag tag-tier2">Scrubbed: ${scrubHdr}</span> <span class="tag tag-tier1">${tps} tps</span>`;
+                    outBox.innerText = data.choices && data.choices[0] ? data.choices[0].message.content : JSON.stringify(data, null, 2);
+                }
             } catch (err) {
                 outBox.innerText = 'Error: ' + err.message;
+            } finally {
+                setTimeout(() => { pBar.style.display = 'none'; pFill.style.width = '0%'; }, 1500);
             }
         }
+
+        // Initial recommendations load
+        window.addEventListener('DOMContentLoaded', loadRecommendations);
     </script>
 </body>
 </html>
@@ -375,8 +582,12 @@ async def chat_completions(req: Request):
         force_local=body_dict.get("force_local", False),
     )
 
-    # 1. Torque Complexity Routing Decision (Pillar 1)
+    # 1. Torque Complexity Routing & Model Triage Decision (Pillar 1)
     decision = torque_router.route(payload)
+
+    # Dispatched model: triage dynamically based on compute needed
+    dispatched_model = decision.model_name
+    body_dict["model"] = dispatched_model
 
     # 2. Torque Zero-Trust Scrubbing if routing to Cloud Tier 3
     active_vault_map: Dict[str, str] = {}
@@ -392,11 +603,15 @@ async def chat_completions(req: Request):
         body_dict["messages"] = scrubbed_messages
         is_scrubbed = len(active_vault_map) > 0
 
-    target_url, provider_name = await gateway_router.determine_target_endpoint(payload.model)
+    target_url, provider_name = await gateway_router.determine_target_endpoint(
+        dispatched_model, tier=decision.tier, cloud_url=decision.target_endpoint
+    )
 
     # Build response headers
     base_headers = {
         "X-Torque-Route": decision.tier.value,
+        "X-Torque-Model-Selected": dispatched_model,
+        "X-Torque-Model-Requested": clean_model,
         "X-Torque-Scrubbed": str(is_scrubbed).lower(),
         "X-Torque-Reasoning": decision.reasoning,
         "X-Loom-Provider": provider_name,
@@ -459,3 +674,47 @@ async def cluster_metrics() -> Dict[str, Any]:
         "gateway_port": get_settings().endpoints.gateway_port,
         "vault_active_tokens": len(torque_scrubber.vault.snapshot()),
     }
+
+
+@app.get("/api/recommend")
+async def api_recommend() -> List[Dict[str, Any]]:
+    """Analyzes hardware benchmarks and returns recommended model architecture fits."""
+    from loom.models.recommender import ModelHardwareRecommender
+    recommender = ModelHardwareRecommender()
+    recs = recommender.evaluate_hardware_fit()
+    return [r.model_dump() for r in recs]
+
+
+@app.post("/api/triage/preview")
+async def api_triage_preview(req: Request) -> Dict[str, Any]:
+    """Evaluates prompt payload heuristics and returns execution triage decision without running."""
+    body = await req.json()
+    prompt = body.get("prompt", "")
+    force_local = body.get("force_local", False)
+    payload = PromptPayload(
+        model="auto",
+        messages=[ChatMessageDTO(role="user", content=prompt)],
+        max_tokens=body.get("max_tokens", 4096),
+        force_local=force_local,
+    )
+    decision = torque_router.route(payload)
+    est_duration = torque_router.estimate_compute_duration_seconds(payload)
+    return {
+        "tier": decision.tier.value,
+        "model_selected": decision.model_name,
+        "is_scrubbed": decision.is_scrubbed,
+        "estimated_duration_seconds": est_duration,
+        "reasoning": decision.reasoning,
+        "target_endpoint": decision.target_endpoint,
+    }
+
+
+@app.post("/api/models/pull")
+async def api_pull_model(req: Request) -> Dict[str, Any]:
+    """Downloads or pulls a recommended model locally."""
+    body = await req.json()
+    model = body.get("model", "qwen2.5:7b")
+    from loom.models.recommender import ModelHardwareRecommender
+    recommender = ModelHardwareRecommender()
+    success = recommender.install_model_cli(model)
+    return {"status": "success" if success else "failed", "model": model}

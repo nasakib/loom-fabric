@@ -15,12 +15,12 @@ console = Console()
 
 def render_hardware_table(hardware_dict: dict) -> Table:
     """Builds a rich table of detected accelerators and system memory."""
-    table = Table(title="[bold cyan]Loom Fabric Cluster Hardware Diagnostic[/bold cyan]", show_header=True)
+    table = Table(title="[bold magenta]Loom Fabric Cluster Hardware Diagnostic[/bold magenta]", show_header=True, border_style="purple")
     table.add_column("Node / Device", style="bold white", width=22)
-    table.add_column("Type / Architecture", style="cyan", width=20)
-    table.add_column("Total Memory", style="green", justify="right", width=14)
+    table.add_column("Type / Architecture", style="bright_magenta", width=20)
+    table.add_column("Total Memory", style="magenta", justify="right", width=14)
     table.add_column("Free / Usable", style="bright_green", justify="right", width=14)
-    table.add_column("Engine Backend", style="magenta", width=16)
+    table.add_column("Engine Backend", style="bright_cyan", width=16)
 
     # GPUs
     for gpu in hardware_dict.get("gpus", []):
@@ -47,10 +47,10 @@ def render_hardware_table(hardware_dict: dict) -> Table:
 
 def render_sharding_table(plan_dict: dict) -> Table:
     """Builds a rich table visualizing calculated layer splits."""
-    table = Table(title="[bold yellow]Zero-OOM Layer Sharding Plan[/bold yellow]", show_header=True)
+    table = Table(title="[bold magenta]Zero-OOM Layer Sharding Plan[/bold magenta]", show_header=True, border_style="purple")
     table.add_column("Compute Tier", style="bold white", width=18)
-    table.add_column("Target Hardware", style="cyan", width=24)
-    table.add_column("Assigned Layers", style="bright_yellow", justify="center", width=18)
+    table.add_column("Target Hardware", style="bright_magenta", width=24)
+    table.add_column("Assigned Layers", style="yellow", justify="center", width=18)
     table.add_column("VRAM / RAM Footprint", style="bright_green", justify="right", width=20)
     table.add_column("Backend", style="magenta", width=14)
 

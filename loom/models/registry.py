@@ -131,6 +131,19 @@ BUILTIN_PRESETS: Dict[str, ModelPreset] = {
         hf_repo="meta-llama/Llama-3.3-70B-Instruct-GGUF",
         is_speculative_draft_candidate=False,
     ),
+    "auto": ModelPreset(
+        id="auto",
+        display_name="Loom Dynamic Compute Triage (Auto-Select)",
+        total_layers=64,
+        default_context_length=131072,
+        n_heads_kv=8,
+        d_head=128,
+        base_gguf_size_mb=19800.0,
+        quant_label="Adaptive",
+        ollama_tag="auto",
+        hf_repo=None,
+        is_speculative_draft_candidate=True,
+    ),
 }
 
 

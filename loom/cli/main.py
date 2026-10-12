@@ -110,6 +110,46 @@ def serve_command(
     uvicorn.run("loom.gateway.app:app", host=host, port=port, reload=reload)
 
 
+@cli.command("triage")
+def triage_command(
+    prompt: str = typer.Argument(..., help="Prompt string or task description to evaluate"),
+    force_local: bool = typer.Option(False, "--local", "-l", help="Force local sovereign execution"),
+    max_tokens: int = typer.Option(4096, "--max-tokens", "-m", help="Anticipated max generation tokens"),
+):
+    """Simulate Loom's dynamic compute triage and model delegation for a prompt."""
+    from rich.panel import Panel
+    from rich.table import Table
+    from loom.torque.router import TorqueRouter
+    from loom.types import PromptPayload, ChatMessageDTO
+
+    render_cluster_banner()
+    router = TorqueRouter()
+    payload = PromptPayload(
+        model="auto",
+        messages=[ChatMessageDTO(role="user", content=prompt)],
+        max_tokens=max_tokens,
+        force_local=force_local,
+    )
+
+    decision = router.route(payload)
+    est_duration = router.estimate_compute_duration_seconds(payload)
+
+    table = Table(title="[bold magenta]Loom Dynamic Compute Triage & Delegation[/bold magenta]")
+    table.add_column("Property", style="bold white", width=24)
+    table.add_column("Decision / Evaluation", style="cyan", width=50)
+
+    table.add_row("Execution Tier", f"[bold yellow]{decision.tier.value}[/bold yellow]")
+    table.add_row("Dispatched Model", f"[bold green]{decision.model_name}[/bold green]")
+    table.add_row("Target Endpoint", decision.target_endpoint)
+    table.add_row("Zero-Trust Scrubbed", "[red]Yes (Cloud Arbitrage)[/red]" if decision.is_scrubbed else "[green]No (Sovereign Local)[/green]")
+    table.add_row("Estimated Compute Time", f"{est_duration:.2f} seconds")
+    table.add_row("Routing Rationale", f"[dim white]{decision.reasoning}[/dim white]")
+
+    console.print(table)
+    console.print()
+    console.print(Panel(f"[dim]Input Prompt:[/dim]\n{prompt}", title="[magenta]Inspected Payload[/magenta]", border_style="purple"))
+
+
 @cli.command("recommend")
 def recommend_command():
     """Analyze local hardware benchmarks and recommend optimal local & cloud models."""
