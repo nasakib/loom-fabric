@@ -211,6 +211,15 @@ class LoomFabricCommandCenter(tk.Tk):
         self.lbl_telemetry_tag = tk.Label(controls, text="Routing: Standby", font=("Segoe UI", 9, "bold"), fg=CLR_MUTED, bg=CLR_OBSIDIAN)
         self.lbl_telemetry_tag.pack(side="left")
 
+        # Live Real-Time Generation Progress Bar & Token Indicator
+        self.progress_frame = tk.Frame(controls, bg=CLR_OBSIDIAN)
+        self.progress_frame.pack(side="right", padx=(10, 0))
+
+        self.lbl_tokens_live = tk.Label(self.progress_frame, text="", font=("Consolas", 8, "bold"), fg=CLR_AMETHYST, bg=CLR_OBSIDIAN)
+        self.lbl_tokens_live.pack(side="left", padx=(0, 8))
+
+        self.progress_bar = ttk.Progressbar(self.progress_frame, mode="indeterminate", length=140)
+
         # Chat Stream Area
         self.txt_chat = scrolledtext.ScrolledText(
             parent,
@@ -277,14 +286,54 @@ class LoomFabricCommandCenter(tk.Tk):
         self.txt_vault.pack(fill="both", expand=True)
 
     def _build_spool_tab(self, parent):
-        tk.Label(parent, text="THE SPOOL // MODEL PRESETS & LAYER ALLOCATIONS", font=("Segoe UI", 12, "bold"), fg=CLR_PURPLE, bg=CLR_OBSIDIAN).pack(anchor="w", pady=(0, 4))
+        tk.Label(parent, text="THE SPOOL // HARDWARE BENCHMARKS & MODEL PROVISIONER", font=("Segoe UI", 12, "bold"), fg=CLR_PURPLE, bg=CLR_OBSIDIAN).pack(anchor="w", pady=(0, 4))
         tk.Label(
             parent,
-            text="Mathematical layer sharding plans calculated across heterogeneous accelerators without out-of-memory risks.",
+            text="Intelligently matches local open-weights LLMs based on GPU memory bandwidth, compute capability, and benchmark scores.\nAlso manages zero-trust cloud API bridges (OpenAI, Anthropic, Google Gemini, OpenRouter).",
             font=("Segoe UI", 9),
             fg=CLR_MUTED,
-            bg=CLR_OBSIDIAN
-        ).pack(anchor="w", pady=(0, 12))
+            bg=CLR_OBSIDIAN,
+            justify="left"
+        ).pack(anchor="w", pady=(0, 10))
+
+        # Top Action Bar: 1-Click Install
+        action_bar = tk.Frame(parent, bg=CLR_OBSIDIAN)
+        action_bar.pack(fill="x", pady=(0, 10))
+
+        tk.Label(action_bar, text="Install Recommended Model:", font=("Segoe UI", 9, "bold"), fg=CLR_TEXT, bg=CLR_OBSIDIAN).pack(side="left", padx=(0, 8))
+        self.combo_pull = ttk.Combobox(
+            action_bar,
+            values=["qwen2.5:32b", "deepseek-r1:14b", "qwen2.5:7b", "qwen2.5:3b", "llama3.3:70b"],
+            state="readonly",
+            width=20
+        )
+        self.combo_pull.set("qwen2.5:32b")
+        self.combo_pull.pack(side="left", padx=(0, 10))
+
+        btn_pull = tk.Button(
+            action_bar,
+            text="1-Click Pull Model",
+            font=("Segoe UI", 9, "bold"),
+            bg=CLR_PURPLE,
+            fg=CLR_OBSIDIAN,
+            activebackground=CLR_AMETHYST,
+            relief="flat",
+            padx=14,
+            command=self._pull_selected_model
+        )
+        btn_pull.pack(side="left")
+
+        btn_refresh = tk.Button(
+            action_bar,
+            text="Re-evaluate Benchmarks",
+            font=("Segoe UI", 9),
+            bg=CLR_CARD,
+            fg=CLR_TEXT,
+            relief="flat",
+            padx=12,
+            command=self._refresh_spool_evaluations
+        )
+        btn_refresh.pack(side="left", padx=(10, 0))
 
         self.txt_spool = scrolledtext.ScrolledText(
             parent,
@@ -296,6 +345,59 @@ class LoomFabricCommandCenter(tk.Tk):
             insertbackground=CLR_TEXT
         )
         self.txt_spool.pack(fill="both", expand=True)
+
+        # Initial populate
+        self.after(500, self._refresh_spool_evaluations)
+
+    def _pull_selected_model(self):
+        target = self.combo_pull.get()
+        if not target:
+            return
+        messagebox.showinfo("Loom Fabric Provisioner", f"Starting background download for '{target}' via sovereign Ollama runtime.\nYou can monitor progress in terminal or check The Spool tab.")
+        def _pull_thread():
+            from loom.models.recommender import ModelHardwareRecommender
+            rec = ModelHardwareRecommender()
+            rec.install_model_cli(target)
+            self._refresh_spool_evaluations()
+        threading.Thread(target=_pull_thread, daemon=True).start()
+
+    def _refresh_spool_evaluations(self):
+        def _compute():
+            from loom.models.recommender import ModelHardwareRecommender
+            from loom.gateway.cloud_bridge import CloudLLMBridge, CLOUD_PROVIDERS
+
+            rec = ModelHardwareRecommender()
+            recs = rec.evaluate_hardware_fit()
+
+            bridge = CloudLLMBridge()
+            cloud_status = bridge.get_provider_status()
+
+            lines = []
+            lines.append("=== LOCAL HARDWARE-MATCHED MODEL BENCHMARK RECOMMENDATIONS ===")
+            lines.append(f"{'MODEL':<18} | {'BENCHMARK (MMLU/CODE)':<22} | {'HARDWARE FIT':<26} | {'EST. SPEED':<12} | {'STATUS'}")
+            lines.append("-" * 95)
+            for r in recs:
+                bench_str = f"MMLU: {r.benchmark.mmlu_score:.0f}% / Code: {r.benchmark.humaneval_coding:.0f}%"
+                status_str = "INSTALLED" if r.is_installed else "NOT PULLED"
+                lines.append(f"{r.preset.id:<18} | {bench_str:<22} | {r.fit_status:<26} | {r.estimated_speed_tps:<5.1f} tps  | {status_str}")
+                lines.append(f"   ↳ Rationale: {r.recommendation_reason}\n")
+
+            lines.append("\n=== CLOUD LLM API PROVIDER BRIDGES (ZERO-TRUST SANITIZED) ===")
+            lines.append(f"{'PROVIDER':<18} | {'DEFAULT MODEL':<28} | {'API KEY ENV VAR':<20} | {'STATUS'}")
+            lines.append("-" * 80)
+            for key, p in CLOUD_PROVIDERS.items():
+                is_ready = "CONFIGURED (READY)" if cloud_status.get(key, False) else "KEY MISSING"
+                lines.append(f"{p.name:<18} | {p.default_model:<28} | ${p.api_key_env_var:<19} | {is_ready}")
+
+            lines.append("\n[Tip] Any query requiring >300s compute is automatically sanitized via Torque Vault and dispatched to Cloud APIs.")
+
+            content = "\n".join(lines)
+            def _set():
+                self.txt_spool.delete("1.0", tk.END)
+                self.txt_spool.insert(tk.END, content)
+            self.after(0, _set)
+
+        threading.Thread(target=_compute, daemon=True).start()
 
     def _telemetry_poller_daemon(self):
         while self.is_running:
@@ -352,17 +454,24 @@ class LoomFabricCommandCenter(tk.Tk):
 
         model = self.sel_model.get()
         self.txt_chat.insert(tk.END, f"\nUser > {prompt}\n", "user")
-        self.txt_chat.insert(tk.END, f"Loom Fabric ({model}) > Generating...", "assistant")
+        self.txt_chat.insert(tk.END, f"Loom Fabric ({model}) > ", "assistant")
         self.txt_chat.see(tk.END)
 
-        threading.Thread(target=self._run_async_query, args=(prompt, model), daemon=True).start()
+        # Show & start progress bar
+        self.progress_bar.pack(side="left")
+        self.progress_bar.start(10)
+        self.lbl_tokens_live.config(text="Deciphering Route...", fg=CLR_AMBER)
 
-    def _run_async_query(self, prompt, model):
+        threading.Thread(target=self._run_async_streaming_query, args=(prompt, model), daemon=True).start()
+
+    def _run_async_streaming_query(self, prompt, model):
         payload = {
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
-            "stream": False
+            "stream": True
         }
+        token_count = 0
+        start_time = time.time()
         try:
             req = urllib.request.Request(
                 f"{self.gateway_url}/v1/chat/completions",
@@ -371,14 +480,11 @@ class LoomFabricCommandCenter(tk.Tk):
             )
             with urllib.request.urlopen(req, timeout=120) as resp:
                 headers = dict(resp.getheaders())
-                data = json.loads(resp.read().decode())
-                content = data["choices"][0]["message"]["content"]
-
                 route = headers.get("x-torque-route", "Local")
                 scrubbed = headers.get("x-torque-scrubbed", "false")
                 tps = headers.get("x-loom-tokens-per-sec", "N/A")
 
-                tag_msg = f"Route: {route} | Scrubbed: {scrubbed} | TPS: {tps}"
+                tag_msg = f"Route: {route} | Scrubbed: {scrubbed}"
                 self.after(0, lambda: self.lbl_telemetry_tag.config(text=tag_msg, fg=CLR_EMERALD))
 
                 # Update Torque Vault log if scrubbed
@@ -389,20 +495,61 @@ class LoomFabricCommandCenter(tk.Tk):
                         self.txt_vault.see(tk.END)
                     self.after(0, _update_v)
 
-                def _render_reply():
-                    text = self.txt_chat.get("1.0", tk.END)
-                    idx = text.rfind("Generating...")
-                    if idx != -1:
-                        self.txt_chat.delete(f"1.0 + {idx} chars", tk.END)
-                    self.txt_chat.insert(tk.END, f"{content}\n\n")
-                    self.txt_chat.see(tk.END)
-                self.after(0, _render_reply)
+                # Process SSE line stream in real time
+                for line in resp:
+                    decoded = line.decode("utf-8").strip()
+                    if not decoded or not decoded.startswith("data:"):
+                        continue
+                    if decoded == "data: [DONE]":
+                        break
+
+                    try:
+                        chunk_json = json.loads(decoded[5:].strip())
+                        choices = chunk_json.get("choices", [])
+                        if choices:
+                            delta = choices[0].get("delta", {}).get("content", "")
+                            if delta:
+                                token_count += 1
+                                elapsed = max(0.001, time.time() - start_time)
+                                live_tps = token_count / elapsed
+
+                                def _stream_chunk(text=delta, count=token_count, speed=live_tps):
+                                    self.txt_chat.insert(tk.END, text)
+                                    self.txt_chat.see(tk.END)
+                                    self.lbl_tokens_live.config(text=f"{count} tokens ({speed:.1f} tps)", fg=CLR_AMETHYST)
+                                self.after(0, _stream_chunk)
+                    except Exception:
+                        pass
 
         except Exception as e:
-            def _render_err():
-                self.txt_chat.insert(tk.END, f"\n[Error: {e}]\n\n")
+            # Fallback to non-streaming if stream interrupted
+            try:
+                payload["stream"] = False
+                req_fallback = urllib.request.Request(
+                    f"{self.gateway_url}/v1/chat/completions",
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={"Content-Type": "application/json"}
+                )
+                with urllib.request.urlopen(req_fallback, timeout=120) as resp2:
+                    data = json.loads(resp2.read().decode())
+                    content = data["choices"][0]["message"]["content"]
+                    def _fallback_render():
+                        self.txt_chat.insert(tk.END, content)
+                        self.txt_chat.see(tk.END)
+                    self.after(0, _fallback_render)
+            except Exception as e2:
+                def _render_err():
+                    self.txt_chat.insert(tk.END, f"\n[Error: {e2}]\n\n")
+                    self.txt_chat.see(tk.END)
+                self.after(0, _render_err)
+
+        finally:
+            def _stop_progress():
+                self.progress_bar.stop()
+                self.progress_bar.pack_forget()
+                self.txt_chat.insert(tk.END, "\n\n")
                 self.txt_chat.see(tk.END)
-            self.after(0, _render_err)
+            self.after(0, _stop_progress)
 
 
 def main():

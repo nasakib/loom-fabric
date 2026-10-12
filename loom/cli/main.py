@@ -110,6 +110,87 @@ def serve_command(
     uvicorn.run("loom.gateway.app:app", host=host, port=port, reload=reload)
 
 
+@cli.command("recommend")
+def recommend_command():
+    """Analyze local hardware benchmarks and recommend optimal local & cloud models."""
+    from rich.table import Table
+    from loom.models.recommender import ModelHardwareRecommender
+
+    render_cluster_banner()
+    with console.status("[bold magenta]Evaluating accelerator benchmarks & memory fit..."):
+        recommender = ModelHardwareRecommender()
+        recommendations = recommender.evaluate_hardware_fit()
+
+    table = Table(title="[bold magenta]Hardware-Matched Model Recommendations & Benchmark Scores[/bold magenta]")
+    table.add_column("Model Preset", style="bold white", width=18)
+    table.add_column("MMLU / Code", style="bright_magenta", justify="center", width=14)
+    table.add_column("Hardware Fit", style="bold cyan", justify="center", width=22)
+    table.add_column("Speed (Est.)", style="bright_green", justify="right", width=14)
+    table.add_column("Status", style="yellow", justify="center", width=14)
+    table.add_column("Architectural Rationale", style="dim white", width=36)
+
+    for r in recommendations:
+        bench_str = f"{r.benchmark.mmlu_score:.0f}% / {r.benchmark.humaneval_coding:.0f}%"
+        status_str = "[green]Installed[/green]" if r.is_installed else "[dim]Not Pulled[/dim]"
+        table.add_row(
+            r.preset.id,
+            bench_str,
+            r.fit_status,
+            f"{r.estimated_speed_tps:.1f} tps",
+            status_str,
+            r.recommendation_reason,
+        )
+
+    console.print(table)
+    console.print("\n[dim magenta]To install any recommended model locally: loom pull <model_id>[/dim magenta]")
+
+
+@cli.command("pull")
+def pull_command(
+    model: str = typer.Argument(..., help="Model preset tag to download (e.g. 'qwen2.5:32b', 'deepseek-r1:14b')")
+):
+    """Download and provision a recommended local LLM based on hardware profile."""
+    from loom.models.recommender import ModelHardwareRecommender
+    render_cluster_banner()
+    console.print(f"[bold magenta]Pulling model '{model}' for sovereign local execution...[/bold magenta]")
+    recommender = ModelHardwareRecommender()
+    success = recommender.install_model_cli(model)
+    if success:
+        console.print(f"[bold green]Successfully installed {model}![/bold green] Run with: loom run {model}")
+    else:
+        console.print(f"[bold red]Failed to pull {model}.[/bold red] Ensure Ollama or native llama runtime is available.")
+
+
+@cli.command("cloud")
+def cloud_command():
+    """Audit and manage configured Cloud LLM API bridges (OpenAI, Anthropic, Google, OpenRouter)."""
+    from rich.table import Table
+    from loom.gateway.cloud_bridge import CloudLLMBridge, CLOUD_PROVIDERS
+
+    render_cluster_banner()
+    bridge = CloudLLMBridge()
+    statuses = bridge.get_provider_status()
+
+    table = Table(title="[bold magenta]Configured Cloud LLM Provider Bridges (Zero-Trust Protected)[/bold magenta]")
+    table.add_column("Provider", style="bold white", width=18)
+    table.add_column("Default Model", style="cyan", width=26)
+    table.add_column("API Key Env Var", style="bright_magenta", width=22)
+    table.add_column("Status", style="bold", justify="center", width=16)
+
+    for key, p in CLOUD_PROVIDERS.items():
+        is_ready = statuses.get(key, False)
+        status_txt = "[green]CONFIGURED[/green]" if is_ready else "[red]KEY MISSING[/red]"
+        table.add_row(
+            p.name,
+            p.default_model,
+            f"${p.api_key_env_var}",
+            status_txt,
+        )
+
+    console.print(table)
+    console.print("\n[dim]All requests dispatched through Cloud Bridges are scrubbed by Torque before transit.[/dim]")
+
+
 @cli.command("gui")
 def gui_command(
     gateway_url: str = typer.Option("http://127.0.0.1:8002", "--gateway", "-g", help="Target Loom Gateway URL")
@@ -125,25 +206,28 @@ def gui_command(
 @cli.command("run")
 def run_command(
     model: str = typer.Argument("qwen2.5:32b", help="Model preset ID to chat with"),
+    gateway: str = typer.Option("http://127.0.0.1:8002", "--gateway", "-g", help="Target Gateway URL"),
 ):
-    """Interactive streaming chat with automatic sharding and cluster routing."""
+    """Interactive streaming chat with real-time token output and progress telemetry."""
     import httpx
+    import json
+    import time
     render_cluster_banner()
     preset = ModelRegistry.get_model(model)
     display_title = preset.display_name if preset else model
-    console.print(f"[bold cyan]Connecting to Loom Fabric runtime for '{display_title}'...[/bold cyan]")
+    console.print(f"[bold magenta]Connected to Loom Fabric for '[/bold magenta][bold white]{display_title}[/bold white][bold magenta]'[/bold magenta]")
+    console.print(f"[dim]Gateway Target: {gateway} | Type 'exit', 'quit', or ':q' to leave[/dim]\n")
 
-    target_url = "http://127.0.0.1:8000/v1/chat/completions"
+    target_url = f"{gateway.rstrip('/')}/v1/chat/completions"
     history = []
 
-    console.print("[bold green]Chat initialized! Type 'exit' or 'quit' to end session.[/bold green]\n")
     while True:
         try:
-            prompt = console.input("[bold yellow]You > [/bold yellow]").strip()
+            prompt = console.input("[bold magenta]You ❯ [/bold magenta]").strip()
             if not prompt:
                 continue
             if prompt.lower() in ["exit", "quit", ":q"]:
-                console.print("[bold red]Exiting session.[/bold red]")
+                console.print("[bold red]Exiting Loom session.[/bold red]")
                 break
 
             history.append({"role": "user", "content": prompt})
@@ -151,26 +235,50 @@ def run_command(
             payload = {
                 "model": model,
                 "messages": history,
-                "stream": False,
+                "stream": True,
             }
 
-            console.print(f"[bold cyan]{display_title} > [/bold cyan]", end="")
-            with httpx.Client(timeout=300.0) as client:
-                res = client.post(target_url, json=payload)
-                if res.status_code == 200:
-                    data = res.json()
-                    reply = data["choices"][0]["message"]["content"]
-                    console.print(reply)
-                    history.append({"role": "assistant", "content": reply})
-                else:
-                    console.print(f"[bold red]Error ({res.status_code}): {res.text}[/bold red]")
-            console.print()
+            console.print(f"[bold white]{display_title}[/bold white] [bold magenta]❯ [/bold magenta]", end="")
+
+            assistant_reply = []
+            start_time = time.time()
+            token_count = 0
+
+            with httpx.Client(timeout=180.0) as client:
+                with client.stream("POST", target_url, json=payload) as response:
+                    route_hdr = response.headers.get("x-torque-route", "Local")
+                    scrub_hdr = response.headers.get("x-torque-scrubbed", "false")
+
+                    for chunk in response.iter_lines():
+                        if not chunk or not chunk.startswith("data:"):
+                            continue
+                        if chunk.strip() == "data: [DONE]":
+                            break
+
+                        try:
+                            data = json.loads(chunk[5:].strip())
+                            delta = data["choices"][0].get("delta", {}).get("content", "")
+                            if delta:
+                                token_count += 1
+                                assistant_reply.append(delta)
+                                sys.stdout.write(delta)
+                                sys.stdout.flush()
+                        except Exception:
+                            continue
+
+            full_text = "".join(assistant_reply)
+            history.append({"role": "assistant", "content": full_text})
+
+            elapsed = max(0.001, time.time() - start_time)
+            tps = token_count / elapsed
+            console.print(f"\n[dim magenta]── ({token_count} tokens | {tps:.1f} tokens/sec | Route: {route_hdr} | Scrubbed: {scrub_hdr}) ──[/dim magenta]\n")
+
         except KeyboardInterrupt:
             console.print("\n[bold red]Interrupted.[/bold red]")
             break
         except Exception as e:
             console.print(f"\n[bold red]Connection error: {e}[/bold red]")
-            console.print("[dim yellow]Ensure 'loom serve' is running on port 8000.[/dim yellow]")
+            console.print("[dim yellow]Ensure Loom Fabric Gateway is active on port 8002.[/dim yellow]\n")
 
 
 if __name__ == "__main__":
