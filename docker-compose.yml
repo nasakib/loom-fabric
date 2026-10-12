@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  loom-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: loom-fabric-gateway
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - LOOM_CLUSTER_NAME=loom-saas-cloud
+      - LOOM_GATEWAY_PORT=8000
+      - LOOM_TORQUE_CLOUD_THRESHOLD=300
+    volumes:
+      - loom-data:/root/.loom
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  loom-data:

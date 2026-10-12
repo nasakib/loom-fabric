@@ -1,0 +1,41 @@
+PROPRIETARY AND COMMERCIAL SOURCE CODE LICENSE
+Version 1.0 (2026)
+
+Copyright (c) 2026 Nazmul Sakib. All rights reserved.
+
+IMPORTANT: PLEASE READ CAREFULLY BEFORE ACCESSING, COPYING, OR USING THIS SOFTWARE.
+
+1. PROPRIETARY RIGHTS & GRANT OF LICENSE
+This software, including its source code, documentation, architecture, protocols, 
+and associated artifacts ("Software"), constitutes proprietary, confidential, and 
+valuable trade secrets of Nazmul Sakib ("Licensor"). 
+
+No license or permission to use, copy, reproduce, modify, distribute, sub-license, 
+decompile, reverse engineer, or commercially exploit this Software is granted, 
+expressly or impliedly, to any third party without an explicit, executed commercial 
+license agreement signed by Licensor.
+
+2. RESTRICTIONS
+Unless expressly authorized under a separate written agreement:
+- You may NOT distribute, publish, share, sell, lease, rent, or sublicense the Software.
+- You may NOT use this Software to provide commercial Software-as-a-Service (SaaS), 
+  Managed Service Provider (MSP), or hosted cloud AI compute infrastructure to third parties.
+- You may NOT reverse-engineer, decompile, or disassemble any portion of the Software 
+  or derive competing distributed compute or zero-trust orchestration engines therefrom.
+- You may NOT remove, alter, or obscure any copyright notices, proprietary labels, 
+  or confidentiality markings within the source files.
+
+3. RESERVATION OF RIGHTS
+All rights, title, interest, patents, trade secrets, and intellectual property in 
+and to the Software remain exclusively with the Licensor.
+
+4. DISCLAIMER OF WARRANTY
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A 
+PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE LICENSOR BE LIABLE 
+FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+TORT, OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR 
+THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For commercial licensing, enterprise deployment rights, or partnership inquiries:
+Contact: Nazmul Sakib
