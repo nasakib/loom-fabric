@@ -84,13 +84,14 @@ class GatewayRouter:
         except Exception:
             pass
 
-        # 4. Fallback to local Ollama on 127.0.0.1:11434
-        try:
-            res = await self.client.get("http://127.0.0.1:11434/api/version", timeout=1.0)
-            if res.status_code == 200:
-                return "http://127.0.0.1:11434", "Ollama-Local-Fallback"
-        except Exception:
-            pass
+        # 4. Fallback to local Ollama on 127.0.0.1:11434 or 192.168.99.1:11434
+        for ollama_host in ["http://127.0.0.1:11434", "http://192.168.99.1:11434"]:
+            try:
+                res = await self.client.get(f"{ollama_host}/api/version", timeout=1.0)
+                if res.status_code == 200:
+                    return ollama_host, "Ollama-Local-Fallback"
+            except Exception:
+                pass
 
         # Default fallback to configured worker endpoint
         return worker_endpoint, "Stitch-Default"

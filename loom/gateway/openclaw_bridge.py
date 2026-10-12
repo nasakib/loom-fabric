@@ -17,7 +17,7 @@ import uuid
 from typing import Any, Dict, Optional
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from loom.config import get_settings
@@ -91,7 +91,7 @@ async def _async_task_worker(
         }
 
         # Dispatch async webhook callback
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(1.5, connect=0.25)) as client:
             try:
                 await client.post(webhook_url, json=callback_payload)
                 logger.info(f"OpenClaw callback successfully delivered to {webhook_url} for task {task_id}.")
@@ -187,3 +187,32 @@ async def get_telemetry() -> OpenClawTelemetryResponse:
         vram_headroom_mb=round(free_vram, 2) if free_vram > 0 else 10320.0,
         total_vram_mb=round(total_vram, 2) if total_vram > 0 else 20480.0,
     )
+
+
+@router.get("/models")
+async def openclaw_list_models() -> Dict[str, Any]:
+    """OpenAI-compatible models list for Aider and OpenClaw clients pointing to `/v1/openclaw`."""
+    from loom.gateway.app import list_models
+    models_resp = await list_models()
+    data = list(models_resp.get("data", []))
+    data.insert(
+        0,
+        {
+            "id": "loom-fabric-qct",
+            "object": "model",
+            "created": 1700000000,
+            "owned_by": "loom-fabric-enclave",
+            "permission": [],
+            "root": "loom-fabric-qct",
+            "parent": None,
+        },
+    )
+    return {"object": "list", "data": data}
+
+
+@router.post("/chat/completions")
+async def openclaw_chat_completions(req: Request):
+    """OpenAI-compatible chat completions endpoint under `/v1/openclaw/chat/completions` for Aider."""
+    from loom.gateway.app import chat_completions
+    return await chat_completions(req)
+

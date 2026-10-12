@@ -82,3 +82,14 @@ def test_openclaw_telemetry(client):
     assert data["vram_headroom_mb"] > 0
     assert "total_vram_mb" in data
     assert data["total_vram_mb"] > 0
+
+
+def test_openclaw_models_for_aider(client):
+    """Verify GET /v1/openclaw/models exposes loom-fabric-qct for Aider headless orchestration."""
+    response = client.get("/v1/openclaw/models")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["object"] == "list"
+    model_ids = [m["id"] for m in data["data"]]
+    assert "loom-fabric-qct" in model_ids
+
