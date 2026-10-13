@@ -422,6 +422,29 @@ class CrossPlatformClusterController:
                     log_name="openclaw.log",
                 )
 
+        # 5. Ray Head (:6379 / :8265) on Ryzen 7 Head Node (192.168.99.2)
+        if self.self_ip == "192.168.99.2" and not self.is_port_open("127.0.0.1", 6379) and self._can_spawn_port(6379, force=force, cooldown=45.0):
+            ray_exe = Path(r"C:\Users\natsa\AppData\Local\Programs\Python\Python312\Scripts\ray.exe")
+            if not ray_exe.exists():
+                found_ray = shutil.which("ray")
+                ray_exe = Path(found_ray) if found_ray else ray_exe
+            if ray_exe.exists():
+                self.log("[Auto-Heal] Starting Ray Head (:6379 / :8265) silently in background...")
+                self.spawn_background_service(
+                    [
+                        str(ray_exe),
+                        "start",
+                        "--head",
+                        "--node-ip-address=192.168.99.2",
+                        "--port=6379",
+                        "--dashboard-host=0.0.0.0",
+                        "--dashboard-port=8265",
+                        "--disable-usage-stats",
+                    ],
+                    cwd=self.loom_dir,
+                    log_name="ray_head.log",
+                )
+
     def start_local_all(self, separate_gateway_window: bool = False) -> None:
         """Sanitizes stale ports and starts all services silently in the background (zero terminal windows)."""
         self.log(f"=== Sanitizing & Starting All Services Silently on {self.hostname} ({self.self_ip}) ===")
