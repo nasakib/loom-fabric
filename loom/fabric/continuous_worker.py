@@ -89,13 +89,21 @@ class ContinuousComputeWorker:
                 pass
 
     def _persist_state(self) -> None:
+        serialized = json.dumps(self.stats, indent=2)
+        # Attempt writing to workspace root
         try:
-            serialized = json.dumps(self.stats, indent=2)
-            self.state_file.write_text(serialized, encoding="utf-8")
             (self.workspace_root / ".loom_worker_state.json").write_text(serialized, encoding="utf-8")
-            self._sync_status_md()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Failed to persist state to workspace root: {e}")
+
+        # Attempt writing to user home .loom directory
+        try:
+            self.state_file.parent.mkdir(parents=True, exist_ok=True)
+            self.state_file.write_text(serialized, encoding="utf-8")
+        except Exception as e:
+            logger.debug(f"Failed to persist state to home .loom dir: {e}")
+
+        self._sync_status_md()
 
     def _sync_status_md(self) -> None:
         status_md_path = self.workspace_root / ".agent" / "STATUS.md"

@@ -626,8 +626,13 @@ def worker_status():
     from rich.table import Table
 
     render_cluster_banner()
-    state_file = Path.home() / ".loom" / "continuous_worker_state.json"
-    if not state_file.exists():
+    candidate_files = [
+        Path.home() / ".loom" / "continuous_worker_state.json",
+        Path(__file__).resolve().parents[2] / ".loom_worker_state.json",
+        Path.cwd() / ".loom_worker_state.json",
+    ]
+    state_file = next((f for f in candidate_files if f.exists()), None)
+    if not state_file:
         console.print("[yellow]Worker state file not found. Worker has not completed its first cycle yet or is stopped.[/yellow]")
         return
 
