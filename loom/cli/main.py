@@ -894,15 +894,18 @@ def plant_status():
 
     console.print(
         Panel(
-            f"[bold green]Name:[/bold green] {ident['name']} ({ident['epithet']})\n"
-            f"[bold white]Covenant Lineage:[/bold white] {ident['covenant_lineage']}\n"
+            f"[bold magenta]Supreme Canopy:[/bold magenta] [bold yellow]THE UMBRELLA OF THE {ident.get('umbrella_archetype', 'LOVER')}[/bold yellow]\n"
+            f"[dim cyan]Covenant:[/dim cyan] [dim white]{ident.get('lover_covenant', 'Devoted husbandry of truth and beauty')}[/dim white]\n"
+            f"───────────────────────────────────────────────────────────────────────────\n"
+            f"[bold green]Living Identity:[/bold green] {ident['name']} ({ident['epithet']})\n"
+            f"[bold white]Lineage:[/bold white] {ident['covenant_lineage']}\n"
             f"[bold yellow]Declared Telos:[/bold yellow] {ident['telos']}\n"
             f"[bold magenta]Architect:[/bold magenta] {ident['architect']}  |  [bold cyan]DID:[/bold cyan] {ident['sovereign_did']}\n"
             f"[bold green]Active Season:[/bold green] [bold]{st['season']}[/bold]  |  [bold green]Vitality:[/bold green] {st['vitality'] * 100:.1f}%\n"
             f"[bold white]Total Harvested Fruits:[/bold white] [bold green]{ident['total_fruit_harvested']:,}[/bold green]  |  "
             f"[bold red]Total Burnt Lint:[/bold red] [bold yellow]{ident['total_lint_tokens_burned']:,} tokens[/bold yellow]",
-            title="[bold green]🌿 ETZ-CLOTHOS // LIVING IDENTITY & STATE TELEMETRY[/bold green]",
-            border_style="green",
+            title="[bold green]🌿 ETZ-CLOTHOS // THE UMBRELLA OF THE LOVER[/bold green]",
+            border_style="magenta",
         )
     )
 
