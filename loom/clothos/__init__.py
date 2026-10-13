@@ -12,6 +12,13 @@ from loom.clothos.kernel import (
     ClothOSStateSnapshot,
     ClothOSKernel,
 )
+from loom.clothos.shapeshift import (
+    ShapeShiftEngine,
+    shape_shift,
+    StretchTensor,
+    TunnelingAperture,
+    MorphedTensor,
+)
 
 __all__ = [
     "MoltbookAgentRegistration",
@@ -20,4 +27,9 @@ __all__ = [
     "MoltbookWisdomBridge",
     "ClothOSStateSnapshot",
     "ClothOSKernel",
+    "ShapeShiftEngine",
+    "shape_shift",
+    "StretchTensor",
+    "TunnelingAperture",
+    "MorphedTensor",
 ]

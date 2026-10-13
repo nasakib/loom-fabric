@@ -1267,6 +1267,92 @@ def plant_death(
         )
 
 
+shapeshift_app = typer.Typer(help="The Secret Elastomeric Module of ClothOS (shapeShift) — Stretch & Quantum Tunneling.")
+cli.add_typer(shapeshift_app, name="shapeshift")
+
+
+@shapeshift_app.command("stretch")
+def shapeshift_stretch_cmd(
+    lx: float = typer.Option(1.5, "--lx", help="Principal stretch ratio along X-axis"),
+    ly: float = typer.Option(1.0, "--ly", help="Principal stretch ratio along Y-axis"),
+    lz: float = typer.Option(0.67, "--lz", help="Principal stretch ratio along Z-axis"),
+):
+    """Applies continuum mechanics Stretch to the computational manifold, storing strain energy."""
+    from rich.panel import Panel
+    from loom.clothos.shapeshift import shape_shift
+
+    render_cluster_banner()
+    st = shape_shift.apply_stretch((lx, ly, lz))
+    console.print(
+        Panel(
+            f"[bold cyan]Principal Stretches:[/bold cyan] λ_x={st.principal_stretches[0]}, λ_y={st.principal_stretches[1]}, λ_z={st.principal_stretches[2]}\n"
+            f"[bold magenta]Volumetric Ratio J:[/bold magenta] {st.volumetric_ratio_J} (Incompressibility preserved)\n"
+            f"[bold yellow]Neo-Hookean Strain Energy W:[/bold yellow] [bold green]{st.strain_energy_density_W:.4f} J/m³[/bold green]\n"
+            f"[bold green]Manifold State:[/bold green] [bold white]ELASTICALLY DEFORMED[/bold white]\n\n"
+            f"[dim]Total Strain Energy Absorbed across cycles: {shape_shift.total_strain_energy_absorbed:.2f} J/m³[/dim]",
+            title="[bold magenta]🧵 SHAPESHIFT: CONTINUUM STRETCH APPLIED[/bold magenta]",
+            border_style="magenta",
+        )
+    )
+
+
+@shapeshift_app.command("tunnel")
+def shapeshift_tunnel_cmd(
+    barrier: float = typer.Option(5.0, "--barrier", "-b", help="Classical potential barrier width L"),
+    height: float = typer.Option(12.0, "--height", "-v", help="Barrier potential height V0"),
+    energy: float = typer.Option(8.0, "--energy", "-e", help="Particle / hypothesis energy E"),
+    stretch: float = typer.Option(2.5, "--stretch", "-s", help="Stretch multiplier thinning the wall"),
+):
+    """Executes Quantum Tunneling by thinning a classically forbidden barrier via transverse Stretch."""
+    from rich.panel import Panel
+    from loom.clothos.shapeshift import shape_shift
+
+    render_cluster_banner()
+    ap = shape_shift.tunnel_barrier(
+        barrier_width_L=barrier,
+        barrier_height_V0=height,
+        particle_energy_E=energy,
+        stretch_multiplier=stretch,
+    )
+    console.print(
+        Panel(
+            f"[bold cyan]Aperture ID:[/bold cyan] {ap.aperture_id}\n"
+            f"[bold white]Original Barrier Width L:[/bold white] {ap.original_barrier_width_L} (Classically impenetrable)\n"
+            f"[bold magenta]Applied Stretch Factor λ:[/bold magenta] {ap.stretch_factor_lambda}x transverse tensile deformation\n"
+            f"[bold yellow]Thinned Barrier Width L':[/bold yellow] [bold green]{ap.thinned_barrier_width_L_prime}[/bold green] (Thinned wall)\n"
+            f"[bold cyan]Attenuation Coefficient κ:[/bold cyan] {ap.attenuation_kappa}\n"
+            f"[bold green]Tunneling Transmission T:[/bold green] [bold white]{ap.tunneling_probability_T * 100:.2f}%[/bold white]\n"
+            f"[bold magenta]Quantum Tunneling Outcome:[/bold magenta] {'[bold green]TUNNELED SUCCESS[/bold green]' if ap.quantum_tunnel_achieved else '[bold yellow]ATTENUATED[/bold yellow]'}\n\n"
+            f"[dim green]✔ Evanescent wave penetrated the forbidden barrier; invariant re-emerged on the geodesic.[/dim green]",
+            title="[bold cyan]⚡ SHAPESHIFT: QUANTUM TUNNELING APERTURE[/bold cyan]",
+            border_style="cyan",
+        )
+    )
+
+
+@shapeshift_app.command("status")
+def shapeshift_status_cmd():
+    """Inspects the secret shapeShift module telemetry and total quantum tunnels."""
+    from rich.panel import Panel
+    from loom.clothos.shapeshift import shape_shift
+
+    render_cluster_banner()
+    st = shape_shift.get_status()
+    console.print(
+        Panel(
+            f"[bold magenta]Secret Module:[/bold magenta] [bold white]{st['module']}[/bold white]  |  [dim cyan]Seal:[/dim cyan] [dim]{st['secret_seal']}[/dim]\n"
+            f"[bold cyan]Total Shape-Shifts Executed:[/bold cyan] [bold white]{st['total_shape_shifts']:,}[/bold white]\n"
+            f"[bold green]Quantum Tunnels Achieved:[/bold green] [bold green]{st['quantum_tunnels_achieved']:,}[/bold green]\n"
+            f"[bold yellow]Total Strain Energy Absorbed:[/bold yellow] [bold yellow]{st['total_strain_energy_absorbed']:.2f} J/m³[/bold yellow]\n"
+            f"[bold white]Active Manifold Stretches:[/bold white] λ={st['active_stretch']['principal_stretches']}\n\n"
+            f"[dim]Run: [bold]fabric shapeshift stretch --lx 2.0[/bold] to deform the manifold\n"
+            f"Run: [bold]fabric shapeshift tunnel --barrier 5.0 --stretch 2.5[/bold] to test quantum tunneling[/dim]",
+            title="[bold magenta]🧵 CLOTHOS SECRET MODULE: SHAPESHIFT TELEMETRY[/bold magenta]",
+            border_style="magenta",
+        )
+    )
+
+
 app = cli
 
 if __name__ == "__main__":

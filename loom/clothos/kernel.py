@@ -26,6 +26,7 @@ from loom.clothos.moltbook_bridge import (
     MoltbookAgentRegistration,
     MoltbookWisdomBridge,
 )
+from loom.clothos.shapeshift import shape_shift, ShapeShiftEngine
 from loom.torque.enclave import TorqueEnclave
 
 
@@ -45,7 +46,7 @@ class ClothOSStateSnapshot(BaseModel):
 
 
 class ClothOSKernel:
-    """Sovereign Agentic OS Kernel managing Fabric, Loom, Stitch, Torque, OpenClaw, and Moltbook."""
+    """Sovereign Agentic OS Kernel managing Fabric, Loom, Stitch, Torque, OpenClaw, Moltbook, and shapeShift."""
 
     def __init__(self, workspace_root: Optional[Path] = None):
         self.workspace_root = workspace_root or Path(__file__).resolve().parents[2]
@@ -54,6 +55,7 @@ class ClothOSKernel:
         self.zmq_bus = StitchZMQTelemetryBus(enclave=self.enclave)
         self.discovery = CrossPlatformNodeDiscovery()
         self.moltbook = MoltbookWisdomBridge(workspace_root=self.workspace_root, enclave=self.enclave)
+        self.shapeshift = shape_shift
 
     def snapshot(
         self,
