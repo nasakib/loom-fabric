@@ -593,6 +593,77 @@ def synergy_command():
     console.print(f"[dim green]✔ Synced ClothOS & Moltbook R&D status to {status_path}[/dim green]")
 
 
+worker_app = typer.Typer(help="Manage 24/7 Sovereign Autonomous Compute & Invariant Mining Worker.")
+cli.add_typer(worker_app, name="worker")
+
+
+@worker_app.command("start")
+def worker_start():
+    """Starts the 24/7 Continuous Sovereign Autonomous Compute Engine windowlessly in background."""
+    from loom.gui import CrossPlatformClusterController
+
+    render_cluster_banner()
+    ctrl = CrossPlatformClusterController()
+    worker_py = sys.executable
+    pw = Path(worker_py).with_name("pythonw.exe")
+    exe = str(pw) if pw.exists() else worker_py
+
+    ctrl.spawn_background_service(
+        [exe, "-m", "loom.fabric.continuous_worker"],
+        cwd=ctrl.loom_dir,
+        env={"PYTHONPATH": str(ctrl.loom_dir)},
+        log_name="continuous_worker.log",
+    )
+    console.print("[bold green]✔ 24/7 Continuous Compute Worker spawned windowlessly in background.[/bold green]")
+    console.print("[dim cyan]Workloads active: Ollama CUDA Reasoning, babelForge Kuramoto Invariant Miner, vectorForge Latent Indexer.[/dim cyan]")
+    console.print("[dim white]Check metrics anytime with: [bold]fabric worker status[/bold] or view in the Fabric GUI.[/dim white]")
+
+
+@worker_app.command("status")
+def worker_status():
+    """Displays real-time metrics for the 24/7 Continuous Compute Worker."""
+    from rich.panel import Panel
+    from rich.table import Table
+
+    render_cluster_banner()
+    state_file = Path.home() / ".loom" / "continuous_worker_state.json"
+    if not state_file.exists():
+        console.print("[yellow]Worker state file not found. Worker has not completed its first cycle yet or is stopped.[/yellow]")
+        return
+
+    try:
+        data = json.loads(state_file.read_text(encoding="utf-8"))
+    except Exception as e:
+        console.print(f"[red]Error reading state: {e}[/red]")
+        return
+
+    table = Table(title="[bold green]⚡ 24/7 Continuous Sovereign Compute Engine Metrics[/bold green]", border_style="green")
+    table.add_column("Metric", style="bold cyan", width=32)
+    table.add_column("Value", style="bold white", width=42)
+
+    table.add_row("Engine State", "[bold green]ACTIVE (Running)[/bold green]" if data.get("is_running") else "[dim yellow]IDLE / STOPPED[/dim yellow]")
+    table.add_row("Total Compute Cycles", f"{data.get('total_cycles_completed', 0):,}")
+    table.add_row("Invariants Mined", f"[bold green]{data.get('invariants_mined', 0):,}[/bold green]")
+    table.add_row("babelForge Kuramoto Sweeps", f"{data.get('kuramoto_sweeps_completed', 0):,}")
+    table.add_row("vectorForge Vectors Indexed", f"{data.get('vectorforge_embeddings_indexed', 0):,}")
+    table.add_row("AI Hypotheses Synthesized", f"{data.get('ai_hypotheses_synthesized', 0):,}")
+    table.add_row("Active Silicon Tier", f"[magenta]{data.get('last_active_tier', 'Idle')}[/magenta]")
+    table.add_row("Last Iteration Telemetry", f"[dim]{data.get('last_log_message', 'N/A')}[/dim]")
+
+    console.print(table)
+
+
+@worker_app.command("stop")
+def worker_stop():
+    """Stops the 24/7 background worker."""
+    import subprocess
+    render_cluster_banner()
+    # Find and terminate pythonw continuous_worker process
+    cmd = "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'continuous_worker' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
+    subprocess.run(["powershell.exe", "-NoProfile", "-Command", cmd], capture_output=True)
+    console.print("[dim yellow]✔ Continuous Compute Worker signal sent: worker terminated.[/dim yellow]")
+
+
 app = cli
 
 if __name__ == "__main__":

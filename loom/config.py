@@ -116,6 +116,10 @@ class TorqueSecurityConfig(BaseModel):
         },
         description="Regular expressions for detecting sensitive tokens and secrets.",
     )
+    ray_auth_token: str = Field(
+        default="G-GzcZEzqteW241i720XeH5UNT73T6qk",
+        description="Cluster-wide authentication token for Ray GCS, Job Submission, and ZeroMQ Bus.",
+    )
     cloud_fallback_threshold_seconds: float = Field(
         default=300.0,
         description="Compute time threshold in seconds before offloading to cloud with scrubbing.",

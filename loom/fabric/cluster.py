@@ -105,6 +105,7 @@ class FabricClusterOrchestrator:
             if not ray.is_initialized():
                 ray.init(
                     address=f"{self.settings.head_node.ip}:{self.settings.head_node.ray_port}",
+                    _redis_password=self.settings.torque.ray_auth_token,
                     ignore_reinit_error=True,
                     logging_level=logging.WARNING,
                 )

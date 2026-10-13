@@ -437,6 +437,7 @@ class CrossPlatformClusterController:
                         "--head",
                         "--node-ip-address=192.168.99.2",
                         "--port=6379",
+                        "--redis-password=G-GzcZEzqteW241i720XeH5UNT73T6qk",
                         "--dashboard-host=0.0.0.0",
                         "--dashboard-port=8265",
                         "--disable-usage-stats",
