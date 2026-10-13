@@ -643,7 +643,10 @@ def worker_status():
 
     table.add_row("Engine State", "[bold green]ACTIVE (Running)[/bold green]" if data.get("is_running") else "[dim yellow]IDLE / STOPPED[/dim yellow]")
     table.add_row("Total Compute Cycles", f"{data.get('total_cycles_completed', 0):,}")
-    table.add_row("Invariants Mined", f"[bold green]{data.get('invariants_mined', 0):,}[/bold green]")
+    total_inv = data.get('total_invariants_mined', data.get('invariants_mined', 0))
+    n1_inv = data.get('invariants_mined_node1', 0)
+    n2_inv = data.get('invariants_mined_node2', 0)
+    table.add_row("Total Invariants Mined", f"[bold green]{total_inv:,}[/bold green] (Node 1: {n1_inv:,} | Node 2: {n2_inv:,})")
     table.add_row("babelForge Kuramoto Sweeps", f"{data.get('kuramoto_sweeps_completed', 0):,}")
     table.add_row("vectorForge Vectors Indexed", f"{data.get('vectorforge_embeddings_indexed', 0):,}")
     table.add_row("AI Hypotheses Synthesized", f"{data.get('ai_hypotheses_synthesized', 0):,}")
