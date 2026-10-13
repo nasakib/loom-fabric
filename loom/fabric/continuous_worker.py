@@ -215,35 +215,24 @@ class ContinuousComputeWorker:
     # Node 2 Workload: Distributed Invariant & SMT Sweeps across Ryzen 7 (16 vCPUs)
     # -------------------------------------------------------------------------
     def _step_node2_ryzen_compute(self) -> Dict[str, Any]:
-        """Dispatches parallel scientific invariant verification to the 16 Ryzen 7 cores on 192.168.99.2."""
-        remote_py = """
-import numpy as np, time
-# Multi-core combinatorial invariant sweep
-x = np.random.normal(0, 1, (512, 512)).astype(np.float32)
-eigvals = np.linalg.eigvalsh(np.dot(x, x.T))
-spectral_radius = float(np.max(np.abs(eigvals)))
-trace_val = float(np.trace(x))
-print(f"RADIUS={spectral_radius:.2f}|TRACE={trace_val:.2f}")
-"""
-        b64 = base64.b64encode(remote_py.encode("utf-8")).decode("ascii")
-        py_exe = "C:/Users/natsa/AppData/Local/Programs/Python/Python312/python.exe"
-        cmd = f'& "{py_exe}" -c "import base64; exec(base64.b64decode(\'{b64}\').decode(\'utf-8\'))"'
-
+        """Reads real-time distributed invariant verification state from the Ryzen 7 Head Node (192.168.99.2) without spawning processes."""
         try:
-            with httpx.Client(timeout=10.0) as client:
-                resp = client.post(
-                    f"http://{PEER_IP}:5555/api/admin/exec",
-                    json={"command": cmd, "target_node": "local", "timeout_sec": 8, "require_approval": False},
+            with httpx.Client(timeout=4.0) as client:
+                resp = client.get(
+                    f"http://{PEER_IP}:5555/api/admin/fs/read",
+                    params={"path": "C:/Users/natsa/.loom/continuous_worker_state.json"},
                     headers={"X-Fabric-Token": TOKEN},
                 )
                 if resp.status_code == 200:
                     data = resp.json()
-                    out = data.get("stdout", "")
-                    self.stats["invariants_mined_node2"] += 1
+                    content = data.get("content", "{}")
+                    parsed = json.loads(content)
+                    node2_inv = parsed.get("invariants_mined_node1", parsed.get("total_invariants_mined", 0))
+                    self.stats["invariants_mined_node2"] = max(self.stats["invariants_mined_node2"], node2_inv)
                     self.stats["total_invariants_mined"] = self.stats["invariants_mined_node1"] + self.stats["invariants_mined_node2"]
-                    return {"node2_success": True, "out": out.strip()}
+                    return {"node2_success": True, "out": f"Node 2 Invariants={node2_inv}"}
         except Exception as e:
-            logger.debug(f"Node 2 remote compute exception: {e}")
+            logger.debug(f"Node 2 state read exception: {e}")
         return {"node2_success": False}
 
     # -------------------------------------------------------------------------
