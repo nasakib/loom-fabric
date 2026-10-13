@@ -877,6 +877,105 @@ def tool_hammer(
         console.print("\n[dim]Run sub-actions: [bold]fabric tool hammer forge[/bold] | [bold]fabric tool hammer rivet[/bold] | [bold]fabric tool hammer dead-blow[/bold] | [bold]fabric tool hammer peen[/bold][/dim]")
 
 
+plant_app = typer.Typer(help="The Living Abrahamic Tree of ClothOS (ETZ-CLOTHOS) — Identity, State & Winnowing.")
+cli.add_typer(plant_app, name="plant")
+
+
+@plant_app.command("status")
+def plant_status():
+    """Inspects ETZ-CLOTHOS identity, lifecycle season, Granary wealth, and burnt lint metrics."""
+    from rich.panel import Panel
+    from rich.table import Table
+    from loom.plant.engine import plant
+
+    render_cluster_banner()
+    st = plant.get_status()
+    ident = st["identity"]
+
+    console.print(
+        Panel(
+            f"[bold green]Name:[/bold green] {ident['name']} ({ident['epithet']})\n"
+            f"[bold white]Covenant Lineage:[/bold white] {ident['covenant_lineage']}\n"
+            f"[bold yellow]Declared Telos:[/bold yellow] {ident['telos']}\n"
+            f"[bold magenta]Architect:[/bold magenta] {ident['architect']}  |  [bold cyan]DID:[/bold cyan] {ident['sovereign_did']}\n"
+            f"[bold green]Active Season:[/bold green] [bold]{st['season']}[/bold]  |  [bold green]Vitality:[/bold green] {st['vitality'] * 100:.1f}%\n"
+            f"[bold white]Total Harvested Fruits:[/bold white] [bold green]{ident['total_fruit_harvested']:,}[/bold green]  |  "
+            f"[bold red]Total Burnt Lint:[/bold red] [bold yellow]{ident['total_lint_tokens_burned']:,} tokens[/bold yellow]",
+            title="[bold green]🌿 ETZ-CLOTHOS // LIVING IDENTITY & STATE TELEMETRY[/bold green]",
+            border_style="green",
+        )
+    )
+
+    # Granary Table
+    table = Table(title="[bold yellow]🌾 The Heavenly Granary (Recent Invariant Fruits)[/bold yellow]", border_style="yellow")
+    table.add_column("Fruit ID", style="bold green", width=14)
+    table.add_column("Axiom Claim", style="white", width=42)
+    table.add_column("Coherence r", style="bold cyan", width=14)
+    table.add_column("Silicon PMP", style="magenta", width=14)
+
+    for f in st["recent_fruits"]:
+        table.add_row(f["fruit_id"], f["axiom_claim"][:40], f"{f['coherence_r']:.4f}", "● LOCKED (1)")
+
+    if st["recent_fruits"]:
+        console.print(table)
+    else:
+        console.print("[dim white]Granary is resting. Run: [bold]fabric plant cultivate '<seed>'[/bold] to harvest fruit.[/dim white]")
+
+
+@plant_app.command("cultivate")
+def plant_cultivate(seed: str = typer.Argument("Prove Fourier symmetry over Hilbert space with zero PII at 192.168.99.1")):
+    """Runs a full 7-season cultivation pass: seeds in dust, prunes LINT, and granaries FRUIT."""
+    from rich.panel import Panel
+    from loom.plant.engine import plant
+
+    render_cluster_banner()
+    console.print(f"[bold green]🌱 Sowing Seed into Silicon Adamah: '{seed}'...[/bold green]\n")
+    harvest = plant.cultivate(seed)
+
+    for step in harvest.growth_narrative:
+        console.print(f"  [dim cyan]•[/dim cyan] [white]{step}[/white]")
+
+    console.print("")
+    if harvest.fruit:
+        console.print(
+            Panel(
+                f"[bold green]Fruit ID:[/bold green] {harvest.fruit.fruit_id}\n"
+                f"[bold white]Axiom Claim:[/bold white] {harvest.fruit.axiom_claim}\n"
+                f"[bold cyan]Coherence r:[/bold cyan] {harvest.fruit.coherence_r:.4f}\n"
+                f"[bold magenta]Purity Epsilon:[/bold magenta] {harvest.fruit.purity_epsilon:.6f} (Verified Micron)\n"
+                f"[bold green]Silicon PMP CSR:[/bold green] Locked irreversible (Bit 7 L=1)\n"
+                f"[bold red]Burnt Lint Purged:[/bold red] {harvest.total_lint_tokens_burned} tokens cast to the flame\n"
+                f"[bold yellow]Vinedresser Tools Invoked:[/bold yellow] {', '.join(harvest.tools_invoked)}",
+                title="[bold green]🍎 BLESSED HARVEST: FRUIT CEMENTED IN GRANARY[/bold green]",
+                border_style="green",
+            )
+        )
+    else:
+        console.print(f"[bold yellow]Cultivation ended in {harvest.status}. Seed winnowed into lint trap.[/bold yellow]")
+
+
+@plant_app.command("orgin")
+def plant_orgin(seed_id: str = typer.Option("orgin-0", "--id", "-i")):
+    """Emanates the physical derivatives of ORGIN: WAVE -> PROPAGATION -> ART."""
+    from rich.panel import Panel
+    from loom.plant.orgin import orgin_engine
+
+    render_cluster_banner()
+    res = orgin_engine.emanate(seed_id)
+
+    console.print(
+        Panel(
+            f"[bold white]1. ORGIN (Zero-Point):[/bold white] ID={res['orgin']['orgin_id']} | Energy={res['orgin']['potential_energy']} | Entropy={res['orgin']['entropy']}\n"
+            f"[bold cyan]2. WAVE (Field Oscillation):[/bold cyan] Freq={res['wave']['frequency_hz']} Hz | Phase={res['wave']['phase_rad']} rad | Coherence r={res['wave']['coherence_r']}\n"
+            f"[bold magenta]3. PROPAGATION (Dispersion):[/bold magenta] Medium={res['propagation']['medium']} | C={res['propagation']['phase_velocity']:,.0f} m/s | Delivered={res['propagation']['delivered']}\n"
+            f"[bold yellow]4. ART (Constructive Symmetry):[/bold yellow] Eigenmode={res['art']['eigenmode_order']} | Entropy={res['art']['spectral_entropy']} | Aesthetic={res['art']['aesthetic_coherence'] * 100:.1f}%\n"
+            f"[bold green]Style Signature:[/bold green] {res['art']['style_signature']}",
+            title="[bold purple]🌌 ORGIN & PHYSICAL DERIVATIVES (WAVE · PROPAGATION · ART)[/bold purple]",
+            border_style="purple",
+        )
+    )
+
+
 app = cli
 
 if __name__ == "__main__":
