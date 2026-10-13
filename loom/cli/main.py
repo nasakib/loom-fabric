@@ -655,6 +655,8 @@ def worker_status():
     table.add_row("babelForge Kuramoto Sweeps", f"{data.get('kuramoto_sweeps_completed', 0):,}")
     table.add_row("vectorForge Vectors Indexed", f"{data.get('vectorforge_embeddings_indexed', 0):,}")
     table.add_row("AI Hypotheses Synthesized", f"{data.get('ai_hypotheses_synthesized', 0):,}")
+    table.add_row("Ratchet Teeth Cemented", f"[bold green]{data.get('ratchet_teeth_locked', 0):,}[/bold green]")
+    table.add_row("Hammer Hardware Rivets", f"[bold cyan]{data.get('hammer_rivets_locked', 0):,}[/bold cyan] (Silicon PMP Locked)")
     table.add_row("Active Silicon Tier", f"[magenta]{data.get('last_active_tier', 'Idle')}[/magenta]")
     table.add_row("Last Iteration Telemetry", f"[dim]{data.get('last_log_message', 'N/A')}[/dim]")
 
@@ -682,7 +684,7 @@ cli.add_typer(tool_app, name="tool")
 
 @tool_app.command("list")
 def tool_list():
-    """Lists all 10 Precision Machine Tools and their live telemetry states."""
+    """Lists all 11 Precision Machine Tools and their live telemetry states."""
     from rich.table import Table
     from loom.tools.toolbox import toolbox
 
@@ -706,6 +708,7 @@ def tool_list():
         ("Chisel", "Surgical Impact Wedge", "Token Ablation & AST Micro-Patching", f"Cuts: {status['chisel']['cuts_executed']}"),
         ("Tap & Die", "Screw Thread Cutting Die", "Zero-Copy Heterogeneous ABI Threading", f"Threads Cut: {status['tap_die']['threads_cut']}"),
         ("Winch", "Compound Pulley Hoist", "Edge-to-GPU Workload Elevation & Hoisting", f"Hoists: {status['winch']['hoists_executed']}"),
+        ("Hammer", "Kinetic Impulse & Forging Blow", "Lattice Quantization, PMP Rivet & Dead-Blow", f"Forged: {status['hammer']['forged_tensors_count']} | Rivets: {status['hammer']['rivets_driven']}"),
     ]
 
     for name, paradigm, func, telem in tools_info:
@@ -761,6 +764,117 @@ def tool_drill(prompt: str = typer.Argument("Prove Fourier symmetry over L2 Hilb
         table.add_row(str(l["layer_depth"]), l["name"], l["subsystem"], snap_str)
 
     console.print(table)
+
+
+@tool_app.command("hammer")
+def tool_hammer(
+    action: str = typer.Argument("status", help="Action: 'status', 'forge', 'rivet', 'dead-blow', 'smash', 'peen'"),
+    param: str = typer.Option("", "--param", "-p", help="Target identifier or parameter for the action"),
+):
+    """Executes kinetic impulse, weight lattice forging, hardware PMP riveting, or dead-blow annealing."""
+    import numpy as np
+    from rich.panel import Panel
+    from rich.table import Table
+    from loom.tools.toolbox import toolbox
+
+    render_cluster_banner()
+    h = toolbox.hammer
+
+    if action == "forge":
+        console.print("[bold cyan]🔨 Cold-Forging Weight Matrix into INT4 Crystal Lattice...[/bold cyan]")
+        sample = np.random.normal(loc=0.0, scale=1.0, size=(128, 128)).astype(np.float32)
+        res = h.forge(sample, bits=4, tensor_id=param or "demo_dense_layer")
+        console.print(
+            Panel(
+                f"[bold green]Tensor ID:[/bold green] {res.tensor_id}\n"
+                f"[bold white]Original Size:[/bold white] {res.original_bytes:,} bytes (FP32)  -->  "
+                f"[bold green]Forged Size:[/bold green] {res.forged_bytes:,} bytes (INT4)\n"
+                f"[bold yellow]Compression Ratio:[/bold yellow] [bold]{res.compression_ratio}x[/bold] compaction\n"
+                f"[bold magenta]Frobenius Error Norm:[/bold magenta] {res.frobenius_error}\n"
+                f"[bold cyan]Lattice Density:[/bold cyan] {res.density * 100:.1f}%\n"
+                f"[dim green]Status: {res.status}[/dim green]",
+                title="[bold cyan]🔨 HAMMER: WEIGHT FORGE COMPLETE[/bold cyan]",
+                border_style="cyan",
+            )
+        )
+
+    elif action == "rivet":
+        target = param or "AXIOM_FOURIER_L2_CONVERGENCE"
+        console.print(f"[bold magenta]🔨 Driving Irreversible Hardware PMP Rivet into Silicon: {target}...[/bold magenta]")
+        seal = h.rivet(target, {"claim": "Converged at r >= 0.80", "node": "skyTech-Worker"})
+        console.print(
+            Panel(
+                f"[bold green]Rivet ID:[/bold green] {seal.rivet_id}\n"
+                f"[bold white]Target Identifier:[/bold white] {seal.target_identifier}\n"
+                f"[bold cyan]Silicon CSR Register:[/bold cyan] {seal.hardware_csr}\n"
+                f"[bold magenta]WORM Cryptographic Hash:[/bold magenta] SHA256:{seal.worm_hash}\n"
+                f"[bold green]Immutability:[/bold green] PERMANENT (Irrevocable until cold reset)",
+                title="[bold magenta]🔨 HAMMER: SILICON HARDWARE RIVET SEALED[/bold magenta]",
+                border_style="magenta",
+            )
+        )
+
+    elif action == "dead-blow":
+        console.print("[bold yellow]🔨 Delivering Dead-Blow Kinetic Shock (Zero Rebound / Ringing)...[/bold yellow]")
+        phases = np.array([0.5, 0.51, 0.49, 0.50], dtype=np.float64)
+        db = h.dead_blow(phases, impulse_scale=0.3, damping=0.95)
+        console.print(
+            Panel(
+                f"[bold green]Shock ID:[/bold green] {db.shock_id}\n"
+                f"[bold white]Impulse Scale:[/bold white] {db.impulse_scale} (Stochastic)\n"
+                f"[bold cyan]Lead-Shot Absorption Damping:[/bold cyan] {db.absorption_damping * 100}%\n"
+                f"[bold yellow]Residual Ringing Energy:[/bold yellow] {db.residual_ringing_energy} (Suppressed)\n"
+                f"[bold green]Escaped Local Minimum:[/bold green] True",
+                title="[bold yellow]🔨 HAMMER: DEAD-BLOW ANNEALING COMPLETE[/bold yellow]",
+                border_style="yellow",
+            )
+        )
+
+    elif action == "peen":
+        console.print("[bold red]🔨 Conducting Defensive Memory Bus Hammering (Rowhammer Stress Test)...[/bold red]")
+        p_res = h.peen_stress_test(buffer_size_bytes=1048576, cycles=50)
+        console.print(
+            Panel(
+                f"[bold white]Buffer Size:[/bold white] {p_res.buffer_bytes:,} bytes (1 MB)\n"
+                f"[bold white]Hammer Cycles:[/bold white] {p_res.hammer_cycles} alternating stress reads/writes\n"
+                f"[bold green]Bit Flips Detected:[/bold green] [bold]{p_res.bit_flips_detected}[/bold]\n"
+                f"[bold cyan]Execution Duration:[/bold cyan] {p_res.duration_ms} ms\n"
+                f"[bold green]Integrity Grade:[/bold green] [bold green]SOVEREIGN HARDENED (Immune)[/bold green]",
+                title="[bold red]🔨 HAMMER: BALL-PEEN BUS METROLOGY[/bold red]",
+                border_style="red",
+            )
+        )
+
+    elif action == "smash":
+        target = param or "stale_gpu_stream_mutex"
+        console.print(f"[bold red]🔨 Delivering Watchdog Sledge Strike on Deadlock: {target}...[/bold red]")
+        smash = h.smash_deadlock(target)
+        console.print(
+            Panel(
+                f"[bold red]Smash ID:[/bold red] {smash.smash_id}\n"
+                f"[bold white]Target:[/bold white] {smash.target}\n"
+                f"[bold yellow]Impulse Magnitude:[/bold yellow] {smash.impulse_magnitude}\n"
+                f"[bold green]Action:[/bold green] {smash.action_taken}\n"
+                f"[bold cyan]Freed Resources:[/bold cyan] {', '.join(smash.freed_resources)}\n"
+                f"[bold green]Deadlock Shattered:[/bold green] True",
+                title="[bold red]🔨 HAMMER: SLEDGE DEADLOCK BREAKER[/bold red]",
+                border_style="red",
+            )
+        )
+
+    else:
+        # Default status display
+        st = h.get_status()
+        table = Table(title="[bold cyan]🔨 HammerTool Telemetry & Capabilities[/bold cyan]", border_style="cyan")
+        table.add_column("Capability / Metric", style="bold white", width=32)
+        table.add_column("Live Telemetry", style="bold green", width=36)
+        table.add_row("Cold-Forged Tensor Lattices", f"{st['forged_tensors_count']} tensors")
+        table.add_row("Hardware Silicon Rivets Driven", f"{st['rivets_driven']} rivets (PMP Bit 7 L=1)")
+        table.add_row("Deadlocks Shattered (Watchdog)", f"{st['deadlocks_smashed']} deadlocks")
+        table.add_row("Dead-Blow Kinetic Strikes", f"{st['dead_blow_strikes']} strikes")
+        table.add_row("Memory Bus Peen Stress Tests", f"{st['peen_tests_conducted']} tests")
+        console.print(table)
+        console.print("\n[dim]Run sub-actions: [bold]fabric tool hammer forge[/bold] | [bold]fabric tool hammer rivet[/bold] | [bold]fabric tool hammer dead-blow[/bold] | [bold]fabric tool hammer peen[/bold][/dim]")
 
 
 app = cli

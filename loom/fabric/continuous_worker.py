@@ -72,6 +72,7 @@ class ContinuousComputeWorker:
             "invariants_mined_node2": 0,
             "total_invariants_mined": 0,
             "ratchet_teeth_locked": self.toolbox.ratchet.tooth_count,
+            "hammer_rivets_locked": self.toolbox.hammer.rivets_driven,
             "last_active_tier": "Full Cluster (Node 1 + Node 2)",
             "last_preemption_epoch": 0.0,
             "last_log_message": "Initialized",
@@ -117,6 +118,7 @@ class ContinuousComputeWorker:
                 f"Cycles: `{self.stats['total_cycles_completed']:,}` | "
                 f"Mined Invariants: `{self.stats['total_invariants_mined']:,}` (Node 1: `{self.stats['invariants_mined_node1']:,}` + Node 2: `{self.stats['invariants_mined_node2']:,}`) | "
                 f"Ratchet Teeth: `{self.stats.get('ratchet_teeth_locked', 0):,}` | "
+                f"Hammer Rivets: `{self.stats.get('hammer_rivets_locked', 0):,}` | "
                 f"Kuramoto Sweeps: `{self.stats['kuramoto_sweeps_completed']:,}` | "
                 f"Indexed Vectors: `{self.stats['vectorforge_embeddings_indexed']:,}`\n\n"
             )
@@ -282,7 +284,7 @@ class ContinuousComputeWorker:
                 # 4. Node 1: RTX 3060 CUDA Ollama AI Reasoning (continuous sustained GPU inference)
                 self._step_node1_ai_reasoning()
 
-                # 5. Ratchet Invariant Locking
+                # 5. Ratchet Invariant Locking & Hammer Hardware PMP Riveting
                 cur_cycle = self.stats["total_cycles_completed"]
                 r_val = k_res.get("final_coherence_r", 0.0)
                 if r_val > 0.80:
@@ -293,7 +295,13 @@ class ContinuousComputeWorker:
                         confidence=0.96,
                         node_origin="skyTech-Worker",
                     )
+                if r_val > 0.90:
+                    self.toolbox.hammer.rivet(
+                        identifier=f"RIVET_KURA_{cur_cycle}",
+                        payload={"cycle": cur_cycle, "r": r_val, "oscillators": 65536},
+                    )
                 self.stats["ratchet_teeth_locked"] = self.toolbox.ratchet.tooth_count
+                self.stats["hammer_rivets_locked"] = self.toolbox.hammer.rivets_driven
 
                 # 6. Fabric QCT Hybrid Routing & ZeroMQ Telemetry Broadcast
                 query_prompt = (
@@ -320,6 +328,7 @@ class ContinuousComputeWorker:
                         "invariants_node2": self.stats["invariants_mined_node2"],
                         "total_invariants": self.stats["total_invariants_mined"],
                         "ratchet_teeth_locked": self.stats["ratchet_teeth_locked"],
+                        "hammer_rivets_locked": self.stats["hammer_rivets_locked"],
                     },
                 )
                 self.zmq_bus.publish(
@@ -338,6 +347,7 @@ class ContinuousComputeWorker:
                     f"QCT={route_decision.tier} | "
                     f"Kuramoto r={k_res['final_coherence_r']} | "
                     f"Ratchet={self.stats['ratchet_teeth_locked']} | "
+                    f"Hammer={self.stats['hammer_rivets_locked']} | "
                     f"Indexed {v_res['indexed_vectors']} vecs | "
                     f"Node 2 Invariants: {self.stats['invariants_mined_node2']:,} | "
                     f"Total Pool Invariants: {self.stats['total_invariants_mined']:,}"

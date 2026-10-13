@@ -743,6 +743,7 @@ class LoomFabricCommandCenter(tk.Tk):
         self.lbl_stat_cycles = _make_metric_pill(metrics_frame, "COMPUTE CYCLES", "0")
         self.lbl_stat_invariants = _make_metric_pill(metrics_frame, "MINED INVARIANTS", "0 (N1: 0 | N2: 0)")
         self.lbl_stat_ratchet = _make_metric_pill(metrics_frame, "RATCHET TEETH", "0")
+        self.lbl_stat_hammer = _make_metric_pill(metrics_frame, "HAMMER RIVETS", "0")
         self.lbl_stat_kuramoto = _make_metric_pill(metrics_frame, "KURAMOTO (RX 580)", "0")
         self.lbl_stat_vectors = _make_metric_pill(metrics_frame, "INDEXED VECTORS", "0")
         self.lbl_stat_tier = _make_metric_pill(metrics_frame, "SILICON TIER", "Full Cluster Mesh")
@@ -1438,6 +1439,7 @@ class LoomFabricCommandCenter(tk.Tk):
             inv_n2 = state_data.get("invariants_mined_node2", 0)
             kuramoto = state_data.get("kuramoto_sweeps_completed", 0)
             ratchet_teeth = state_data.get("ratchet_teeth_locked", 0)
+            hammer_rivets = state_data.get("hammer_rivets_locked", 0)
             tier = state_data.get("last_active_tier", "Dual-Node Full Mesh")
             last_msg = state_data.get("last_log_message", "Running")
             is_running = state_data.get("is_running", True)
@@ -1448,6 +1450,8 @@ class LoomFabricCommandCenter(tk.Tk):
                     self.lbl_stat_invariants.config(text=f"{invariants:,} (N1: {inv_n1:,} | N2: {inv_n2:,})")
                     if hasattr(self, "lbl_stat_ratchet"):
                         self.lbl_stat_ratchet.config(text=f"{ratchet_teeth:,}")
+                    if hasattr(self, "lbl_stat_hammer"):
+                        self.lbl_stat_hammer.config(text=f"{hammer_rivets:,}")
                     self.lbl_stat_kuramoto.config(text=f"{kuramoto:,}")
                     self.lbl_stat_vectors.config(text=f"{vectors:,}")
                     self.lbl_stat_tier.config(text=str(tier)[:26])

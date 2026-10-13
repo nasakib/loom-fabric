@@ -26,6 +26,7 @@ from typing import Any, Dict, Optional
 from loom.tools.caliper import CaliperGauge
 from loom.tools.chisel import ChiselAblator
 from loom.tools.drill import DrillInspector
+from loom.tools.hammer import HammerForge
 from loom.tools.lathe import LatheShaper
 from loom.tools.ratchet import RatchetEngine
 from loom.tools.tap_die import TapDieThreader
@@ -61,6 +62,9 @@ class SovereignToolbox:
         self.tap_die = TapDieThreader()
         self.winch = WinchHoist()
 
+        # 5. Kinetic Impulse & Forging
+        self.hammer = HammerForge()
+
     @classmethod
     def get_instance(cls) -> SovereignToolbox:
         if cls._instance is None:
@@ -68,7 +72,7 @@ class SovereignToolbox:
         return cls._instance
 
     def get_full_tooling_status(self) -> Dict[str, Any]:
-        """Returns live status matrix across all 10 precision tools."""
+        """Returns live status matrix across all 11 precision tools."""
         return {
             "torque": {"vault_tokens_count": len(getattr(self.torque.vault, "_forward", {}))},
             "ratchet": self.ratchet.get_status(),
@@ -80,6 +84,7 @@ class SovereignToolbox:
             "chisel": self.chisel.get_status(),
             "tap_die": self.tap_die.get_status(),
             "winch": self.winch.get_status(),
+            "hammer": self.hammer.get_status(),
         }
 
 

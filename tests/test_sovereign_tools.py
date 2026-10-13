@@ -195,10 +195,70 @@ def test_winch_hoisting():
     assert spooled["result"]["result"] == "PROVED"
 
 
+def test_hammer_forge_and_impulse():
+    from loom.tools.hammer import HammerForge
+    hammer = HammerForge()
+
+    # 1. Weight Forge: INT4 and BitNet ternary cold-forging
+    weights = np.random.normal(loc=0.0, scale=1.0, size=(64, 64)).astype(np.float32)
+    forged_int4 = hammer.forge(weights, bits=4, tensor_id="tensor_fc1")
+    assert forged_int4.bits == 4
+    assert forged_int4.compression_ratio >= 7.0
+    assert forged_int4.frobenius_error < 0.25
+
+    forged_ternary = hammer.forge(weights, bits=2, tensor_id="tensor_fc2")
+    assert forged_ternary.bits == 2
+    assert forged_ternary.compression_ratio >= 15.0
+
+    # 2. Riveter: Permanent silicon PMP hardware lock
+    seal = hammer.rivet("AXIOM_FOURIER_CONVERGENCE", {"theorem": "r >= 0.80", "proof": "SMT_OK"})
+    assert seal.hardware_csr == "pmpcfg0[7:7]=LOCKED(1)"
+    assert seal.immutable is True
+    # Verify idempotency / irrevocability
+    seal_dup = hammer.rivet("AXIOM_FOURIER_CONVERGENCE", {"new": "data"})
+    assert seal_dup.rivet_id == seal.rivet_id
+    assert hammer.get_rivet("AXIOM_FOURIER_CONVERGENCE") is not None
+
+    # 3. The Sledge: Deadlock smashing
+    smash = hammer.smash_deadlock("gpu_stream_mutex_0")
+    assert smash.deadlock_broken is True
+    assert smash.impulse_magnitude > 1000.0
+
+    # 4. Dead-Blow: Stochastic kinetic shock without ringing
+    phases = np.array([0.5, 0.5, 0.51, 0.49], dtype=np.float64)
+    shock = hammer.dead_blow(phases, impulse_scale=0.2, damping=0.98)
+    assert shock.escaped_local_minimum is True
+    assert shock.residual_ringing_energy < 0.05
+
+    # 5. Ball-Peen: Memory bus stress test
+    stress = hammer.peen_stress_test(buffer_size_bytes=65536, cycles=20)
+    assert stress.integrity_verified is True
+    assert stress.bit_flips_detected == 0
+
+    assert hammer.forged_tensors_count == 2
+    assert hammer.rivets_driven == 1
+    assert hammer.deadlocks_smashed == 1
+    assert hammer.dead_blow_strikes == 1
+    assert hammer.peen_tests_conducted == 1
+
+
 def test_sovereign_toolbox_unified():
     box = SovereignToolbox()
     status = box.get_full_tooling_status()
 
-    expected_tools = ["torque", "ratchet", "wrench", "drill", "vise", "lathe", "caliper", "chisel", "tap_die", "winch"]
+    expected_tools = [
+        "torque",
+        "ratchet",
+        "wrench",
+        "drill",
+        "vise",
+        "lathe",
+        "caliper",
+        "chisel",
+        "tap_die",
+        "winch",
+        "hammer",
+    ]
     for t in expected_tools:
         assert t in status
+        assert isinstance(status[t], dict)

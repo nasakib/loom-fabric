@@ -8,7 +8,7 @@
 - **Live DAG Critical Path**: `20.5 ms`
   - `[1:Torque Enclave] ──▶ [2:Stitch MMU/ZMQ] ──▶ [3:Loom QCT Router] ──▶ [4:Fabric:qwen2.5:7b] ──▶ [5:ClothOS Rehydrate]`
 
-- **24/7 Continuous Sovereign Worker**: `ACTIVE` | Cycles: `538` | Mined Invariants: `748` (Node 1: `539` + Node 2: `209`) | Kuramoto Sweeps: `539` | Indexed Vectors: `137,984`
+- **24/7 Continuous Sovereign Worker**: `ACTIVE` | Cycles: `736` | Mined Invariants: `946` (Node 1: `737` + Node 2: `209`) | Kuramoto Sweeps: `737` | Indexed Vectors: `188,672`
 
 ## 1. Discovered Cross-Platform Fabric Nodes
 - **skyTech-Worker** (`192.168.99.1`) — `Windows` | `x86_64 (RTX 3060 12GB CUDA + RX 580 8GB Vulkan)` | Role: `gpu_worker` | Free VRAM: `13,136 MB` | Status: `ONLINE`
