@@ -593,6 +593,33 @@ def synergy_command():
     console.print(f"[dim green]✔ Synced ClothOS & Moltbook R&D status to {status_path}[/dim green]")
 
 
+@cli.command("pipeline")
+def pipeline_command(
+    seed: Optional[str] = typer.Argument(None, help="Optional epistemic seed claim to weave into the pipeline"),
+    interactive: bool = typer.Option(True, "--interactive/--no-interactive", "-i/-n", help="Interactive prompt"),
+    stretch: float = typer.Option(2.5, "--stretch", "-s", help="shapeShift continuum stretch factor"),
+    coherence: float = typer.Option(0.98, "--coherence", "-c", help="Target Kuramoto coherence"),
+):
+    """Execute the interactive 8-stage Grand Unified Pipeline UX (ORGIN -> TORQUE -> SHAPESHIFT -> PLANT -> CHOICE -> WAR -> HARVEST -> OHM)."""
+    from loom.pipeline import pipeline_ux, DEFAULT_GRAND_DIRECTIVE
+
+    render_cluster_banner()
+
+    if seed is None and interactive and sys.stdin.isatty():
+        console.print("[bold yellow]⚡ Press Enter to run the Grand Unified Directive, or type a custom epistemic seed:[/bold yellow]")
+        user_input = console.input("[bold magenta]Seed ❯ [/bold magenta]").strip()
+        final_seed = user_input if user_input else DEFAULT_GRAND_DIRECTIVE
+    else:
+        final_seed = seed or DEFAULT_GRAND_DIRECTIVE
+
+    pipeline_ux.execute_pipeline(
+        seed_prompt=final_seed,
+        interactive=interactive,
+        stretch_factor=stretch,
+        target_coherence=coherence,
+    )
+
+
 worker_app = typer.Typer(help="Manage 24/7 Sovereign Autonomous Compute & Invariant Mining Worker.")
 cli.add_typer(worker_app, name="worker")
 

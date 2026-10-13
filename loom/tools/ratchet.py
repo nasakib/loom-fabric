@@ -52,29 +52,40 @@ class RatchetSnapshot(BaseModel, frozen=True):
 class RatchetEngine:
     """The Unidirectional Monotonic State & Invariant Pawl for Fabric & ClothOS."""
 
-    def __init__(self, workspace_root: Optional[Path] = None):
+    def __init__(
+        self,
+        workspace_root: Optional[Path] = None,
+        ledger_file: Optional[Path] = None,
+        home_ledger: Optional[Path] = None,
+        catch_file: Optional[Path] = None,
+    ):
         self.workspace_root = workspace_root or Path(__file__).resolve().parents[2]
-        self.ledger_file = self.workspace_root / ".loom_ratchet_axioms.json"
-        self.catch_file = self.workspace_root / ".loom_ratchet_catch.json"
-        self.home_ledger = Path.home() / ".loom" / "ratchet_axioms.json"
-
+        self.ledger_file = ledger_file or (self.workspace_root / ".loom_ratchet_axioms.json")
+        self.catch_file = catch_file or (self.workspace_root / ".loom_ratchet_catch.json")
+        self.home_ledger = home_ledger or (Path.home() / ".loom" / "ratchet_axioms.json")
         self.tooth_count: int = 0
         self.current_root_key: str = hashlib.sha256(b"CLOTHOS_INITIAL_RATCHET_SEED_2026").hexdigest()
         self.axioms: Dict[str, RatchetAxiom] = {}
-        self._load_ledger()
+        fallback_to_home = (workspace_root is None or home_ledger is not None)
+        self._load_ledger(fallback_to_home=fallback_to_home)
 
-    def _load_ledger(self) -> None:
-        target = self.ledger_file if self.ledger_file.exists() else self.home_ledger
-        if target.exists():
-            try:
-                data = json.loads(target.read_text(encoding="utf-8"))
-                self.tooth_count = data.get("tooth_count", 0)
-                self.current_root_key = data.get("current_root_key", self.current_root_key)
-                for item in data.get("axioms", []):
-                    ax = RatchetAxiom(**item)
-                    self.axioms[ax.axiom_id] = ax
-            except Exception as e:
-                logger.warning(f"Could not load Ratchet ledger: {e}")
+    def _load_ledger(self, fallback_to_home: bool = True) -> None:
+        if self.ledger_file.exists():
+            target = self.ledger_file
+        elif fallback_to_home and self.home_ledger.exists():
+            target = self.home_ledger
+        else:
+            return
+
+        try:
+            data = json.loads(target.read_text(encoding="utf-8"))
+            self.tooth_count = data.get("tooth_count", 0)
+            self.current_root_key = data.get("current_root_key", self.current_root_key)
+            for item in data.get("axioms", []):
+                ax = RatchetAxiom(**item)
+                self.axioms[ax.axiom_id] = ax
+        except Exception as e:
+            logger.warning(f"Could not load Ratchet ledger: {e}")
 
     def _persist_ledger(self) -> None:
         data = {

@@ -27,9 +27,11 @@ class SampleRigidModel(BaseModel, frozen=True):
 
 
 def test_ratchet_monotonicity(tmp_path):
-    engine = RatchetEngine(workspace_root=tmp_path)
-    engine.ledger_file = tmp_path / "test_ratchet.json"
-    engine.home_ledger = tmp_path / "test_home_ratchet.json"
+    engine = RatchetEngine(
+        workspace_root=tmp_path,
+        ledger_file=tmp_path / "test_ratchet.json",
+        home_ledger=tmp_path / "test_home_ratchet.json",
+    )
 
     # 1. Click forward
     assert engine.click("AX_101", "Invariant 101", "proof_payload_101", 0.95) is True
