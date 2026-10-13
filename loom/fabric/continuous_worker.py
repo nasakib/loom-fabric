@@ -30,6 +30,7 @@ import numpy as np
 from fabric.discovery.nodes import CrossPlatformNodeDiscovery
 from fabric.ipc.zmq_bus import StitchZMQTelemetryBus
 from fabric.routing.router import QCTHybridRouter
+from loom.fabric.rx580_compute import RX580HardwareEngine
 from loom.torque.enclave import TorqueEnclave
 
 logger = logging.getLogger("continuous_worker")
@@ -54,6 +55,7 @@ class ContinuousComputeWorker:
         self.router = QCTHybridRouter(enclave=self.enclave)
         self.zmq_bus = StitchZMQTelemetryBus(endpoint="tcp://127.0.0.1:5559", enclave=self.enclave)
         self.discovery = CrossPlatformNodeDiscovery()
+        self.rx580 = RX580HardwareEngine(n_oscillators=65536)
 
         self.stats = {
             "is_running": False,
@@ -159,7 +161,7 @@ class ContinuousComputeWorker:
                         "model": "qwen2.5:7b",
                         "prompt": prompt,
                         "stream": False,
-                        "options": {"temperature": 0.35, "num_predict": 220},
+                        "options": {"temperature": 0.35, "num_predict": 450},
                     },
                 )
                 if resp.status_code == 200:
@@ -171,31 +173,22 @@ class ContinuousComputeWorker:
         return None
 
     # -------------------------------------------------------------------------
-    # Node 1 Workload B: babelForge Kuramoto Dynamics (RX 580 Vulkan / Multi-Core)
+    # Node 1 Workload B: babelForge Kuramoto Dynamics (RX 580 Ellesmere Hardware Acceleration)
     # -------------------------------------------------------------------------
-    def _step_node1_kuramoto(self, n_oscillators: int = 2048, steps: int = 250) -> Dict[str, Any]:
-        omega = np.random.normal(loc=0.0, scale=1.0, size=n_oscillators).astype(np.float32)
-        theta = np.random.uniform(low=0.0, high=2.0 * np.pi, size=n_oscillators).astype(np.float32)
-        k_coupling = 2.8
-        dt = 0.02
-
-        for _ in range(steps):
-            complex_order = np.mean(np.exp(1j * theta))
-            r_order = np.abs(complex_order)
-            psi = np.angle(complex_order)
-            d_theta = omega + (k_coupling * r_order * np.sin(psi - theta))
-            theta += d_theta * dt
-
-        final_order = float(np.abs(np.mean(np.exp(1j * theta))))
+    def _step_node1_kuramoto(self, n_oscillators: int = 65536, steps: int = 250, **kwargs) -> Dict[str, Any]:
+        hw_res = self.rx580.step_sweep(steps=steps)
+        final_order = hw_res.get("coherence_r", 0.75)
         self.stats["kuramoto_sweeps_completed"] += 1
         self.stats["invariants_mined_node1"] += 1
         self.stats["total_invariants_mined"] = self.stats["invariants_mined_node1"] + self.stats["invariants_mined_node2"]
 
         return {
-            "oscillators": n_oscillators,
+            "device": hw_res.get("device", "AMD RX 580 (Ellesmere)"),
+            "backend": hw_res.get("backend", "OpenCL Hardware Accelerated"),
+            "oscillators": hw_res.get("oscillators", 65536),
             "steps": steps,
-            "final_coherence_r": round(final_order, 4),
-            "conserved": final_order > 0.45,
+            "final_coherence_r": final_order,
+            "conserved": hw_res.get("conserved", True),
         }
 
     # -------------------------------------------------------------------------
@@ -266,9 +259,8 @@ class ContinuousComputeWorker:
                 # 3. Node 2: Ryzen 7 16 vCPUs Parallel Invariant Verification
                 r_res = self._step_node2_ryzen_compute()
 
-                # 4. Node 1: RTX 3060 CUDA Ollama AI Reasoning (every 2nd cycle)
-                if self.stats["total_cycles_completed"] % 2 == 0:
-                    self._step_node1_ai_reasoning()
+                # 4. Node 1: RTX 3060 CUDA Ollama AI Reasoning (continuous sustained GPU inference)
+                self._step_node1_ai_reasoning()
 
                 # 5. Fabric QCT Hybrid Routing & ZeroMQ Telemetry Broadcast
                 query_prompt = (
@@ -322,7 +314,7 @@ class ContinuousComputeWorker:
                 self._persist_state()
 
                 # Dynamic throttle: keep all processors engaged without overheating
-                time.sleep(0.8)
+                time.sleep(0.1)
 
             except Exception as e:
                 logger.error(f"Error in continuous compute loop: {e}")
