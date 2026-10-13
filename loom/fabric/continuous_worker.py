@@ -76,9 +76,10 @@ class ContinuousComputeWorker:
         self._load_state()
 
     def _load_state(self) -> None:
-        if self.state_file.exists():
+        target = self.state_file if self.state_file.exists() else (self.workspace_root / ".loom_worker_state.json")
+        if target.exists():
             try:
-                data = json.loads(self.state_file.read_text(encoding="utf-8"))
+                data = json.loads(target.read_text(encoding="utf-8"))
                 self.stats.update(data)
                 self.stats["is_running"] = False
             except Exception:
@@ -86,7 +87,9 @@ class ContinuousComputeWorker:
 
     def _persist_state(self) -> None:
         try:
-            self.state_file.write_text(json.dumps(self.stats, indent=2), encoding="utf-8")
+            serialized = json.dumps(self.stats, indent=2)
+            self.state_file.write_text(serialized, encoding="utf-8")
+            (self.workspace_root / ".loom_worker_state.json").write_text(serialized, encoding="utf-8")
             self._sync_status_md()
         except Exception:
             pass
