@@ -27,6 +27,11 @@ from typing import Any, Dict, List, Optional
 import httpx
 import numpy as np
 
+from fabric.discovery.nodes import CrossPlatformNodeDiscovery
+from fabric.ipc.zmq_bus import StitchZMQTelemetryBus
+from fabric.routing.router import QCTHybridRouter
+from loom.torque.enclave import TorqueEnclave
+
 logger = logging.getLogger("continuous_worker")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] [ContinuousWorker]: %(message)s")
 
@@ -43,6 +48,12 @@ class ContinuousComputeWorker:
         self.state_file.parent.mkdir(parents=True, exist_ok=True)
         self.stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
+
+        # Fabric Core stack integration
+        self.enclave = TorqueEnclave()
+        self.router = QCTHybridRouter(enclave=self.enclave)
+        self.zmq_bus = StitchZMQTelemetryBus(endpoint="tcp://127.0.0.1:5559", enclave=self.enclave)
+        self.discovery = CrossPlatformNodeDiscovery()
 
         self.stats = {
             "is_running": False,
@@ -74,6 +85,38 @@ class ContinuousComputeWorker:
     def _persist_state(self) -> None:
         try:
             self.state_file.write_text(json.dumps(self.stats, indent=2), encoding="utf-8")
+            self._sync_status_md()
+        except Exception:
+            pass
+
+    def _sync_status_md(self) -> None:
+        status_md_path = self.workspace_root / ".agent" / "STATUS.md"
+        if not status_md_path.exists():
+            return
+        try:
+            content = status_md_path.read_text(encoding="utf-8")
+            marker = "## 1. Discovered Cross-Platform Fabric Nodes"
+            worker_summary = (
+                f"- **24/7 Continuous Sovereign Worker**: `ACTIVE` | "
+                f"Cycles: `{self.stats['total_cycles_completed']:,}` | "
+                f"Mined Invariants: `{self.stats['total_invariants_mined']:,}` (Node 1: `{self.stats['invariants_mined_node1']:,}` + Node 2: `{self.stats['invariants_mined_node2']:,}`) | "
+                f"Kuramoto Sweeps: `{self.stats['kuramoto_sweeps_completed']:,}` | "
+                f"Indexed Vectors: `{self.stats['vectorforge_embeddings_indexed']:,}`\n\n"
+            )
+            if "- **24/7 Continuous Sovereign Worker**:" in content:
+                lines = content.splitlines()
+                new_lines = []
+                for line in lines:
+                    if line.startswith("- **24/7 Continuous Sovereign Worker**:"):
+                        new_lines.append(worker_summary.strip())
+                    else:
+                        new_lines.append(line)
+                status_md_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+            else:
+                idx = content.find(marker)
+                if idx != -1:
+                    new_content = content[:idx] + worker_summary + content[idx:]
+                    status_md_path.write_text(new_content, encoding="utf-8")
         except Exception:
             pass
 
@@ -238,9 +281,46 @@ print(f"RADIUS={spectral_radius:.2f}|TRACE={trace_val:.2f}")
                 if self.stats["total_cycles_completed"] % 2 == 0:
                     self._step_node1_ai_reasoning()
 
+                # 5. Fabric QCT Hybrid Routing & ZeroMQ Telemetry Broadcast
+                query_prompt = (
+                    f"ClothOS Invariant Verification Cycle {self.stats['total_cycles_completed']}: "
+                    f"Kuramoto order r={k_res.get('final_coherence_r', 0.0)}, "
+                    f"Vector dimension {v_res.get('dim', 1536)}"
+                )
+                route_decision = self.router.route_query(
+                    prompt=query_prompt,
+                    vram_margin_mb=12918,
+                )
+
+                # Publish to Stitch ZeroMQ IPC Bus
+                self.zmq_bus.publish(
+                    topic="fabric.worker.cycle",
+                    source_node="skyTech-Worker",
+                    raw_payload={
+                        "cycle": self.stats["total_cycles_completed"],
+                        "tier": route_decision.tier,
+                        "qct_entropy": route_decision.qct_entropy_score,
+                        "kuramoto_coherence": k_res.get("final_coherence_r"),
+                        "indexed_vectors": v_res.get("indexed_vectors"),
+                        "invariants_node1": self.stats["invariants_mined_node1"],
+                        "invariants_node2": self.stats["invariants_mined_node2"],
+                        "total_invariants": self.stats["total_invariants_mined"],
+                    },
+                )
+                self.zmq_bus.publish(
+                    topic="clothos.dag",
+                    source_node="skyTech-Worker",
+                    raw_payload={
+                        "plan_id": route_decision.dag.plan_id,
+                        "critical_path_ms": route_decision.dag.critical_path_ms,
+                        "ascii_topology": route_decision.dag.ascii_topology,
+                    },
+                )
+
                 elapsed = round(time.time() - cycle_start, 2)
                 msg = (
                     f"Cycle #{self.stats['total_cycles_completed']:,} ({elapsed}s) | "
+                    f"QCT={route_decision.tier} | "
                     f"Kuramoto r={k_res['final_coherence_r']} | "
                     f"Indexed {v_res['indexed_vectors']} vecs | "
                     f"Node 2 Invariants: {self.stats['invariants_mined_node2']:,} | "
