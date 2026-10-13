@@ -667,6 +667,97 @@ def worker_stop():
     console.print("[dim yellow]✔ Continuous Compute Worker signal sent: worker terminated.[/dim yellow]")
 
 
+# =========================================================================
+# PRECISION MACHINE TOOLING SUITE (Torque, Ratchet, Wrench, Drill, etc.)
+# =========================================================================
+
+tool_app = typer.Typer(help="Sovereign Precision Machine Tooling Suite (Torque, Ratchet, Wrench, Drill, Vise, Lathe, Caliper, Chisel, Tap & Die, Winch).")
+cli.add_typer(tool_app, name="tool")
+
+
+@tool_app.command("list")
+def tool_list():
+    """Lists all 10 Precision Machine Tools and their live telemetry states."""
+    from rich.table import Table
+    from loom.tools.toolbox import toolbox
+
+    render_cluster_banner()
+    status = toolbox.get_full_tooling_status()
+
+    table = Table(title="[bold purple]⚙ Sovereign Precision Machine Tooling Suite (Fabric & ClothOS)[/bold purple]", border_style="purple")
+    table.add_column("Tool", style="bold cyan", width=14)
+    table.add_column("Mechanical Paradigm", style="white", width=34)
+    table.add_column("System / Mathematical Function", style="bold green", width=38)
+    table.add_column("Telemetry State", style="dim cyan", width=22)
+
+    tools_info = [
+        ("Torque", "Rotational Driving Force & Enclave", "Dynamic Triage & Zero-Trust Tokenizer", f"Vault Tokens: {status['torque']['vault_tokens_count']}"),
+        ("Ratchet", "Unidirectional Monotonic Pawl", "Invariant Cementing & Key Rotation", f"Locked Teeth: {status['ratchet']['tooth_count']}"),
+        ("Wrench", "High-Leverage Parallel Jaws", "Rigid Schema Clamping & Joint Coupling", f"Clamped Schemas: {status['wrench']['clamped_schemas_count']}"),
+        ("Drill", "Vertical Perpendicular Borehole", "Mechanistic Depth Probe (L0 -> L4 CSR)", f"Drilled: {status['drill']['boreholes_drilled']}"),
+        ("Vise", "Cast-Iron Atomic Workholding", "Concurrency Freeze & PMP NAPOT Enclave", f"Clamps: {status['vise']['clamps_executed']}"),
+        ("Lathe", "Axis-Symmetrical Shaper", "SVD Manifold Orthogonalization & Kuramoto", f"Turns: {status['lathe']['operations_count']}"),
+        ("Caliper", "Micron-Tolerance Metrology", "Epsilon Error Bounds & Entropy Metrology", f"Gauged: {status['caliper']['measurements_count']}"),
+        ("Chisel", "Surgical Impact Wedge", "Token Ablation & AST Micro-Patching", f"Cuts: {status['chisel']['cuts_executed']}"),
+        ("Tap & Die", "Screw Thread Cutting Die", "Zero-Copy Heterogeneous ABI Threading", f"Threads Cut: {status['tap_die']['threads_cut']}"),
+        ("Winch", "Compound Pulley Hoist", "Edge-to-GPU Workload Elevation & Hoisting", f"Hoists: {status['winch']['hoists_executed']}"),
+    ]
+
+    for name, paradigm, func, telem in tools_info:
+        table.add_row(name, paradigm, func, telem)
+
+    console.print(table)
+
+
+@tool_app.command("ratchet")
+def tool_ratchet():
+    """Inspects the Ratchet's cemented axioms and forward-secrecy key state."""
+    from rich.table import Table
+    from loom.tools.toolbox import toolbox
+
+    render_cluster_banner()
+    r = toolbox.ratchet
+    status = r.get_status()
+
+    console.print(f"[bold green]⚙ RATCHET ENGINE STATE: {status['tooth_count']} Teeth Advanced[/bold green]")
+    console.print(f"[dim cyan]Forward-Secrecy Root Key: {status['current_root_key_preview']}[/dim cyan]")
+    console.print(f"[dim white]Preemption Catch Active: {status['has_active_catch']}[/dim white]\n")
+
+    table = Table(title="[bold green]Cemented Invariant Axioms (Non-Regressible Frontier)[/bold green]", border_style="green")
+    table.add_column("Tooth #", style="bold cyan", width=8)
+    table.add_column("Axiom ID", style="bold white", width=18)
+    table.add_column("Theorem Claim", style="green", width=42)
+    table.add_column("Origin Node", style="magenta", width=16)
+
+    for ax in list(r.axioms.values())[-10:]:
+        table.add_row(str(ax.tooth_index), ax.axiom_id, ax.claim[:40], ax.node_origin)
+
+    console.print(table)
+
+
+@tool_app.command("drill")
+def tool_drill(prompt: str = typer.Argument("Prove Fourier symmetry over L2 Hilbert space")):
+    """Bores a vertical borehole straight down through all 5 abstraction tiers for a prompt."""
+    from rich.table import Table
+    from loom.tools.toolbox import toolbox
+
+    render_cluster_banner()
+    d = toolbox.drill
+    res = d.bore_vertical_trace(prompt)
+
+    table = Table(title=f"[bold cyan]🔩 VERTICAL BOREHOLE ({res['borehole_id']}) — 5 Abstraction Tiers[/bold cyan]", border_style="cyan")
+    table.add_column("Depth", style="bold white", width=6)
+    table.add_column("Layer Name", style="bold cyan", width=26)
+    table.add_column("Subsystem", style="yellow", width=30)
+    table.add_column("Silicon / Telemetry Snapshot", style="green", width=36)
+
+    for l in res["layers"]:
+        snap_str = ", ".join(f"{k}={v}" for k, v in list(l["telemetry_state"].items())[:2])
+        table.add_row(str(l["layer_depth"]), l["name"], l["subsystem"], snap_str)
+
+    console.print(table)
+
+
 app = cli
 
 if __name__ == "__main__":

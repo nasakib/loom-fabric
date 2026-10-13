@@ -1,0 +1,87 @@
+# Copyright (c) 2026 Najmos Sakib. All rights reserved.
+# Proprietary and confidential. Commercial distribution prohibited.
+#
+# Part of Pillar 1 & 2: FABRIC / CLOTHOS / LOOM PRECISION TOOLCHAIN.
+"""
+SovereignToolbox — Unified Precision Machine Tooling Suite for Fabric & ClothOS.
+
+Unifies all 10 mechanical computing tools:
+1.  TORQUE   — Rotational Security Enclave & Dynamic Triage
+2.  RATCHET  — Unidirectional Monotonic Progress & Invariant Cementing
+3.  WRENCH   — High-Leverage Schema Clamping & Joint Coupling
+4.  DRILL    — Vertical Borehole Deep-Probing (L0 -> L4 Silicon CSR)
+5.  VISE     — Atomic Workholding, State Immobilization & PMP Lock
+6.  LATHE    — Latent Manifold Turning & Kuramoto Phase Balancing
+7.  CALIPER  — Micro-Tolerance Metrology & Entropy Gauging
+8.  CHISEL   — Surgical Token Ablation & AST Micro-Patching
+9.  TAP & DIE— Heterogeneous ABI Protocol Threading
+10. WINCH    — Distributed Workload Elevation & Mechanical Advantage
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any, Dict, Optional
+
+from loom.tools.caliper import CaliperGauge
+from loom.tools.chisel import ChiselAblator
+from loom.tools.drill import DrillInspector
+from loom.tools.lathe import LatheShaper
+from loom.tools.ratchet import RatchetEngine
+from loom.tools.tap_die import TapDieThreader
+from loom.tools.vise import ViseLock
+from loom.tools.winch import WinchHoist
+from loom.tools.wrench import WrenchCoupler
+from loom.torque.enclave import TorqueEnclave
+
+logger = logging.getLogger("loom.tools.toolbox")
+
+
+class SovereignToolbox:
+    """The complete mechanical workshop tool suite for Fabric, Loom & ClothOS."""
+
+    _instance: Optional[SovereignToolbox] = None
+
+    def __init__(self):
+        # 1. Drive & Security
+        self.torque = TorqueEnclave()
+        self.ratchet = RatchetEngine()
+
+        # 2. Leverage & Depth
+        self.wrench = WrenchCoupler()
+        self.drill = DrillInspector()
+
+        # 3. Workholding & Precision
+        self.vise = ViseLock()
+        self.lathe = LatheShaper()
+        self.caliper = CaliperGauge()
+        self.chisel = ChiselAblator()
+
+        # 4. Interface & Hoist
+        self.tap_die = TapDieThreader()
+        self.winch = WinchHoist()
+
+    @classmethod
+    def get_instance(cls) -> SovereignToolbox:
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def get_full_tooling_status(self) -> Dict[str, Any]:
+        """Returns live status matrix across all 10 precision tools."""
+        return {
+            "torque": {"vault_tokens_count": len(getattr(self.torque.vault, "_forward", {}))},
+            "ratchet": self.ratchet.get_status(),
+            "wrench": self.wrench.get_status(),
+            "drill": self.drill.get_status(),
+            "vise": self.vise.get_status(),
+            "lathe": self.lathe.get_status(),
+            "caliper": self.caliper.get_status(),
+            "chisel": self.chisel.get_status(),
+            "tap_die": self.tap_die.get_status(),
+            "winch": self.winch.get_status(),
+        }
+
+
+# Singleton export
+toolbox = SovereignToolbox.get_instance()

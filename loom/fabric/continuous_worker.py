@@ -31,6 +31,7 @@ from fabric.discovery.nodes import CrossPlatformNodeDiscovery
 from fabric.ipc.zmq_bus import StitchZMQTelemetryBus
 from fabric.routing.router import QCTHybridRouter
 from loom.fabric.rx580_compute import RX580HardwareEngine
+from loom.tools.toolbox import toolbox
 from loom.torque.enclave import TorqueEnclave
 
 logger = logging.getLogger("continuous_worker")
@@ -50,7 +51,8 @@ class ContinuousComputeWorker:
         self.stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
 
-        # Fabric Core stack integration
+        # Fabric Core & Tooling stack integration
+        self.toolbox = toolbox
         self.enclave = TorqueEnclave()
         self.router = QCTHybridRouter(enclave=self.enclave)
         self.zmq_bus = StitchZMQTelemetryBus(endpoint="tcp://127.0.0.1:5559", enclave=self.enclave)
@@ -69,6 +71,7 @@ class ContinuousComputeWorker:
             "invariants_mined_node1": 0,
             "invariants_mined_node2": 0,
             "total_invariants_mined": 0,
+            "ratchet_teeth_locked": self.toolbox.ratchet.tooth_count,
             "last_active_tier": "Full Cluster (Node 1 + Node 2)",
             "last_preemption_epoch": 0.0,
             "last_log_message": "Initialized",
@@ -105,6 +108,7 @@ class ContinuousComputeWorker:
                 f"- **24/7 Continuous Sovereign Worker**: `ACTIVE` | "
                 f"Cycles: `{self.stats['total_cycles_completed']:,}` | "
                 f"Mined Invariants: `{self.stats['total_invariants_mined']:,}` (Node 1: `{self.stats['invariants_mined_node1']:,}` + Node 2: `{self.stats['invariants_mined_node2']:,}`) | "
+                f"Ratchet Teeth: `{self.stats.get('ratchet_teeth_locked', 0):,}` | "
                 f"Kuramoto Sweeps: `{self.stats['kuramoto_sweeps_completed']:,}` | "
                 f"Indexed Vectors: `{self.stats['vectorforge_embeddings_indexed']:,}`\n\n"
             )
@@ -244,6 +248,11 @@ class ContinuousComputeWorker:
             if self.is_user_active():
                 self.stats["last_active_tier"] = "Preempted (User Active)"
                 self.stats["last_preemption_epoch"] = time.time()
+                self.toolbox.ratchet.preemption_catch(
+                    cycle=self.stats["total_cycles_completed"],
+                    oscillator_offset=0,
+                    payload={"reason": "User query active"},
+                )
                 self._persist_state()
                 time.sleep(2.0)
                 continue
@@ -265,7 +274,20 @@ class ContinuousComputeWorker:
                 # 4. Node 1: RTX 3060 CUDA Ollama AI Reasoning (continuous sustained GPU inference)
                 self._step_node1_ai_reasoning()
 
-                # 5. Fabric QCT Hybrid Routing & ZeroMQ Telemetry Broadcast
+                # 5. Ratchet Invariant Locking
+                cur_cycle = self.stats["total_cycles_completed"]
+                r_val = k_res.get("final_coherence_r", 0.0)
+                if r_val > 0.80:
+                    self.toolbox.ratchet.click(
+                        axiom_id=f"INV_KURA_{cur_cycle}",
+                        claim=f"Kuramoto order parameter r={r_val} converged with N=65,536 oscillators",
+                        proof_payload=str(k_res),
+                        confidence=0.96,
+                        node_origin="skyTech-Worker",
+                    )
+                self.stats["ratchet_teeth_locked"] = self.toolbox.ratchet.tooth_count
+
+                # 6. Fabric QCT Hybrid Routing & ZeroMQ Telemetry Broadcast
                 query_prompt = (
                     f"ClothOS Invariant Verification Cycle {self.stats['total_cycles_completed']}: "
                     f"Kuramoto order r={k_res.get('final_coherence_r', 0.0)}, "
@@ -289,6 +311,7 @@ class ContinuousComputeWorker:
                         "invariants_node1": self.stats["invariants_mined_node1"],
                         "invariants_node2": self.stats["invariants_mined_node2"],
                         "total_invariants": self.stats["total_invariants_mined"],
+                        "ratchet_teeth_locked": self.stats["ratchet_teeth_locked"],
                     },
                 )
                 self.zmq_bus.publish(
@@ -306,6 +329,7 @@ class ContinuousComputeWorker:
                     f"Cycle #{self.stats['total_cycles_completed']:,} ({elapsed}s) | "
                     f"QCT={route_decision.tier} | "
                     f"Kuramoto r={k_res['final_coherence_r']} | "
+                    f"Ratchet={self.stats['ratchet_teeth_locked']} | "
                     f"Indexed {v_res['indexed_vectors']} vecs | "
                     f"Node 2 Invariants: {self.stats['invariants_mined_node2']:,} | "
                     f"Total Pool Invariants: {self.stats['total_invariants_mined']:,}"
