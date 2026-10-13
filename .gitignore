@@ -73,3 +73,5 @@ target/
 
 # Local cluster runtime state files
 .loom_*.json
+.loom_*_ledger/
+.loom/

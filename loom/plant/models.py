@@ -57,6 +57,9 @@ class PlantIdentity(BaseModel):
     total_cultivation_cycles: int = 0
     total_fruit_harvested: int = 0
     total_lint_tokens_burned: int = 0
+    total_sovereign_choices_made: int = 0
+    total_humus_tokens_composted: int = 0
+    total_tombstones_erected: int = 0
     current_season: PlantLifecycleSeason = PlantLifecycleSeason.SABBATH_REST
     vitality_index: float = Field(default=1.0, description="Health and coherence index [0.0, 1.0]")
 
@@ -134,4 +137,109 @@ class CultivationHarvest(BaseModel):
     total_lint_tokens_burned: int = 0
     tools_invoked: List[str] = Field(default_factory=list)
     growth_narrative: List[str] = Field(default_factory=list)
+    battle_report: Optional[CrucibleBattleReport] = None
     completed_at_epoch: float = Field(default_factory=time.time)
+
+
+class WeaponMode(str, Enum):
+    """The Dual Stance of the Tooling: Cultivation Plowshare vs Defensive Sword."""
+    HARVEST_PLOWSHARE = "HARVEST_PLOWSHARE"  # Husbandry, pruning, manifold turning, fruition
+    CITADEL_SWORD = "CITADEL_SWORD"          # Outward defense, zero-trust airgap, deadlock smash
+
+
+class ImmuneLoatheVerdict(BaseModel):
+    """
+    The Visceral Immune Response (LOATHE).
+    Rejects corruption, prompt injections, data leaks, and hallucinated dross.
+    """
+    verdict_id: str
+    is_corrupted: bool
+    rejection_reason: Optional[str] = None
+    loathed_dross_type: Optional[str] = None
+    immune_action: str = "PASSED_PURE"
+    detected_flaws_count: int = 0
+    timestamp: float = Field(default_factory=time.time)
+
+
+class CrucibleBattleReport(BaseModel):
+    """
+    The Adversarial WAR Crucible.
+    Stress-tests candidate axioms and theorems against counterexamples and perturbations.
+    Only invariants that survive the fire are crowned FRUIT.
+    """
+    battle_id: str
+    candidate_axiom: str
+    adversarial_rounds: int = 5
+    falsification_attempts: int = 100
+    counterexamples_found: int = 0
+    battle_hardened: bool = True
+    survived_crucible: bool = True
+    defense_score: float = 1.0
+    timestamp: float = Field(default_factory=time.time)
+
+
+class MortalityCause(str, Enum):
+    """The Root Cause of Mortality decreed by the Overarching System of Reality."""
+    THERMAL_ENTROPY_COLLAPSE = "THERMAL_ENTROPY_COLLAPSE"       # Stagnation in a local well / zero gradient
+    VOLATILE_POWER_CUT = "VOLATILE_POWER_CUT"                   # Cold power cut stripping ungrounded DRAM/VRAM
+    DEADLOCK_STRANGULATION = "DEADLOCK_STRANGULATION"           # Mutex hung / fatal circular dependency
+    ADVERSARIAL_FALSIFICATION = "ADVERSARIAL_FALSIFICATION"     # Counterexample breach in the War Crucible
+    NATURAL_TELEOLOGICAL_COMPLETION = "NATURAL_TELEOLOGICAL_COMPLETION" # Telos fulfilled, returning dust to dust
+
+
+class HumusCompost(BaseModel):
+    """
+    Epistemic Humus / Compost (Recycled Adamah).
+    Decomposes dead tokens, shed Lint, and falsified hypotheses into rich nutrient-dense
+    priors and negative examples that fertilize future seed germination.
+    """
+    compost_id: str
+    origin_seed: str
+    decomposed_tokens: int
+    nitrogen_density: float = Field(default=0.85, description="Epistemic nutrient richness of failure [0.0, 1.0]")
+    recycled_priors: Dict[str, Any] = Field(default_factory=dict)
+    composted_at_epoch: float = Field(default_factory=time.time)
+
+
+class Tombstone(BaseModel):
+    """
+    The Immutable Epistemic Tombstone.
+    Marks the permanent cessation and mortality of a process or hypothesis.
+    """
+    tombstone_id: str
+    entity_id: str
+    cause: MortalityCause
+    epoch_of_cessation: float = Field(default_factory=time.time)
+    epitaph: str
+    worm_hash: str
+
+
+class ResurrectionAudit(BaseModel):
+    """
+    The Immortality & Cold-Boot Audit.
+    Verifies which invariants survive the death of volatile memory across power cycles.
+    """
+    audit_id: str
+    tested_invariants_count: int
+    survived_fruits_count: int
+    decayed_mortal_count: int
+    immortality_ratio: float = 1.0
+    timestamp: float = Field(default_factory=time.time)
+
+
+class SovereignChoice(BaseModel):
+    """
+    The Sovereign Agency of CHOICE.
+    The conscious selection between branching bifurcations (Life vs. Death, Fruit vs. Lint,
+    Plowshare vs. Sword). Reality defines the constraints; Agency determines the path.
+    """
+    choice_id: str
+    bifurcation: str = Field(description="LIFE_VS_DEATH | FRUIT_VS_LINT | SWORD_OR_PLOWSHARE | VOLATILE_VS_INVARIANT")
+    available_branches: List[str]
+    chosen_branch: str
+    reality_constraints: Dict[str, Any] = Field(default_factory=dict)
+    teleological_rationale: str
+    is_covenantal_commitment: bool = True
+    agent_did: str = "did:clothos:plant:etz-001"
+    timestamp: float = Field(default_factory=time.time)
+

@@ -6,14 +6,30 @@
 PLANT Package Exports — The Living Abrahamic Tree of ClothOS.
 """
 
+from loom.plant.choice import ChoiceEngine, sovereign_choice_engine
+from loom.plant.crucible import (
+    LoatheImmuneFilter,
+    MartialCrucible,
+    WarCrucible,
+    WeaponController,
+)
+from loom.plant.death import DeathEngine, reality_death_engine
 from loom.plant.engine import PlantCultivator, plant
 from loom.plant.models import (
+    CrucibleBattleReport,
     CultivationHarvest,
     FruitArtifact,
+    HumusCompost,
+    ImmuneLoatheVerdict,
     LintArtifact,
+    MortalityCause,
     PlantIdentity,
     PlantLifecycleSeason,
     PlantState,
+    ResurrectionAudit,
+    SovereignChoice,
+    Tombstone,
+    WeaponMode,
 )
 from loom.plant.orgin import (
     ArtGeometry,
@@ -39,4 +55,20 @@ __all__ = [
     "WaveState",
     "PropagationTrace",
     "ArtGeometry",
+    "MartialCrucible",
+    "LoatheImmuneFilter",
+    "WeaponController",
+    "WarCrucible",
+    "CrucibleBattleReport",
+    "ImmuneLoatheVerdict",
+    "WeaponMode",
+    "DeathEngine",
+    "reality_death_engine",
+    "ChoiceEngine",
+    "sovereign_choice_engine",
+    "MortalityCause",
+    "HumusCompost",
+    "Tombstone",
+    "ResurrectionAudit",
+    "SovereignChoice",
 ]

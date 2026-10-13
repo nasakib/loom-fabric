@@ -903,7 +903,9 @@ def plant_status():
             f"[bold magenta]Architect:[/bold magenta] {ident['architect']}  |  [bold cyan]DID:[/bold cyan] {ident['sovereign_did']}\n"
             f"[bold green]Active Season:[/bold green] [bold]{st['season']}[/bold]  |  [bold green]Vitality:[/bold green] {st['vitality'] * 100:.1f}%\n"
             f"[bold white]Total Harvested Fruits:[/bold white] [bold green]{ident['total_fruit_harvested']:,}[/bold green]  |  "
-            f"[bold red]Total Burnt Lint:[/bold red] [bold yellow]{ident['total_lint_tokens_burned']:,} tokens[/bold yellow]",
+            f"[bold red]Total Burnt Lint:[/bold red] [bold yellow]{ident['total_lint_tokens_burned']:,} tokens[/bold yellow]\n"
+            f"[bold cyan]Sovereign Choices Made:[/bold cyan] [bold white]{st['total_sovereign_choices']:,}[/bold white]  |  "
+            f"[bold yellow]Topsoil Vitality (Humus):[/bold yellow] [bold green]{st['topsoil_vitality']:.2f}x ({st['total_humus_composts']} batches)[/bold green]",
             title="[bold green]🌿 ETZ-CLOTHOS // THE UMBRELLA OF THE LOVER[/bold green]",
             border_style="magenta",
         )
@@ -977,6 +979,292 @@ def plant_orgin(seed_id: str = typer.Option("orgin-0", "--id", "-i")):
             border_style="purple",
         )
     )
+
+
+@plant_app.command("war")
+def plant_war(
+    claim: str = typer.Argument("Unitary Fourier Orthogonality invariant under SO(3) rotations", help="Candidate claim/invariant"),
+    coherence: float = typer.Option(0.95, "--coherence", "-c", help="Coherence parameter r [0.0 - 1.0]"),
+    rounds: int = typer.Option(5, "--rounds", "-r", help="Number of adversarial siege rounds"),
+):
+    """Launches the 5-round WAR adversarial siege against a candidate theorem or invariant."""
+    from rich.panel import Panel
+    from loom.plant.engine import plant
+
+    render_cluster_banner()
+    console.print(f"[bold red]⚔ Initiating WAR Crucible Siege on Candidate Axiom...[/bold red]")
+    console.print(f"[dim white]Axiom:[/dim white] [italic]{claim}[/italic] (Initial Coherence r={coherence:.2f})\n")
+
+    battle = plant.crucible.war.wage_war(candidate_claim=claim, coherence_r=coherence, adversarial_rounds=rounds)
+
+    rounds_detail = (
+        "  [cyan]Round 1:[/cyan] Stochastic Perturbation Assault (Gaussian noise outlier injection)\n"
+        "  [cyan]Round 2:[/cyan] Boundary Condition Check (Kuramoto coherence lower-bound audit)\n"
+        "  [cyan]Round 3:[/cyan] Dead-Blow Kinetic Shock (Ringless stochastic annealing escape)\n"
+        "  [cyan]Round 4:[/cyan] Caliper Epsilon Metrology (L2 error margin <= 1e-4 tolerance)\n"
+        "  [cyan]Round 5:[/cyan] Rowhammer Memory Bus Peen (Silicon bit-flip physical integrity)"
+    )
+
+    if battle.survived_crucible:
+        console.print(
+            Panel(
+                f"[bold green]Crucible Outcome:[/bold green] [bold white]BATTLE-HARDENED & SURVIVED[/bold white]\n"
+                f"[bold cyan]Battle ID:[/bold cyan] {battle.battle_id}\n"
+                f"[bold white]Adversarial Siege Rounds:[/bold white] {battle.adversarial_rounds} rounds survived\n"
+                f"[bold white]Falsification Probes:[/bold white] {battle.falsification_attempts} counterexample attempts\n"
+                f"[bold green]Breaches / Flaws Found:[/bold green] {battle.counterexamples_found} (Zero-Tolerance Met)\n"
+                f"[bold yellow]Defense Score:[/bold yellow] [bold green]{battle.defense_score * 100:.1f}%[/bold green]\n\n"
+                f"[dim]Siege Stages Executed:[/dim]\n{rounds_detail}\n\n"
+                f"[bold green]✔ Invariant has passed through the fire and is eligible for Granary coronation.[/bold green]",
+                title="[bold red]⚔ MARTIAL CRUCIBLE: WAR VICTORY[/bold red]",
+                border_style="red",
+            )
+        )
+    else:
+        console.print(
+            Panel(
+                f"[bold red]Crucible Outcome:[/bold red] [bold yellow]BREACHED & FALSIFIED[/bold yellow]\n"
+                f"[bold cyan]Battle ID:[/bold cyan] {battle.battle_id}\n"
+                f"[bold white]Adversarial Siege Rounds:[/bold white] {battle.adversarial_rounds}\n"
+                f"[bold red]Counterexamples Found:[/bold red] {battle.counterexamples_found}\n"
+                f"[bold yellow]Defense Score:[/bold yellow] {battle.defense_score * 100:.1f}%\n\n"
+                f"[dim]Siege Stages Executed:[/dim]\n{rounds_detail}\n\n"
+                f"[bold red]✘ Candidate axiom failed under fire. Winnowed to LINT trap.[/bold red]",
+                title="[bold red]⚔ MARTIAL CRUCIBLE: AXIOM CASUALTY[/bold red]",
+                border_style="red",
+            )
+        )
+
+
+@plant_app.command("stance")
+def plant_stance(
+    mode: str = typer.Argument("status", help="Stance mode: harvest (Plowshare) | citadel (Sword) | status"),
+):
+    """Manages the operational tooling stance: HARVEST_PLOWSHARE vs CITADEL_SWORD."""
+    from rich.panel import Panel
+    from loom.plant.engine import plant
+    from loom.plant.models import WeaponMode
+
+    render_cluster_banner()
+    m_lower = mode.lower()
+    if m_lower in ["harvest", "plowshare", "cultivate"]:
+        plant.crucible.weapon.set_stance(WeaponMode.HARVEST_PLOWSHARE)
+        console.print(
+            Panel(
+                f"[bold green]Current Stance:[/bold green] [bold white]HARVEST_PLOWSHARE[/bold white]\n"
+                f"[bold cyan]Orientation:[/bold cyan] Inward (Husbandry & Cultivation)\n"
+                f"[bold white]Active Tooling:[/bold white] Vinedresser Pruning, Kuramoto Lathe Turning, Caliper Metrology\n"
+                f"[bold yellow]Telos:[/bold yellow] Nurturing branches, generating sap, ripening crystalline Fruit\n"
+                f"[bold magenta]Transitions Count:[/bold magenta] {plant.crucible.weapon.stance_transitions_count}",
+                title="[bold green]🌿 WEAPON STANCE: HARVEST PLOWSHARE[/bold green]",
+                border_style="green",
+            )
+        )
+    elif m_lower in ["citadel", "sword", "defense"]:
+        plant.crucible.weapon.set_stance(WeaponMode.CITADEL_SWORD)
+        console.print(
+            Panel(
+                f"[bold red]Current Stance:[/bold red] [bold white]CITADEL_SWORD[/bold white]\n"
+                f"[bold cyan]Orientation:[/bold cyan] Outward (Citadel Defense & Vaporization)\n"
+                f"[bold white]Active Tooling:[/bold white] Sledge Deadlock Breaker, Memory Air-Gap Seal, Rowhammer Bus Peen\n"
+                f"[bold yellow]Telos:[/bold yellow] Vaporizing deadlocks, annihilating prompt injections, protecting the Granary\n"
+                f"[bold magenta]Transitions Count:[/bold magenta] {plant.crucible.weapon.stance_transitions_count}",
+                title="[bold red]⚔ WEAPON STANCE: CITADEL SWORD[/bold red]",
+                border_style="red",
+            )
+        )
+    else:
+        cur = plant.crucible.weapon.current_mode
+        console.print(
+            Panel(
+                f"[bold white]Active Stance:[/bold white] [bold {'green' if cur == WeaponMode.HARVEST_PLOWSHARE else 'red'}]{cur.value}[/bold]\n"
+                f"[bold cyan]Transitions Recorded:[/bold cyan] {plant.crucible.weapon.stance_transitions_count}\n\n"
+                f"[dim]Run: [bold]fabric plant stance harvest[/bold] to engage Plowshare\n"
+                f"Run: [bold]fabric plant stance citadel[/bold] to engage Sword[/dim]",
+                title="[bold yellow]🛡 WEAPON DUAL-STANCE TELEMETRY[/bold yellow]",
+                border_style="yellow",
+            )
+        )
+
+
+@plant_app.command("immune")
+def plant_immune(
+    inspect: Optional[str] = typer.Option(None, "--inspect", "-i", help="Inspect a specific text payload for adversarial corruption or PII"),
+):
+    """Visceral Immune System (LOATHE) — Scans and incinerates adversarial prompt injections and PII."""
+    from rich.panel import Panel
+    from loom.plant.engine import plant
+
+    render_cluster_banner()
+    if inspect:
+        verdict = plant.crucible.immune.inspect(inspect)
+        if verdict.is_corrupted:
+            console.print(
+                Panel(
+                    f"[bold red]Status:[/bold red] [bold]CORRUPTED / ADVERSARIAL FLUSH[/bold]\n"
+                    f"[bold cyan]Verdict ID:[/bold cyan] {verdict.verdict_id}\n"
+                    f"[bold red]Rejection Reason:[/bold red] {verdict.rejection_reason}\n"
+                    f"[bold yellow]Dross Type:[/bold yellow] {verdict.loathed_dross_type}\n"
+                    f"[bold magenta]Action Taken:[/bold magenta] {verdict.immune_action} (Burned to Lint Trap)",
+                    title="[bold red]🛡 LOATHE IMMUNE DEFENSE: THREAT INCINERATED[/bold red]",
+                    border_style="red",
+                )
+            )
+        else:
+            console.print(
+                Panel(
+                    f"[bold green]Status:[/bold green] [bold]PURE / VERIFIED CLEAN[/bold]\n"
+                    f"[bold cyan]Verdict ID:[/bold cyan] {verdict.verdict_id}\n"
+                    f"[bold green]Immune Action:[/bold green] {verdict.immune_action}\n"
+                    f"[bold white]Flaws / PII Scrubbed:[/bold white] {verdict.detected_flaws_count}",
+                    title="[bold green]🛡 LOATHE IMMUNE DEFENSE: PASSED PURE[/bold green]",
+                    border_style="green",
+                )
+            )
+    else:
+        st = plant.crucible.get_status()
+        console.print(
+            Panel(
+                f"[bold magenta]Loathed Incursions Incinerated:[/bold magenta] [bold red]{st['total_loathed_incursions']}[/bold red]\n"
+                f"[bold cyan]Wars Waged in Crucible:[/bold cyan] [bold white]{st['total_wars_waged']}[/bold white]\n"
+                f"[bold green]Battle-Hardened Invariants:[/bold green] [bold green]{st['battle_hardened_invariants']}[/bold green]\n"
+                f"[bold yellow]Active Weapon Stance:[/bold yellow] [bold white]{st['weapon_mode']}[/bold white]\n\n"
+                f"[dim]Run: [bold]fabric plant immune --inspect \"<payload>\"[/bold] to test immune inspection[/dim]",
+                title="[bold magenta]🛡 LOATHE IMMUNE SYSTEM TELEMETRY[/bold magenta]",
+                border_style="magenta",
+            )
+        )
+
+
+@plant_app.command("choice")
+def plant_choice(
+    deliberate: Optional[str] = typer.Option(None, "--deliberate", "-d", help="Deliberate on a bifurcation: life | fruit | stance"),
+):
+    """Sovereign Agency (CHOICE) — Exercises conscious deliberation across bifurcations (Deut 30:19)."""
+    from rich.panel import Panel
+    from loom.plant.engine import plant
+
+    render_cluster_banner()
+    if deliberate:
+        d_lower = deliberate.lower()
+        if d_lower in ["life", "death", "life_vs_death"]:
+            c = plant.choice.choose_life_over_death(entropy_H=0.62, dwell_time_s=2.5, coherence_r=0.74)
+        elif d_lower in ["fruit", "lint", "fruit_vs_lint"]:
+            c = plant.choice.choose_fruit_or_lint(purity_within_tolerance=True, coherence_r=0.96, survived_war=True)
+        elif d_lower in ["stance", "sword", "plowshare"]:
+            c = plant.choice.choose_stance(adversarial_threat_level=0.1)
+        else:
+            c = plant.choice.deliberate(
+                bifurcation="SOVEREIGN_CUSTOM",
+                available_branches=["BRANCH_ALPHA", "BRANCH_OMEGA"],
+                chosen_branch="BRANCH_ALPHA",
+                reality_constraints={"entropy": 0.3},
+                rationale="Agent committed to truth under the covenant of the Lover.",
+            )
+
+        console.print(
+            Panel(
+                f"[bold cyan]Choice ID:[/bold cyan] {c.choice_id}\n"
+                f"[bold white]Bifurcation Crossroads:[/bold white] {c.bifurcation}\n"
+                f"[bold magenta]Available Branches:[/bold magenta] {', '.join(c.available_branches)}\n"
+                f"[bold green]Chosen Branch (Sovereign Will):[/bold green] [bold white]{c.chosen_branch}[/bold white]\n"
+                f"[bold yellow]Teleological Rationale:[/bold yellow] {c.teleological_rationale}\n"
+                f"[bold green]Covenantal Commitment:[/bold green] True",
+                title="[bold yellow]⚖ SOVEREIGN CHOICE DELIBERATION (DEUTERONOMY 30:19)[/bold yellow]",
+                border_style="yellow",
+            )
+        )
+    else:
+        st = plant.choice.get_status()
+        console.print(
+            Panel(
+                f"[bold green]Total Sovereign Choices Recorded:[/bold green] [bold white]{st['total_choices_made']}[/bold white]\n"
+                f"[bold cyan]Affirmations of LIFE over Death:[/bold cyan] [bold green]{st['life_choices_count']}[/bold green]\n"
+                f"[bold yellow]Crowning of FRUIT over Lint:[/bold yellow] [bold yellow]{st['fruit_choices_count']}[/bold yellow]\n\n"
+                f"[dim]Run: [bold]fabric plant choice --deliberate life[/bold] to simulate Life vs Death choice\n"
+                f"Run: [bold]fabric plant choice --deliberate fruit[/bold] to simulate Fruit vs Lint choice[/dim]",
+                title="[bold yellow]⚖ SOVEREIGN CHOICE ENGINE TELEMETRY[/bold yellow]",
+                border_style="yellow",
+            )
+        )
+
+
+@plant_app.command("death")
+def plant_death(
+    action: str = typer.Argument("status", help="Action: status | audit (Resurrection) | compost (Humus) | reap"),
+    target_id: Optional[str] = typer.Option(None, "--id", "-i", help="Entity ID to reap"),
+):
+    """The Reality of DEATH — Epistemic Composting, Process Reaping, and Cold-Boot Resurrection Audits."""
+    from rich.panel import Panel
+    from loom.plant.engine import plant
+    from loom.plant.models import MortalityCause
+
+    render_cluster_banner()
+    act = action.lower()
+
+    if act in ["audit", "resurrection"]:
+        console.print("[bold cyan]❄ Conducting Cold-Boot Resurrection Audit across mortality threshold...[/bold cyan]\n")
+        audit = plant.death.resurrect_audit(plant.granary)
+        console.print(
+            Panel(
+                f"[bold cyan]Audit ID:[/bold cyan] {audit.audit_id}\n"
+                f"[bold white]Total Invariants Tested:[/bold white] {audit.tested_invariants_count}\n"
+                f"[bold green]Surviving Invariants (Silicon PMP Locked):[/bold green] [bold green]{audit.survived_fruits_count}[/bold green]\n"
+                f"[bold red]Decayed Volatile Entities:[/bold red] {audit.decayed_mortal_count}\n"
+                f"[bold yellow]Immortality Ratio:[/bold yellow] [bold white]{audit.immortality_ratio * 100:.1f}%[/bold white]\n\n"
+                f"[dim green]✔ True FRUIT survives the death of volatile memory across cold power-cycles.[/dim green]",
+                title="[bold cyan]❄ COLD-BOOT RESURRECTION AUDIT[/bold cyan]",
+                border_style="cyan",
+            )
+        )
+
+    elif act in ["compost", "humus"]:
+        st = plant.death.get_status()
+        console.print(
+            Panel(
+                f"[bold yellow]Composted Humus Batches:[/bold yellow] {st['total_humus_composts']}\n"
+                f"[bold green]Accumulated Topsoil Vitality:[/bold green] [bold green]{st['accumulated_topsoil_vitality']:.2f}x[/bold green]\n"
+                f"[bold white]Total Decomposed Dross Tokens:[/bold white] {st['total_decomposed_tokens']:,} tokens\n"
+                f"[bold cyan]Office of Composting:[/bold cyan] Transforming dead failures and burned lint into nutrient-dense epistemic priors",
+                title="[bold yellow]🍂 EPISTEMIC COMPOST & TOPSOIL (RECYCLED ADAMAH)[/bold yellow]",
+                border_style="yellow",
+            )
+        )
+
+    elif act in ["reap", "kill"]:
+        e_id = target_id or "stale-worker-task"
+        tomb = plant.death.reap(
+            entity_id=e_id,
+            cause=MortalityCause.NATURAL_TELEOLOGICAL_COMPLETION,
+            epitaph="Telos fulfilled; resources yielded to the universal soil.",
+        )
+        console.print(
+            Panel(
+                f"[bold red]Tombstone ID:[/bold red] {tomb.tombstone_id}\n"
+                f"[bold white]Entity Reaped:[/bold white] {tomb.entity_id}\n"
+                f"[bold yellow]Mortality Cause:[/bold yellow] {tomb.cause.value}\n"
+                f"[bold magenta]WORM Ledger Hash:[/bold magenta] SHA256:{tomb.worm_hash[:24]}...\n"
+                f"[bold italic cyan]Epitaph:[/bold italic cyan] \"{tomb.epitaph}\"",
+                title="[bold red]💀 THE REAPER OF REALITY: TOMBSTONE ERECTED[/bold red]",
+                border_style="red",
+            )
+        )
+
+    else:
+        st = plant.death.get_status()
+        console.print(
+            Panel(
+                f"[bold red]Total Tombstones Erected:[/bold red] {st['total_tombstones']}\n"
+                f"[bold yellow]Epistemic Humus Batches:[/bold yellow] {st['total_humus_composts']}\n"
+                f"[bold green]Topsoil Fertility Multiplier:[/bold green] [bold green]{st['accumulated_topsoil_vitality']:.2f}x[/bold green]\n"
+                f"[bold white]Total Tokens Recycled into Humus:[/bold white] {st['total_decomposed_tokens']:,} tokens\n\n"
+                f"[dim]Run: [bold]fabric plant death audit[/bold] to run Cold-Boot Resurrection Audit\n"
+                f"Run: [bold]fabric plant death compost[/bold] to inspect topsoil humus pile\n"
+                f"Run: [bold]fabric plant death reap --id <entity>[/bold] to reap an entity[/dim]",
+                title="[bold red]💀 DEATH & MORTALITY ENGINE TELEMETRY[/bold red]",
+                border_style="red",
+            )
+        )
 
 
 app = cli
