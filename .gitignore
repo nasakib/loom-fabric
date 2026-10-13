@@ -66,3 +66,7 @@ models/*.gguf
 *.gguf
 *.bin
 *.safetensors
+
+# Node & Rust build artifacts
+node_modules/
+target/

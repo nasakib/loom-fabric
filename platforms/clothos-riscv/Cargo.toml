@@ -1,0 +1,26 @@
+[package]
+name = "fabric-clothos-riscv"
+version = "0.2.0"
+edition = "2021"
+publish = false
+license-file = "../../LICENSE"
+description = "PROPRIETARY — Fabric Special Edition for ClothOS on RISC-V (RV64GC + RVV 1.0 Vector + Hardware PMP Zero-Trust Enclave)"
+authors = ["Najmos Sakib <natsakib@gmail.com>"]
+
+[features]
+default = ["std-userspace", "rvv-1-0", "pmp-enclave"]
+std-userspace = []
+baremetal-clothos = []
+rvv-1-0 = []
+pmp-enclave = []
+
+[[bin]]
+name = "loom-clothos"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

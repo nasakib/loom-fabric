@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Loom Fabric Commander",
+    "slug": "loom-fabric-commander",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#07120a",
+    "primaryColor": "#a855f7",
+    "platforms": ["ios", "android", "web"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ai.loomfabric.commander"
+    },
+    "android": {
+      "package": "ai.loomfabric.commander",
+      "adaptiveIcon": {
+        "backgroundColor": "#07120a"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "themeColor": "#a855f7",
+      "backgroundColor": "#07120a"
+    }
+  }
+}

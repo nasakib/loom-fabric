@@ -219,6 +219,11 @@ class SanitizedPayload(BaseModel):
         """Compatibility property matching ScrubbedPayload."""
         return self.sanitized_text
 
+    @property
+    def vault_mapping(self) -> Dict[str, str]:
+        """Compatibility property returning vault_token_map."""
+        return self.vault_token_map
+
 
 class EnclaveToken(BaseModel):
     """Immutable synthetic token record managed by the RehydrationVault."""

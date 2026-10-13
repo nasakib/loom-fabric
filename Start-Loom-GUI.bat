@@ -1,18 +1,24 @@
 @echo off
 setlocal
-title Loom Fabric - Native Desktop Control Center
+cd /d "%~dp0"
+set "PYTHONPATH=%~dp0;%PYTHONPATH%"
+set "PYTHONIOENCODING=utf-8"
 
-set "SCRIPT_DIR=%~dp0"
-set "PYTHON_EXE=C:\Users\natsa\Documents\stitch-core\.fabric-env\Scripts\python.exe"
-
-if not exist "%PYTHON_EXE%" (
-    set "PYTHON_EXE=%USERPROFILE%\.loom\env\Scripts\python.exe"
+if exist "%~dp0.venv\Scripts\pythonw.exe" (
+    start "" "%~dp0.venv\Scripts\pythonw.exe" -m loom.gui
+    exit /b 0
 )
-
-if not exist "%PYTHON_EXE%" (
-    set "PYTHON_EXE=python"
+if exist "%USERPROFILE%\.loom\env\Scripts\pythonw.exe" (
+    start "" "%USERPROFILE%\.loom\env\Scripts\pythonw.exe" -m loom.gui
+    exit /b 0
 )
-
-echo Starting Loom Fabric Native Desktop GUI...
-start "" "%PYTHON_EXE%" -m loom.cli.main gui --gateway http://127.0.0.1:8002
+if exist "%LOCALAPPDATA%\Programs\Python\Python312\pythonw.exe" (
+    start "" "%LOCALAPPDATA%\Programs\Python\Python312\pythonw.exe" -m loom.gui
+    exit /b 0
+)
+if exist "C:\Users\natsa\Documents\stitch-core\.fabric-env\Scripts\pythonw.exe" (
+    start "" "C:\Users\natsa\Documents\stitch-core\.fabric-env\Scripts\pythonw.exe" -m loom.gui
+    exit /b 0
+)
+start "" pythonw -m loom.gui
 exit /b 0

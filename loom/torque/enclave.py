@@ -158,6 +158,10 @@ class TorqueEnclaveScrubber(ScrubberProtocol):
         """Alias for sanitize() returning immutable SanitizedPayload."""
         return self.sanitize(text)
 
+    def scrub_outbound(self, text: str) -> SanitizedPayload:
+        """Scrubs outbound text or telemetry before leaving the Torque Enclave."""
+        return self.sanitize(text)
+
     def rehydrate(self, scrubbed_text: str, vault_map: Optional[Mapping[str, str]] = None) -> str:
         """Restores synthetic tokens back to original sovereign entities."""
         if not scrubbed_text:
@@ -198,6 +202,7 @@ class Rehydrator:
 
 # Core class aliases matching architectural directives
 Scrubber = TorqueEnclaveScrubber
+TorqueEnclave = TorqueEnclaveScrubber
 
 
 class EgressFirewall(EgressFirewallProtocol):

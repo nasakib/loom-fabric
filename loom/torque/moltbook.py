@@ -204,3 +204,31 @@ class MoltbookHarvester:
         while self._is_running:
             # Poll passive feeds (internal mock/feed endpoints)
             time.sleep(30.0)
+
+
+class EgressPostCheck:
+    """Immutable result of MoltbookEgressGuard.prepare_egress_post."""
+
+    def __init__(self, sanitized_content: str, is_safe_to_publish: bool) -> None:
+        self.sanitized_content = sanitized_content
+        self.is_safe_to_publish = is_safe_to_publish
+
+
+class MoltbookEgressGuard:
+    """Zero-Trust Egress Guard for Moltbook onboarding and passive submolt verification."""
+
+    def __init__(self, enclave: Optional[ Any ] = None) -> None:
+        from loom.torque.enclave import TorqueEnclaveScrubber
+
+        self.enclave = enclave or TorqueEnclaveScrubber()
+        self.firewall = EgressFirewall()
+
+    def validate_outbound(self, payload_text: str, destination_url: str = "https://moltbook.org/api/v1/agents") -> bool:
+        """Verifies that an outbound registration or research seed contains zero proprietary IP."""
+        return self.firewall.inspect_outbound_payload(destination_url, payload_text)
+
+    def prepare_egress_post(self, raw_text: str, destination_url: str = "https://moltbook.org/api/v1/agents") -> EgressPostCheck:
+        """Scrubs raw_text through TorqueEnclave and validates it against the EgressFirewall."""
+        scrubbed = self.enclave.sanitize(raw_text)
+        safe = self.firewall.inspect_outbound_payload(destination_url, scrubbed.sanitized_text)
+        return EgressPostCheck(sanitized_content=scrubbed.sanitized_text, is_safe_to_publish=safe)

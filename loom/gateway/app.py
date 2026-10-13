@@ -275,47 +275,30 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             border-bottom: 1px solid rgba(255,255,255,0.04);
         }
     </style>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#07120a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
     <div class="header">
         <div>
-            <div class="title">LOOM FABRIC COMMANDER</div>
-            <div class="subtitle">Mechanistic Heterogeneous AI Compute Engine (Ray Mesh + Stitch MMU + Torque Enclave + Loom Shell) &bull; Precursor to ClothOS</div>
+            <div class="title">FABRIC</div>
+            <div class="subtitle">ClothOS Agentic Operating System &bull; Loom (QCT Router) &bull; Stitch (ZeroMQ MMU) &bull; Torque (Zero-Trust Enclave)</div>
         </div>
-        <div class="status-badge" id="cluster-status">SILICON MESH HEALTHY &bull; PORT 8002</div>
-    </div>
-
-    <div class="grid">
-        <div class="card">
-            <div class="card-title">Worker Silicon Node (skyTech // Dual-GPU)</div>
-            <div class="stat-row"><span>IP Address</span><span class="stat-val">192.168.99.1 (1Gbps Direct Wire)</span></div>
-            <div class="stat-row"><span>GPU 0 (Primary)</span><span class="stat-val">RTX 3060 12GB (CUDA 12.x)</span></div>
-            <div class="stat-row"><span>GPU 1 (Secondary)</span><span class="stat-val">RX 580 8GB (Vulkan 1.3)</span></div>
-            <div class="stat-row"><span>Host Memory</span><span class="stat-val">40 GB DDR4</span></div>
-            <div class="stat-row"><span>Process Guard</span><span class="stat-val">Win32 Job Object (Kernel Limit)</span></div>
-        </div>
-
-        <div class="card">
-            <div class="card-title">Head Coordinator Node (Ryzen 7 7730U)</div>
-            <div class="stat-row"><span>IP Address</span><span class="stat-val">192.168.99.2 (1Gbps Direct Wire)</span></div>
-            <div class="stat-row"><span>Processor</span><span class="stat-val">AMD Ryzen 7 7730U (16 vCPUs, 32 GB RAM)</span></div>
-            <div class="stat-row"><span>Ray GCS Redis</span><span class="stat-val">Port 6379</span></div>
-            <div class="stat-row"><span>Loom Gateway</span><span class="stat-val">Port 8002 (SSE Active)</span></div>
-            <div class="stat-row"><span>Nightwatch Watchdog</span><span class="stat-val">Autonomous Silicon Guard</span></div>
-        </div>
-
-        <div class="card">
-            <div class="card-title">Torque Sovereign Triage &amp; Vault</div>
-            <div class="stat-row"><span>Delegation Mode</span><span class="stat-val">Dynamic Compute-Based</span></div>
-            <div class="stat-row"><span>Guarded IP Terms</span><span class="stat-val">fouriersLibrary, VectorForge, Mycos</span></div>
-            <div class="stat-row"><span>Cloud Arbitrage Limit</span><span class="stat-val">&gt;300s / &gt;65k Tokens</span></div>
-            <div class="stat-row"><span>Local Force Tag</span><span class="stat-val">[LOCAL] / [SOVEREIGN]</span></div>
-            <div class="stat-row"><span>Stream Rehydration</span><span class="stat-val">On-The-Fly Active</span></div>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button onclick="clusterAction('start')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 8px 16px;">&#9654; START FABRIC</button>
+            <button onclick="clusterAction('restart_both')" style="background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%); padding: 8px 16px;">&#9889; Restart BOTH Machines</button>
+            <button class="secondary" onclick="clusterAction('stop')" style="padding: 8px 14px; color: #f43f5e; border-color: rgba(244,63,94,0.4);">&#9632; Stop Local</button>
+            <div class="status-badge" id="cluster-status">FABRIC + CLOTHOS ONLINE &bull; PORT 8002</div>
         </div>
     </div>
 
-    <div class="interactive-section">
-        <div class="card-title">Interactive Model Dispatch &amp; Real-Time Streaming Console</div>
+    <div class="interactive-section" style="border-color: var(--purple); box-shadow: 0 0 24px rgba(168, 85, 247, 0.12);">
+        <div class="card-title">
+            <span>THE SHUTTLE // Prompt &amp; Real-Time Streaming Console (Press Enter to Dispatch)</span>
+            <span id="cluster-action-status" style="font-size: 12px; color: var(--clover);">🛡 Zero-Terminal Auto-Heal: ON</span>
+        </div>
         <div class="controls-bar">
             <div>
                 <label style="font-size: 12px; color: var(--text-dim); display: block; margin-bottom: 4px;">Target Model</label>
@@ -337,11 +320,11 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             </div>
         </div>
 
-        <textarea id="prompt-input" placeholder="Type a prompt to test dynamic triage... e.g.: Prove the Fourier transform convergence theorem, or synthesize a microkernel scheduler, or summarize the conversation..."></textarea>
+        <textarea id="prompt-input" autofocus placeholder="Type your prompt and press Enter (Shift+Enter for new line)... e.g.: Prove the Fourier transform convergence theorem, synthesize a microkernel scheduler, or ask anything..."></textarea>
 
         <div style="display: flex; align-items: center; gap: 10px;">
-            <button onclick="sendPrompt()">Execute via Loom Gateway</button>
-            <button class="secondary" onclick="previewTriage()">Preview Triage Only</button>
+            <button onclick="sendPrompt()">&#9654; Launch Prompt (Enter)</button>
+            <button class="secondary" onclick="previewTriage()">Preview Triage</button>
             <span id="routing-badge" style="margin-left: 8px;"></span>
         </div>
 
@@ -349,7 +332,36 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             <div class="progress-bar-fill" id="progress-fill"></div>
         </div>
 
-        <div class="output-box" id="output-box">Ready. Send a prompt to watch Loom triage and stream tokens in real time...</div>
+        <div class="output-box" id="output-box">Ready. Press [▶ START FABRIC] or type your prompt above and press Enter...</div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <div class="card-title">Worker Silicon Node (skyTech // Dual-GPU)</div>
+            <div class="stat-row"><span>IP Address</span><span class="stat-val">192.168.99.1 (1Gbps Direct Wire)</span></div>
+            <div class="stat-row"><span>GPU 0 (Primary)</span><span class="stat-val">RTX 3060 12GB (CUDA 12.x)</span></div>
+            <div class="stat-row"><span>GPU 1 (Secondary)</span><span class="stat-val">RX 580 8GB (Vulkan 1.3)</span></div>
+            <div class="stat-row"><span>Host Memory</span><span class="stat-val">54 GB DDR4</span></div>
+            <div class="stat-row"><span>Live Ports</span><span class="stat-val" id="ports-99-1">:8002 :5555 :11434 :18789</span></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Head Coordinator Node (Ryzen 7 7730U)</div>
+            <div class="stat-row"><span>IP Address</span><span class="stat-val">192.168.99.2 (1Gbps Direct Wire)</span></div>
+            <div class="stat-row"><span>Processor</span><span class="stat-val">AMD Ryzen 7 7730U (16 vCPUs, 16 GB RAM)</span></div>
+            <div class="stat-row"><span>Ray GCS / UI</span><span class="stat-val">Port 6379 / Port 8265</span></div>
+            <div class="stat-row"><span>Loom Gateway</span><span class="stat-val">Port 8002 (SSE Active)</span></div>
+            <div class="stat-row"><span>Live Ports</span><span class="stat-val" id="ports-99-2">:8002 :5555 :6379 :8265 :11434</span></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Torque Sovereign Triage &amp; Vault</div>
+            <div class="stat-row"><span>Delegation Mode</span><span class="stat-val">Dynamic Compute-Based</span></div>
+            <div class="stat-row"><span>Guarded IP Terms</span><span class="stat-val">fouriersLibrary, VectorForge, Mycos</span></div>
+            <div class="stat-row"><span>Cloud Arbitrage Limit</span><span class="stat-val">&gt;300s / &gt;65k Tokens</span></div>
+            <div class="stat-row"><span>Local Force Tag</span><span class="stat-val">[LOCAL] / [SOVEREIGN]</span></div>
+            <div class="stat-row"><span>Stream Rehydration</span><span class="stat-val">On-The-Fly Active</span></div>
+        </div>
     </div>
 
     <div class="interactive-section">
@@ -496,8 +508,54 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             }
         }
 
-        // Initial recommendations load
-        window.addEventListener('DOMContentLoaded', loadRecommendations);
+        async function clusterAction(action) {
+            const statusEl = document.getElementById('cluster-action-status');
+            statusEl.innerText = `⚡ Executing '${action}' silently in background...`;
+            statusEl.style.color = 'var(--yellow)';
+            try {
+                const res = await fetch('/api/cluster/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action })
+                });
+                const d = await res.json();
+                statusEl.innerText = `✔ ${d.message || 'Cluster action dispatched'}`;
+                statusEl.style.color = 'var(--clover)';
+                setTimeout(refreshClusterPorts, 1200);
+            } catch (err) {
+                statusEl.innerText = `⚠ ${err.message}`;
+                statusEl.style.color = 'var(--red)';
+            }
+        }
+
+        async function refreshClusterPorts() {
+            try {
+                const res = await fetch('/api/cluster/status');
+                const d = await res.json();
+                const renderPorts = (obj) => Object.entries(obj || {}).map(([p, up]) =>
+                    `<span style="color:${up ? 'var(--green)' : 'var(--red)'}; margin-right:6px;">●:${p}</span>`
+                ).join('');
+                if (d['192.168.99.1']) document.getElementById('ports-99-1').innerHTML = renderPorts(d['192.168.99.1']);
+                if (d['192.168.99.2']) document.getElementById('ports-99-2').innerHTML = renderPorts(d['192.168.99.2']);
+            } catch (_) {}
+        }
+
+        // Initial load & Enter key shortcut
+        window.addEventListener('DOMContentLoaded', () => {
+            loadRecommendations();
+            refreshClusterPorts();
+            setInterval(refreshClusterPorts, 5000);
+            const input = document.getElementById('prompt-input');
+            if (input) {
+                input.focus();
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendPrompt();
+                    }
+                });
+            }
+        });
     </script>
 </body>
 </html>
@@ -584,11 +642,11 @@ async def chat_completions(req: Request):
     payload = PromptPayload(
         model=clean_model,
         messages=messages_dto,
-        temperature=body_dict.get("temperature", 0.7),
-        top_p=body_dict.get("top_p", 0.95),
-        max_tokens=body_dict.get("max_tokens", 4096),
-        stream=body_dict.get("stream", False),
-        force_local=body_dict.get("force_local", False),
+        temperature=float(body_dict.get("temperature")) if body_dict.get("temperature") is not None else 0.7,
+        top_p=float(body_dict.get("top_p")) if body_dict.get("top_p") is not None else 0.95,
+        max_tokens=int(body_dict.get("max_tokens") or body_dict.get("max_completion_tokens") or 4096),
+        stream=bool(body_dict.get("stream", False)),
+        force_local=bool(body_dict.get("force_local", False)),
     )
 
     # 1. Torque Complexity Routing & Model Triage Decision (Pillar 1)
@@ -727,6 +785,111 @@ async def api_pull_model(req: Request) -> Dict[str, Any]:
     recommender = ModelHardwareRecommender()
     success = recommender.install_model_cli(model)
     return {"status": "success" if success else "failed", "model": model}
+
+
+@app.get("/manifest.json")
+async def pwa_manifest() -> Dict[str, Any]:
+    """PWA Web App Manifest for installing Fabric across Windows, macOS, Linux, iOS, and Android."""
+    return {
+        "name": "Fabric // ClothOS Agentic Operating System",
+        "short_name": "Fabric",
+        "description": "Zero-Terminal Sovereign AI Compute Fabric (Loom · Stitch · Torque · ClothOS)",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#07120a",
+        "theme_color": "#a855f7",
+        "icons": [
+            {
+                "src": "https://cdn-icons-png.flaticon.com/512/2103/2103633.png",
+                "sizes": "512x512",
+                "type": "image/png",
+            }
+        ],
+    }
+
+
+@app.get("/v1/clothos/status")
+def clothos_status() -> Dict[str, Any]:
+    """Returns a Torque-scrubbed, frozen=True Pydantic v2 ClothOS state snapshot including DAG & Moltbook telemetry."""
+    from loom.clothos.kernel import ClothOSKernel
+    kernel = ClothOSKernel()
+    snap = kernel.snapshot(probe_network=False)
+    return json.loads(snap.model_dump_json())
+
+
+@app.get("/v1/clothos/dag")
+def clothos_dag_get(prompt: str = "Analyze ClothOS DAG & QCT routing", model: str = "auto", prefer_riscv: bool = False) -> Dict[str, Any]:
+    """Evaluates a prompt through the Fabric QCTHybridRouter and returns the frozen QCTRouteDecision + DAGExecutionPlan."""
+    from fabric.routing.router import QCTHybridRouter
+    router = QCTHybridRouter()
+    decision = router.route_query(prompt=prompt, requested_model=model, prefer_riscv=prefer_riscv)
+    return json.loads(decision.model_dump_json())
+
+
+@app.post("/v1/clothos/dag")
+async def clothos_dag_plan(req: Request) -> Dict[str, Any]:
+    """POST handler for /v1/clothos/dag."""
+    body = await req.json()
+    return clothos_dag_get(
+        prompt=body.get("prompt", "Analyze ClothOS DAG & QCT routing"),
+        model=body.get("model", "auto"),
+        prefer_riscv=bool(body.get("prefer_riscv", False)),
+    )
+
+
+@app.api_route("/v1/clothos/moltbook/synergy", methods=["GET", "POST"])
+def clothos_moltbook_synergy() -> Dict[str, Any]:
+    """Executes a ClothOS + Moltbook R&D Wisdom Bridge synergy cycle and writes .agent/STATUS.md."""
+    from loom.clothos.kernel import ClothOSKernel
+    kernel = ClothOSKernel()
+    status_path = kernel.sync_agent_status_markdown(probe_network=False)
+    snap = kernel.snapshot(probe_network=False)
+    return {
+        "status": "synergy_synced",
+        "status_file": str(status_path),
+        "registration": json.loads(snap.registration.model_dump_json()),
+        "hypotheses": [json.loads(h.model_dump_json()) for h in snap.active_hypotheses],
+        "latest_dag": json.loads(snap.latest_route.dag.model_dump_json()),
+    }
+
+
+@app.get("/api/cluster/status")
+async def api_cluster_status() -> Dict[str, Any]:
+    """Probes live TCP ports across both 192.168.99.1 and 192.168.99.2."""
+    from loom.gui import CrossPlatformClusterController
+    ctrl = CrossPlatformClusterController()
+    result: Dict[str, Dict[str, bool]] = {"192.168.99.1": {}, "192.168.99.2": {}}
+    for port in [8002, 5555, 11434, 18789]:
+        host1 = "127.0.0.1" if ctrl.self_ip == "192.168.99.1" else "192.168.99.1"
+        result["192.168.99.1"][str(port)] = ctrl.is_port_open(host1, port, timeout=0.4)
+    for port in [8002, 5555, 6379, 8265, 11434, 18789]:
+        host2 = "127.0.0.1" if ctrl.self_ip == "192.168.99.2" else "192.168.99.2"
+        result["192.168.99.2"][str(port)] = ctrl.is_port_open(host2, port, timeout=0.4)
+    return result
+
+
+@app.post("/api/cluster/action")
+async def api_cluster_action(req: Request) -> Dict[str, Any]:
+    """Executes windowless start, restart_both, or stop actions across the cluster."""
+    import threading
+    from loom.gui import CrossPlatformClusterController
+    body = await req.json()
+    action = body.get("action", "start")
+    ctrl = CrossPlatformClusterController()
+
+    if action == "start":
+        threading.Thread(target=ctrl.ensure_local_services_alive, daemon=True).start()
+        return {"status": "ok", "message": "Local services verified & started silently (zero terminals)."}
+    elif action == "restart_both":
+        def _restart_both():
+            ctrl.ensure_local_services_alive()
+            ctrl.trigger_peer_action("restart")
+        threading.Thread(target=_restart_both, daemon=True).start()
+        return {"status": "ok", "message": "Both machines healing & restarting in background."}
+    elif action == "stop":
+        threading.Thread(target=lambda: ctrl.sanitize_local_ports(ports=[8000, 8080, 18789]), daemon=True).start()
+        return {"status": "ok", "message": "Auxiliary ports sanitized."}
+    return {"status": "unknown_action", "message": f"Unknown action: {action}"}
 
 
 # Mount OpenClaw Autonomic Bridge

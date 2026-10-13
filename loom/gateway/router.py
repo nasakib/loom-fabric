@@ -50,10 +50,14 @@ class GatewayRouter:
         Returns:
             Tuple of (endpoint_url, provider_name)
         """
-        # 0. Check if routed to Tier 3 Sovereign Cloud
+        import os
+
+        # 0. Check if routed to Tier 3 Sovereign Cloud (only if a real cloud API key is configured)
         if tier and ("cloud" in str(tier).lower() or "tier_3" in str(tier).lower()):
-            target = cloud_url or self.settings.torque.cloud_api_url
-            return target, "Sovereign-Cloud-Arbitrage"
+            api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
+            if api_key and api_key != "enclave-dummy-token":
+                target = cloud_url or self.settings.torque.cloud_api_url
+                return target, "Sovereign-Cloud-Arbitrage"
 
         # 1. Check if Ray cluster is active with registered director
         if self.ray_manager.is_connected:
@@ -93,8 +97,53 @@ class GatewayRouter:
             except Exception:
                 pass
 
-        # Default fallback to configured worker endpoint
-        return worker_endpoint, "Stitch-Default"
+        # Default fallback to local Ollama
+        return "http://127.0.0.1:11434", "Ollama-Local-Fallback"
+
+    def _resolve_ollama_model(self, model_name: str, payload: Dict[str, Any], provider_name: str) -> str:
+        """Resolves model identifier to an installed local Ollama tag and prevents single-GPU 32B OOM/timeouts."""
+        if "/" in model_name:
+            model_name = model_name.split("/", 1)[1]
+        preset = ModelRegistry.get_model(model_name)
+        resolved = preset.ollama_tag if (preset and preset.ollama_tag) else model_name
+
+        if resolved in ("auto", "default", "loom-fabric-qct", "gemini-2.5-flash", "gpt-4o"):
+            resolved = "qwen2.5:7b"
+
+        # When running on single-GPU Ollama fallback without distributed Ray/Stitch sharding,
+        # large tool-enabled OpenClaw sessions (>8k chars or tool definitions) on 32B spill to CPU RAM
+        # and exceed Discord/OpenClaw timeouts. Auto-triage to pure-CUDA qwen2.5:7b.
+        if "Ollama" in provider_name and resolved == "qwen2.5:32b":
+            total_chars = sum(len(str(m.get("content", ""))) for m in payload.get("messages", []) if isinstance(m, dict))
+            has_tools = bool(payload.get("tools"))
+            if has_tools or total_chars > 8000:
+                logger.info(
+                    f"Single-node Ollama guard: routing heavy/tool session ({total_chars} chars, tools={has_tools}) "
+                    "from qwen2.5:32b to pure-CUDA qwen2.5:7b to prevent CPU-spill timeout."
+                )
+                resolved = "qwen2.5:7b"
+
+        return resolved
+
+    def _prepare_openai_payload(self, payload: Dict[str, Any], resolved_model: str) -> Dict[str, Any]:
+        """Normalizes OpenAI chat completion payload for compatibility with Ollama /v1/chat/completions."""
+        clean = dict(payload)
+        clean["model"] = resolved_model
+        # Remove custom Loom-only fields before forwarding to upstream OpenAI/Ollama endpoints
+        clean.pop("force_local", None)
+        clean.pop("airgap", None)
+        # Normalize message roles (e.g. 'developer' -> 'system')
+        msgs = []
+        for m in clean.get("messages", []):
+            if isinstance(m, dict):
+                mc = dict(m)
+                if mc.get("role") == "developer":
+                    mc["role"] = "system"
+                msgs.append(mc)
+            else:
+                msgs.append(m)
+        clean["messages"] = msgs
+        return clean
 
     async def stream_chat_completion(
         self,
@@ -103,67 +152,49 @@ class GatewayRouter:
         provider_name: str,
     ) -> AsyncIterator[str]:
         """Streams Server-Sent Events (SSE) from the underlying backend to the gateway client."""
-        model_name = payload.get("model", "default")
-        if "/" in model_name:
-            model_name = model_name.split("/", 1)[1]
-        preset = ModelRegistry.get_model(model_name)
-        sharding_info = f"Layers: {preset.total_layers} ({preset.quant_label})" if preset else "Dynamic"
+        raw_model = payload.get("model", "qwen2.5:7b")
+        resolved_model = self._resolve_ollama_model(raw_model, payload, provider_name)
+        forward_payload = self._prepare_openai_payload(payload, resolved_model)
+        forward_payload["stream"] = True
 
-        if "Ollama" in provider_name:
-            # Format request for Ollama /api/chat with streaming
-            ollama_payload = {
-                "model": preset.ollama_tag if preset and preset.ollama_tag else model_name,
-                "messages": payload.get("messages", []),
-                "stream": True,
-                "options": {
-                    "temperature": payload.get("temperature", 0.7),
-                    "num_ctx": payload.get("max_tokens", 8192),
-                },
-            }
+        endpoint = (
+            target_url
+            if target_url.endswith("/chat/completions")
+            else f"{target_url.rstrip('/')}/v1/chat/completions"
+        )
+
+        try:
             async with self.client.stream(
                 "POST",
-                f"{target_url}/api/chat",
-                json=ollama_payload,
+                endpoint,
+                json=forward_payload,
                 timeout=300.0,
             ) as response:
-                async for chunk in response.aiter_lines():
-                    if not chunk:
-                        continue
-                    try:
-                        data = json.loads(chunk)
-                        delta_content = data.get("message", {}).get("content", "")
-                        done = data.get("done", False)
-
-                        openai_chunk = {
-                            "id": f"chatcmpl-{model_name}",
-                            "object": "chat.completion.chunk",
-                            "created": 1700000000,
-                            "model": model_name,
-                            "choices": [
-                                {
-                                    "index": 0,
-                                    "delta": {"content": delta_content} if delta_content else {},
-                                    "finish_reason": "stop" if done else None,
-                                }
-                            ],
-                        }
-                        yield f"data: {json.dumps(openai_chunk)}\n\n"
-                        if done:
-                            yield "data: [DONE]\n\n"
-                            break
-                    except Exception:
-                        continue
-        else:
-            # Native llama-server or OpenAI-compatible backend
-            async with self.client.stream(
-                "POST",
-                f"{target_url}/v1/chat/completions",
-                json=payload,
-                timeout=300.0,
-            ) as response:
+                if response.status_code >= 400 and resolved_model != "qwen2.5:7b":
+                    raise httpx.HTTPStatusError(
+                        f"Upstream status {response.status_code}",
+                        request=response.request,
+                        response=response,
+                    )
                 async for chunk in response.aiter_lines():
                     if chunk:
                         yield f"{chunk}\n\n"
+                return
+        except Exception as exc:
+            logger.warning(f"Primary stream ({endpoint}, model={resolved_model}) failed ({exc}); failing over to qwen2.5:7b.")
+
+        # Automatic failover to local Ollama qwen2.5:7b
+        fallback_payload = self._prepare_openai_payload(payload, "qwen2.5:7b")
+        fallback_payload["stream"] = True
+        async with self.client.stream(
+            "POST",
+            "http://127.0.0.1:11434/v1/chat/completions",
+            json=fallback_payload,
+            timeout=300.0,
+        ) as response:
+            async for chunk in response.aiter_lines():
+                if chunk:
+                    yield f"{chunk}\n\n"
 
     async def execute_non_streaming_completion(
         self,
@@ -171,45 +202,30 @@ class GatewayRouter:
         target_url: str,
         provider_name: str,
     ) -> Dict[str, Any]:
-        """Dispatches a synchronous/non-streaming completion request."""
-        model_name = payload.get("model", "default")
-        if "/" in model_name:
-            model_name = model_name.split("/", 1)[1]
-        preset = ModelRegistry.get_model(model_name)
+        """Dispatches a synchronous/non-streaming completion request with automatic local failover."""
+        raw_model = payload.get("model", "qwen2.5:7b")
+        resolved_model = self._resolve_ollama_model(raw_model, payload, provider_name)
+        forward_payload = self._prepare_openai_payload(payload, resolved_model)
+        forward_payload["stream"] = False
 
-        if "Ollama" in provider_name:
-            ollama_payload = {
-                "model": preset.ollama_tag if preset and preset.ollama_tag else model_name,
-                "messages": payload.get("messages", []),
-                "stream": False,
-                "options": {
-                    "temperature": payload.get("temperature", 0.7),
-                    "num_ctx": payload.get("max_tokens", 8192),
-                },
-            }
-            res = await self.client.post(f"{target_url}/api/chat", json=ollama_payload, timeout=300.0)
+        endpoint = (
+            target_url
+            if target_url.endswith("/chat/completions")
+            else f"{target_url.rstrip('/')}/v1/chat/completions"
+        )
+
+        try:
+            res = await self.client.post(endpoint, json=forward_payload, timeout=300.0)
             res.raise_for_status()
-            data = res.json()
-            content = data.get("message", {}).get("content", "")
-            return {
-                "id": f"chatcmpl-{model_name}",
-                "object": "chat.completion",
-                "created": 1700000000,
-                "model": model_name,
-                "choices": [
-                    {
-                        "index": 0,
-                        "message": {"role": "assistant", "content": content},
-                        "finish_reason": "stop",
-                    }
-                ],
-                "usage": {
-                    "prompt_tokens": data.get("prompt_eval_count", 0),
-                    "completion_tokens": data.get("eval_count", 0),
-                    "total_tokens": data.get("prompt_eval_count", 0) + data.get("eval_count", 0),
-                },
-            }
-        else:
-            res = await self.client.post(f"{target_url}/v1/chat/completions", json=payload, timeout=300.0)
+            return res.json()
+        except Exception as exc:
+            logger.warning(f"Primary completion ({endpoint}, model={resolved_model}) failed ({exc}); failing over to qwen2.5:7b.")
+            fallback_payload = self._prepare_openai_payload(payload, "qwen2.5:7b")
+            fallback_payload["stream"] = False
+            res = await self.client.post(
+                "http://127.0.0.1:11434/v1/chat/completions",
+                json=fallback_payload,
+                timeout=300.0,
+            )
             res.raise_for_status()
             return res.json()
