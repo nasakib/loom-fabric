@@ -593,6 +593,8 @@ def synergy_command():
     console.print(f"[dim green]✔ Synced ClothOS & Moltbook R&D status to {status_path}[/dim green]")
 
 
+app = cli
+
 if __name__ == "__main__":
     cli()
 
