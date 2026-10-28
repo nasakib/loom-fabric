@@ -1,11 +1,11 @@
 {
-  "generation": 21,
-  "timestamp": 1793230859.4955919,
-  "truth_radiance": 0.937,
+  "generation": 22,
+  "timestamp": 1793230885.4421139,
+  "truth_radiance": 0.9390000000000001,
   "caliper_epsilon": 5e-06,
   "systolic_tflops": 275.0,
   "invariants": [
-    "INVARIANT_GEN_21_CONVERGENCE",
+    "INVARIANT_GEN_22_CONVERGENCE",
     "LANDAUER_BOUND_SATISFIED",
     "KURAMOTO_COHERENCE_GE_0.95"
   ]
