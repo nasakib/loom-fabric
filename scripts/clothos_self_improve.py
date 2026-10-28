@@ -39,6 +39,23 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
+# Auto-re-execute using the project .venv if invoked with system python missing dependencies
+venv_python = (
+    WORKSPACE_ROOT / ".venv" / "Scripts" / "python.exe"
+    if sys.platform == "win32"
+    else WORKSPACE_ROOT / ".venv" / "bin" / "python"
+)
+if (
+    __name__ == "__main__"
+    and venv_python.exists()
+    and Path(sys.executable).resolve() != venv_python.resolve()
+):
+    try:
+        import rich
+    except ImportError:
+        res = subprocess.run([str(venv_python)] + sys.argv, cwd=str(WORKSPACE_ROOT))
+        sys.exit(res.returncode)
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
