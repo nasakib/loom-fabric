@@ -4857,6 +4857,16 @@ class ToolRegistry:
         self.register_alias("foundry_floor", "clothos_factory_floor")
         self.register_alias("assembly_floor", "clothos_factory_floor")
 
+        self.register(
+            "prompt_developer",
+            "Interactive chat-based Prompt Developer studio. Synthesizes, optimizes, scores, and tests production-grade system prompts with XML tagging.",
+            self.tool_prompt_developer,
+            {"action": "string (optional)", "goal": "string (optional)", "prompt_text": "string (optional)", "name": "string (optional)"}
+        )
+        self.register_alias("prompt_dev", "prompt_developer")
+        self.register_alias("prompt_studio", "prompt_developer")
+        self.register_alias("metaprompt", "prompt_developer")
+
         # ---------------- Qwen-Agent Integrated Handlers ----------------
 
     # ── Fabric Workload Optimization & Crystallization Handlers ─────────────────
@@ -5253,6 +5263,46 @@ class ToolRegistry:
                 panel = factory_visualizer.render_factory_frame(0)
                 console.print(panel)
                 return {"success": True, "mode": "static", "rendered": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def tool_prompt_developer(self, action: str = "develop", goal: str = "", prompt_text: str = "", name: str = "") -> Dict[str, Any]:
+        """Interactive prompt development, quality scoring, XML structuring, and template management."""
+        try:
+            from loom.clothos.prompt_developer import prompt_developer_engine
+            if isinstance(action, list):
+                action = action[0] if action else "develop"
+            if isinstance(goal, list):
+                goal = " ".join(str(x) for x in goal)
+            if isinstance(prompt_text, list):
+                prompt_text = " ".join(str(x) for x in prompt_text)
+            act = (str(action) or "develop").lower()
+            if act in ["develop", "create", "synthesize"]:
+                g = goal or prompt_text or "General Expert AI Assistant"
+                template = prompt_developer_engine.develop_prompt(goal=g)
+                if name:
+                    prompt_developer_engine.save_prompt(template, custom_name=name)
+                return {
+                    "success": True,
+                    "action": "develop",
+                    "name": template.name,
+                    "system_prompt": template.system_prompt,
+                    "radiance_score": template.quality_metrics.overall_radiance if template.quality_metrics else 90.0,
+                    "metrics": template.quality_metrics.to_dict() if template.quality_metrics else {},
+                }
+            elif act in ["optimize", "refine"]:
+                raw = prompt_text or goal
+                res = prompt_developer_engine.optimize_prompt(raw)
+                return {"success": True, "action": "optimize", **res}
+            elif act in ["score", "evaluate"]:
+                raw = prompt_text or goal
+                metrics = prompt_developer_engine.evaluate_quality(raw)
+                return {"success": True, "action": "score", "metrics": metrics.to_dict()}
+            elif act in ["list", "library"]:
+                prompts = prompt_developer_engine.list_prompts()
+                return {"success": True, "action": "list", "prompts": prompts}
+            else:
+                return {"success": False, "error": f"Unknown prompt developer action '{action}'"}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -9477,6 +9527,15 @@ AVAILABLE TOOLS:
             res = self.tools.execute("clothos_factory_floor", mode="static")
             return "🏭 **ClothOS Autonomous Cognitive Foundry & Assembly Line** rendered above in terminal.\n\n*Use `/factory` to watch the live moving conveyor belt and operating machinery!*"
 
+        # ── Prompt Developer NL Routing ───────────────────────────────────────
+        if any(w in p_lower for w in ["develop a prompt", "create a prompt", "optimize this prompt", "prompt developer", "prompt studio"]):
+            clean_goal = re.sub(r"^(develop a prompt( for)?|create a prompt( for)?|optimize this prompt(:)?|prompt developer(:)?)\s*", "", user_prompt, flags=re.IGNORECASE).strip()
+            if clean_goal:
+                dev_res = self.tools.execute("prompt_developer", action="develop", goal=clean_goal)
+                return f"### 🎨 ClothOS Prompt Developer Synthesis\n**Prompt**: `{dev_res.get('name')}` (Radiance Score: **{dev_res.get('radiance_score')}**)\n\n```markdown\n{dev_res.get('system_prompt')}\n```\n\n*Type `/prompt` to enter the interactive chat-based studio!*"
+            else:
+                return "🎨 **ClothOS Prompt Developer Studio Active**: Type `/prompt` to enter the full chat-based prompt design studio, or `/prompt optimize <text>` to refine existing prompts!"
+
         # ── Direct Natural Language Mode Toggles ────────────────────────────────
 
         if "switch to sandbox" in p_lower or "enable sandbox" in p_lower:
@@ -11205,6 +11264,8 @@ class ClothOSAgentREPL:
 
             f"[bold {brand_primary}]/gen[/bold {brand_primary}] [dim]Text Gen[/dim] · "
 
+            f"[bold {brand_primary}]/prompt[/bold {brand_primary}] [dim]Prompt Dev[/dim] · "
+
             f"[bold {brand_primary}]/factory[/bold {brand_primary}] [dim]Factory Floor[/dim] · "
 
             f"[bold {brand_primary}]/dual-gpu[/bold {brand_primary}] [dim]20GB Pair[/dim] · "
@@ -11945,6 +12006,77 @@ class ClothOSAgentREPL:
                 )
                 console.print(f"[bold #00ff7f]✦ Engaging ClothOS Autonomous Factory Floor ({dur:.0f}s live)...[/bold #00ff7f]")
                 factory_visualizer.run_live(duration_s=dur, fps=4.0)
+            return False
+
+        # /prompt, /prompt-dev, /metaprompt: Interactive Chat-Based Prompt Developer
+        if cmd in ["/prompt", "/prompt-dev", "/prompt-developer", "/metaprompt"]:
+            from loom.clothos.prompt_developer import PromptDeveloperChatSession, prompt_developer_engine
+            
+            # If arguments provided (e.g. /prompt develop <goal>, /prompt optimize <text>, /prompt list)
+            if len(parts) > 1:
+                action = parts[1].lower()
+                rest = cmd_line.split(maxsplit=2)[2] if len(parts) > 2 else ""
+                
+                if action in ["list", "library"]:
+                    prompts = prompt_developer_engine.list_prompts()
+                    if not prompts:
+                        console.print("[dim]No saved prompts in clothos_root/prompts/.[/dim]")
+                    else:
+                        table = Table(title="📚 [bold #00ff7f]ClothOS Prompt Library[/bold #00ff7f]", border_style="#38bdf8")
+                        table.add_column("Name", style="bold white")
+                        table.add_column("Radiance", style="cyan")
+                        table.add_column("File", style="dim")
+                        for p in prompts:
+                            table.add_row(p["name"], f"{p['radiance']:.1f}%", p["file"])
+                        console.print(table)
+                    return False
+                
+                elif action in ["optimize", "opt"]:
+                    if not rest:
+                        console.print("[yellow]Usage: /prompt optimize <raw_prompt_text>[/yellow]")
+                    else:
+                        console.print("[bold #38bdf8]✦ Optimizing Prompt with XML Modularity & Negative Constraints...[/bold #38bdf8]")
+                        res = self.engine.tools.execute("prompt_developer", action="optimize", prompt_text=rest)
+                        console.print(Panel(
+                            res.get("optimized_prompt", ""),
+                            title=f"[bold #00ff7f]Optimized Prompt · Radiance: {res.get('optimized_radiance')} (+{res.get('radiance_delta')} pts)[/bold #00ff7f]",
+                            border_style="#00ff7f"
+                        ))
+                    return False
+
+                elif action in ["score", "eval"]:
+                    if not rest:
+                        console.print("[yellow]Usage: /prompt score <prompt_text>[/yellow]")
+                    else:
+                        res = self.engine.tools.execute("prompt_developer", action="score", prompt_text=rest)
+                        metrics = res.get("metrics", {})
+                        console.print(f"📊 [bold #00ff7f]Prompt Radiance:[/bold #00ff7f] [cyan]{metrics.get('overall_radiance')}%[/cyan] (Clarity: {metrics.get('clarity_score')}%, Constraints: {metrics.get('constraint_rigor')}%)")
+                    return False
+
+            # Interactive REPL Prompt Developer Mode
+            console.print(Panel(
+                "[bold white]Entering ClothOS Interactive Prompt Developer Session[/bold white]\n"
+                "[dim]• Describe what kind of prompt you want to build, or paste text to refine.\n"
+                "• Special commands inside session: [bold cyan]/test <query>[/bold cyan], [bold cyan]/save <name>[/bold cyan], [bold cyan]/score[/bold cyan], [bold cyan]/list[/bold cyan], [bold cyan]/exit[/bold cyan][/dim]",
+                title="🎨 [bold #00ff7f]ClothOS Prompt Developer Studio[/bold #00ff7f]",
+                border_style="#38bdf8",
+            ))
+
+            session = PromptDeveloperChatSession(engine=prompt_developer_engine, tools_instance=self.engine.tools)
+            while True:
+                try:
+                    user_input = console.input("[bold #38bdf8]prompt-dev ❯ [/bold #38bdf8]").strip()
+                    if not user_input:
+                        continue
+                    reply = session.handle_user_input(user_input)
+                    if reply == "EXIT_SESSION":
+                        console.print("[dim #a855f7]Exited Prompt Developer Studio. Returning to ClothOS CLI.[/dim #a855f7]\n")
+                        break
+                    console.print(Markdown(reply))
+                    console.print()
+                except (KeyboardInterrupt, EOFError):
+                    console.print("\n[dim]Prompt developer session ended.[/dim]\n")
+                    break
             return False
 
         # /cat command to view syntax-highlighted files directly
