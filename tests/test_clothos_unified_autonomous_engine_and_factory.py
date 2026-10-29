@@ -92,6 +92,21 @@ class TestClothOSUnifiedAutonomousEngine:
         assert isinstance(crystallized, int)
         assert len(engine.skill_evolver.list_skills()) >= 5
 
+    def test_crystallize_problem_resolution_and_distillation_link(self, engine):
+        res = engine.crystallize_problem_resolution(
+            problem="VFS /etc directory missing",
+            resolution="cloth_fs.mkdir('/etc') restored mount hierarchy",
+            domain="SUBSTRATE_SELF_HEALING"
+        )
+        assert res.get("staged_for_distillation") is True
+        assert len(engine._pending_healing_distillation_pairs) > 0
+        assert engine.problems_resolved_and_crystallized > 0
+        
+        # Test Phase 6 model adaptation ingests the staged pair
+        adapted = engine.step_phase6_model_adaptation()
+        assert isinstance(adapted, int)
+        assert len(engine._pending_healing_distillation_pairs) == 0
+
     def test_phase8_multimodal_and_deliverables(self, engine):
         del_name, art_title = engine.step_phase8_multimodal_and_deliverables(cur_cycle=10)
         # Should return deliverable or None cleanly
