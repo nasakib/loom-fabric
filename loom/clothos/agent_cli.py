@@ -4847,6 +4847,16 @@ class ToolRegistry:
         )
         self.register_alias("vulkan_launch", "launch_vulkan_dual_gpu")
 
+        self.register(
+            "clothos_factory_floor",
+            "Renders or animates the ClothOS autonomous tooling factory floor in the terminal, showing conveyor belts, stations, and live hardware operations.",
+            self.tool_clothos_factory_floor,
+            {"mode": "string ('live' or 'static', optional)", "duration_s": "float (optional)"}
+        )
+        self.register_alias("factory_floor", "clothos_factory_floor")
+        self.register_alias("foundry_floor", "clothos_factory_floor")
+        self.register_alias("assembly_floor", "clothos_factory_floor")
+
         # ---------------- Qwen-Agent Integrated Handlers ----------------
 
     # ── Fabric Workload Optimization & Crystallization Handlers ─────────────────
@@ -5228,6 +5238,21 @@ class ToolRegistry:
                 "status": "LAUNCH_CONFIG_PREPARED",
                 "batch_launcher": "scripts/launch_dual_gpu_vulkan.bat",
             }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def tool_clothos_factory_floor(self, mode: str = "static", duration_s: float = 8.0) -> Dict[str, Any]:
+        """Renders or animates the ClothOS autonomous tooling factory floor in the terminal."""
+        try:
+            from loom.clothos.factory_visualizer import factory_visualizer
+            dur = float(duration_s) if duration_s else 8.0
+            if mode == "live":
+                factory_visualizer.run_live(duration_s=dur, fps=4.0)
+                return {"success": True, "mode": "live", "duration_s": dur}
+            else:
+                panel = factory_visualizer.render_factory_frame(0)
+                console.print(panel)
+                return {"success": True, "mode": "static", "rendered": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -9447,6 +9472,11 @@ AVAILABLE TOOLS:
             bio_res = self.tools.execute("biomolecular_analyze", sequence_or_query=target_seq)
             return f"### ✦ Biomolecular Analysis Receipt\n- Query: `{target_seq[:40]}` (Length: {bio_res.get('length')})\n- GC Content: **{bio_res.get('gc_content')}**\n- Insights: {bio_res.get('insights')}"
 
+        # ── Factory Floor & Assembly Line NL Routing ──────────────────────────
+        if any(w in p_lower for w in ["factory floor", "autonomous factory", "animated factory", "show the factory", "assembly line", "show assembly", "visualize factory"]):
+            res = self.tools.execute("clothos_factory_floor", mode="static")
+            return "🏭 **ClothOS Autonomous Cognitive Foundry & Assembly Line** rendered above in terminal.\n\n*Use `/factory` to watch the live moving conveyor belt and operating machinery!*"
+
         # ── Direct Natural Language Mode Toggles ────────────────────────────────
 
         if "switch to sandbox" in p_lower or "enable sandbox" in p_lower:
@@ -11175,6 +11205,8 @@ class ClothOSAgentREPL:
 
             f"[bold {brand_primary}]/gen[/bold {brand_primary}] [dim]Text Gen[/dim] · "
 
+            f"[bold {brand_primary}]/factory[/bold {brand_primary}] [dim]Factory Floor[/dim] · "
+
             f"[bold {brand_primary}]/dual-gpu[/bold {brand_primary}] [dim]20GB Pair[/dim] · "
 
             f"[bold {brand_primary}]/optimize[/bold {brand_primary}] [dim]Fabric Matrix[/dim] · "
@@ -11899,6 +11931,20 @@ class ClothOSAgentREPL:
             dur = float(parts[2]) if len(parts) > 2 and parts[2].replace(".", "").isdigit() else 2.0
             res = self.engine.tools.execute("audio_synth", frequency_hz=freq, duration_sec=dur)
             console.print(f"[bold #00ff7f]✦ Acoustic Waveform Synthesized:[/bold #00ff7f] {res.get('frequency_hz')} Hz ({res.get('duration_sec')}s) -> [white]{res.get('output_path')}[/white]")
+            return False
+
+        # /factory, /foundry, /assembly: Animated Cognitive Factory Floor
+        if cmd in ["/factory", "/foundry", "/assembly", "/conveyor", "/plant"]:
+            sub = parts[1].lower() if len(parts) > 1 else "live"
+            from loom.clothos.factory_visualizer import factory_visualizer
+            if sub in ["static", "stat", "once", "snapshot"]:
+                console.print(factory_visualizer.render_factory_frame(0))
+            else:
+                dur = float(parts[1]) if len(parts) > 1 and parts[1].replace(".", "").isdigit() else (
+                    float(parts[2]) if len(parts) > 2 and parts[2].replace(".", "").isdigit() else 8.0
+                )
+                console.print(f"[bold #00ff7f]✦ Engaging ClothOS Autonomous Factory Floor ({dur:.0f}s live)...[/bold #00ff7f]")
+                factory_visualizer.run_live(duration_s=dur, fps=4.0)
             return False
 
         # /cat command to view syntax-highlighted files directly

@@ -24,6 +24,9 @@ if /i "%~1"=="/?" goto SHOW_HELP
 if /i "%~1"=="--status" goto SHOW_STATUS
 if /i "%~1"=="-s" goto SHOW_STATUS
 if /i "%~1"=="status" goto SHOW_STATUS
+if /i "%~1"=="--factory" goto SHOW_FACTORY
+if /i "%~1"=="-f" goto SHOW_FACTORY
+if /i "%~1"=="factory" goto SHOW_FACTORY
 if /i "%~1"=="--all-cylinders" goto IGNITE_ALL
 if /i "%~1"=="-all" goto IGNITE_ALL
 if /i "%~1"=="--once" goto RUN_ONCE
@@ -107,6 +110,14 @@ echo [ClothOS] Igniting all 8 operational cylinders across the sovereign mesh...
 echo [ClothOS] Transitioning into 24/7 Continuous Supervisor Loop...
 goto LOOP
 
+:SHOW_FACTORY
+set "PY_EXE="
+if exist "%LOOM_DIR%\.venv\Scripts\python.exe" set "PY_EXE=%LOOM_DIR%\.venv\Scripts\python.exe"
+if not defined PY_EXE if exist "C:\Users\natsa\AppData\Local\Programs\FreeCAD 1.1\FreeCAD_1.1.3-Windows-x86_64-py311\bin\python.exe" set "PY_EXE=C:\Users\natsa\AppData\Local\Programs\FreeCAD 1.1\FreeCAD_1.1.3-Windows-x86_64-py311\bin\python.exe"
+if not defined PY_EXE set "PY_EXE=python"
+"%PY_EXE%" -m loom.clothos.factory_visualizer
+exit /b 0
+
 :SHOW_STATUS
 set "PY_EXE="
 if exist "%LOOM_DIR%\.venv\Scripts\python.exe" set "PY_EXE=%LOOM_DIR%\.venv\Scripts\python.exe"
@@ -125,6 +136,7 @@ echo   Start-24-7-Compute.bat [OPTIONS]
 echo.
 echo Options:
 echo   --status, -s        Display current 24/7 telemetry and metrics without launching
+echo   --factory, -f       Launch animated ASCII cognitive factory floor in terminal
 echo   --all-cylinders     Ignite all 8 ClothOS cylinders before continuous loop
 echo   --once              Execute a single supervised cycle and exit
 echo   --help, -h, /?      Display this help dialog
