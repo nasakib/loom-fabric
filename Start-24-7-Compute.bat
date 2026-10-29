@@ -1,8 +1,135 @@
 @echo off
-REM Fabric 24/7 Continuous Sovereign Autonomous Compute Engine (Windowless Loop)
+setlocal
+
+:: ============================================================================
+:: ClothOS Sovereign 24/7 Continuous Autonomous Compute Fabric
+:: ============================================================================
+:: Node 1: NVIDIA RTX 3060 12GB (Active Inference) + AMD RX 580 8GB (Evaluator)
+:: Node 2: AMD Ryzen 7 7730U 16T (Peer Invariant Verification)
+:: ============================================================================
+
+title ClothOS Sovereign 24/7 Autonomous Compute Fabric
+chcp 65001 >nul
+set "PYTHONIOENCODING=utf-8"
+set "PYTHONUNBUFFERED=1"
+
 cd /d "%~dp0"
-set "PYTHONPATH=%~dp0"
+set "LOOM_DIR=%CD%"
+set "PYTHONPATH=%LOOM_DIR%;%PYTHONPATH%"
+
+:: Parameter Dispatch
+if /i "%~1"=="--help" goto SHOW_HELP
+if /i "%~1"=="-h" goto SHOW_HELP
+if /i "%~1"=="/?" goto SHOW_HELP
+if /i "%~1"=="--status" goto SHOW_STATUS
+if /i "%~1"=="-s" goto SHOW_STATUS
+if /i "%~1"=="status" goto SHOW_STATUS
+if /i "%~1"=="--all-cylinders" goto IGNITE_ALL
+if /i "%~1"=="-all" goto IGNITE_ALL
+if /i "%~1"=="--once" goto RUN_ONCE
+
+:: Python Discovery
+set "PY_EXE="
+if exist "%LOOM_DIR%\.venv\Scripts\python.exe" set "PY_EXE=%LOOM_DIR%\.venv\Scripts\python.exe"
+if not defined PY_EXE if exist "C:\Users\natsa\AppData\Local\Programs\FreeCAD 1.1\FreeCAD_1.1.3-Windows-x86_64-py311\bin\python.exe" set "PY_EXE=C:\Users\natsa\AppData\Local\Programs\FreeCAD 1.1\FreeCAD_1.1.3-Windows-x86_64-py311\bin\python.exe"
+if not defined PY_EXE set "PY_EXE=python"
+
+:: Check Interpreter Health
+"%PY_EXE%" -c "import sys" >nul 2>nul
+if errorlevel 1 (
+    echo [ClothOS ERROR] Python interpreter not executable: %PY_EXE%
+    pause
+    exit /b 1
+)
+
+:: Banner
+cls
+echo ============================================================================
+echo   CLOTHOS SOVEREIGN 24/7 AUTONOMOUS COMPUTE FABRIC
+echo ============================================================================
+echo   [ENGINE]:   Loom Fabric Continuous Supervised Compute Engine
+echo   [RUNTIME]:  %PY_EXE%
+echo   [SILICON]:  Node 1: RTX 3060 12GB CUDA + RX 580 8GB OpenCL/Vulkan
+echo               Node 2: AMD Ryzen 7 7730U (16T AVX2 Mesh @ 192.168.99.2)
+echo   [PIPELINE]: Active Inference -^> Kuramoto Sweeps -^> Ratchet Invariant Locking
+echo   [AIR-GAP]:  Sovereign Cluster Substrate -- Zero Cloud Leakage
+echo ============================================================================
+echo   Controls: Press [Ctrl+C] to halt the supervisor loop gracefully.
+echo ============================================================================
+echo.
+
+set CRASH_COUNT=0
+
 :LOOP
-.venv\Scripts\python.exe -m loom.fabric.continuous_worker
-timeout /t 1 >nul
+echo [%TIME%] [ClothOS Supervisor] Engaging 24/7 Continuous Autonomous Compute Loop...
+"%PY_EXE%" -m loom.fabric.continuous_worker %*
+set "EXIT_CODE=%ERRORLEVEL%"
+
+if %EXIT_CODE% equ 0 (
+    set CRASH_COUNT=0
+    echo [%TIME%] [ClothOS Supervisor] Worker completed cycle cleanly.
+    timeout /t 1 >nul
+    goto LOOP
+)
+
+set /a CRASH_COUNT+=1
+echo.
+echo ****************************************************************************
+echo [ClothOS WARNING] Continuous worker exited with anomaly code %EXIT_CODE%!
+echo Consecutive anomaly count: %CRASH_COUNT%
+echo ****************************************************************************
+
+if %CRASH_COUNT% geq 5 (
+    echo [ClothOS BACKOFF] Repeated crash threshold reached. Pausing 15s...
+    timeout /t 15
+) else (
+    echo [ClothOS] Resuming continuous compute loop in 3 seconds...
+    timeout /t 3 >nul
+)
 goto LOOP
+
+:RUN_ONCE
+set "PY_EXE="
+if exist "%LOOM_DIR%\.venv\Scripts\python.exe" set "PY_EXE=%LOOM_DIR%\.venv\Scripts\python.exe"
+if not defined PY_EXE if exist "C:\Users\natsa\AppData\Local\Programs\FreeCAD 1.1\FreeCAD_1.1.3-Windows-x86_64-py311\bin\python.exe" set "PY_EXE=C:\Users\natsa\AppData\Local\Programs\FreeCAD 1.1\FreeCAD_1.1.3-Windows-x86_64-py311\bin\python.exe"
+if not defined PY_EXE set "PY_EXE=python"
+echo [ClothOS] Executing single supervised compute cycle...
+"%PY_EXE%" -m loom.fabric.continuous_worker
+exit /b %ERRORLEVEL%
+
+:IGNITE_ALL
+set "PY_EXE="
+if exist "%LOOM_DIR%\.venv\Scripts\python.exe" set "PY_EXE=%LOOM_DIR%\.venv\Scripts\python.exe"
+if not defined PY_EXE if exist "C:\Users\natsa\AppData\Local\Programs\FreeCAD 1.1\FreeCAD_1.1.3-Windows-x86_64-py311\bin\python.exe" set "PY_EXE=C:\Users\natsa\AppData\Local\Programs\FreeCAD 1.1\FreeCAD_1.1.3-Windows-x86_64-py311\bin\python.exe"
+if not defined PY_EXE set "PY_EXE=python"
+echo [ClothOS] Igniting all 8 operational cylinders across the sovereign mesh...
+"%PY_EXE%" "%LOOM_DIR%\scripts\ignite_all_cylinders.py"
+echo [ClothOS] Transitioning into 24/7 Continuous Supervisor Loop...
+goto LOOP
+
+:SHOW_STATUS
+set "PY_EXE="
+if exist "%LOOM_DIR%\.venv\Scripts\python.exe" set "PY_EXE=%LOOM_DIR%\.venv\Scripts\python.exe"
+if not defined PY_EXE if exist "C:\Users\natsa\AppData\Local\Programs\FreeCAD 1.1\FreeCAD_1.1.3-Windows-x86_64-py311\bin\python.exe" set "PY_EXE=C:\Users\natsa\AppData\Local\Programs\FreeCAD 1.1\FreeCAD_1.1.3-Windows-x86_64-py311\bin\python.exe"
+if not defined PY_EXE set "PY_EXE=python"
+echo [ClothOS] Querying 24/7 Compute Worker Telemetry...
+"%PY_EXE%" -c "import json, pathlib; p = pathlib.Path.home() / '.loom' / 'continuous_worker_state.json'; print(json.dumps(json.loads(p.read_text(encoding='utf-8')), indent=2)) if p.exists() else print('No worker state found.')"
+exit /b 0
+
+:SHOW_HELP
+echo ============================================================================
+echo   ClothOS Sovereign 24/7 Autonomous Compute Engine -- Command Options
+echo ============================================================================
+echo Usage:
+echo   Start-24-7-Compute.bat [OPTIONS]
+echo.
+echo Options:
+echo   --status, -s        Display current 24/7 telemetry and metrics without launching
+echo   --all-cylinders     Ignite all 8 ClothOS cylinders before continuous loop
+echo   --once              Execute a single supervised cycle and exit
+echo   --help, -h, /?      Display this help dialog
+echo.
+echo Telemetry File:
+echo   ~/.loom/continuous_worker_state.json
+echo ============================================================================
+exit /b 0
