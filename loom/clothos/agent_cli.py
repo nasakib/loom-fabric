@@ -1390,6 +1390,8 @@ class ModelHead:
 
         {"label": "loom-sovereign-fast","protocol": "ollama",    "url": "http://127.0.0.1:11434/api/chat", "model": "loom-sovereign-fast:latest","key_env": None, "note": "Loom Sovereign Fast 7B (Low-Latency Drill-Bit)"},
 
+        {"label": "loom-coder",         "protocol": "ollama",    "url": "http://127.0.0.1:11434/api/chat", "model": "qwen2.5-coder:latest",       "key_env": None, "note": "Loom Sovereign Coder (Qwen 2.5 Coder 7B - Specialized Coding Cortex)"},
+
         # ── Local / Cluster
 
         {"label": "cluster-gpu",    "protocol": "openai",    "url": "http://127.0.0.1:8002/v1/chat/completions",   "model": "auto",                      "key_env": None,               "note": "Loom RTX-3060 Ray Cluster"},
@@ -2738,6 +2740,16 @@ class ModelRouter:
                 except Exception:
 
                     pass
+
+        # 3.8. SPECIALIZED SOVEREIGN CODER: QWEN 2.5 CODER
+        coding_terms = ["write code", "refactor", "bug", "syntax error", "fix code", "compile", "ast", "skill", "unit test", "implement algorithm"]
+        if any(w in p_lower for w in coding_terms):
+            try:
+                head = ModelHead.mount("loom-coder")
+                cls._active_head_label = head.label
+                return head, "[Drill-Bit Pilot] High-Precision Coding & Skills -> Loom Sovereign Coder (Qwen 2.5 Coder)"
+            except Exception:
+                pass
 
         # 4. PRIMARY SOVEREIGN WORKHORSE: LOOM SOVEREIGN 32B
 
@@ -4683,7 +4695,111 @@ class ToolRegistry:
 
         self.register_alias("clothos_weave", "weave_thought")
 
+        # 13. Autonomous Skill Evolution, Knowledge Crystallization & Distributed Fabric Scheduler
+        self.register(
+            "optimize_compute_placement",
+            "Calculate optimal silicon component and node to execute a task based on latency, bandwidth, idle fraction, and memory.",
+            self.tool_optimize_compute_placement,
+            {"task_name": "string", "estimated_ops": "float", "payload_bytes": "integer", "required_vram_mb": "float"}
+        )
+        self.register(
+            "dual_gpu_status",
+            "Query status of the 20GB heterogeneous VRAM pair (RTX 3060 12GB + RX 580 8GB) and model layer partitions.",
+            self.tool_dual_gpu_status,
+            {}
+        )
+        self.register(
+            "skill_research",
+            "Autonomously research a topic online, extract architectural best practices, synthesize code templates, and empirically verify the skill.",
+            self.tool_skill_research,
+            {"topic": "string", "domain": "string (optional, default 'SOFTWARE_DEV')"}
+        )
+        self.register(
+            "skill_improve",
+            "Improves an existing skill with proposed principles and code templates, requiring an empirical unit test to PASS before the skill is generalized.",
+            self.tool_skill_improve,
+            {"skill_id": "string", "proposed_principles": "list of strings", "proposed_code_templates": "dict", "unit_test_code": "string"}
+        )
+        self.register(
+            "crystallize_calculation",
+            "Offload a deterministic calculation into a pure Python kernel in the Crystallized Knowledgebase, guarded by an empirical unit test.",
+            self.tool_crystallize_calculation,
+            {"kernel_id": "string", "name": "string", "category": "string", "description": "string", "python_code": "string", "unit_test_code": "string"}
+        )
+        self.register(
+            "execute_crystallized_kernel",
+            "Execute an offloaded crystallized calculation kernel in sub-millisecond latency with zero token consumption.",
+            self.tool_execute_crystallized_kernel,
+            {"kernel_id": "string", "kwargs": "object"}
+        )
+
         # ---------------- Qwen-Agent Integrated Handlers ----------------
+
+    # ── Fabric Workload Optimization & Crystallization Handlers ─────────────────
+
+    def tool_optimize_compute_placement(self, task_name: str, estimated_ops: float = 1e9, payload_bytes: int = 1024, required_vram_mb: float = 64.0) -> Dict[str, Any]:
+        try:
+            from loom.clothos.fabric_optimizer import FabricWorkloadOptimizer
+            from dataclasses import asdict
+            plan = FabricWorkloadOptimizer.solve_optimal_delegation(
+                task_name=task_name,
+                estimated_ops=estimated_ops,
+                payload_bytes=payload_bytes,
+                required_vram_mb=required_vram_mb,
+            )
+            return {"success": True, "plan": asdict(plan)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def tool_dual_gpu_status(self) -> Dict[str, Any]:
+        try:
+            from loom.clothos.dual_gpu_runner import ClothOSDualGPURunner
+            return {"success": True, "topology": ClothOSDualGPURunner.get_topology(), "partitions": ClothOSDualGPURunner.get_all_partitions()}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def tool_skill_research(self, topic: str, domain: str = "SOFTWARE_DEV") -> Dict[str, Any]:
+        try:
+            from loom.clothos.skill_evolver import SkillEvolver
+            return SkillEvolver.research_and_evolve(topic, domain=domain)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def tool_skill_improve(self, skill_id: str, proposed_principles: list = None, proposed_code_templates: dict = None, unit_test_code: str = "") -> Dict[str, Any]:
+        try:
+            from loom.clothos.skill_evolver import SkillEvolver
+            ok, msg, skill = SkillEvolver.improve_skill_with_unit_test(
+                skill_id=skill_id,
+                proposed_principles=proposed_principles or [],
+                proposed_code_templates=proposed_code_templates or {},
+                unit_test_code=unit_test_code,
+            )
+            return {"success": ok, "message": msg, "version": skill.version if skill else None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def tool_crystallize_calculation(self, kernel_id: str, name: str, category: str, description: str, python_code: str, unit_test_code: str) -> Dict[str, Any]:
+        try:
+            from loom.clothos.crystallized_engine import CrystallizedKnowledgeEngine
+            ok, msg, kernel = CrystallizedKnowledgeEngine.crystallize_skill(
+                kernel_id=kernel_id,
+                name=name,
+                category=category,
+                description=description,
+                python_code=python_code,
+                unit_test_code=unit_test_code,
+            )
+            return {"success": ok, "message": msg, "kernel_id": kernel.kernel_id if kernel else None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def tool_execute_crystallized_kernel(self, kernel_id: str, kwargs: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        try:
+            from loom.clothos.crystallized_engine import CrystallizedKnowledgeEngine
+            res = CrystallizedKnowledgeEngine.execute_kernel(kernel_id, **(kwargs or {}))
+            return {"success": True, "kernel_id": kernel_id, "result": res}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     # ── Precision Machine Tools & TPU Handlers ──────────────────────────────
 
@@ -11260,6 +11376,24 @@ class ClothOSAgentREPL:
             from loom.clothos.ui_progress import ClusterTelemetryHUD
 
             console.print(ClusterTelemetryHUD.render_hardware_dashboard())
+
+            return False
+
+        # /dual-gpu, /compute, /mesh to display dual-GPU paired VRAM and network delegation topology
+        if cmd in ["/dual-gpu", "/dualgpu", "/vram-pair", "/compute", "/mesh"]:
+
+            from loom.clothos.dual_gpu_runner import ClothOSDualGPURunner
+
+            console.print(ClothOSDualGPURunner.format_cli_summary())
+
+            return False
+
+        # /optimize, /fabric, /scheduler to display optimal network delegation matrix
+        if cmd in ["/optimize", "/fabric", "/scheduler", "/affinity"]:
+
+            from loom.clothos.fabric_optimizer import FabricWorkloadOptimizer
+
+            console.print(FabricWorkloadOptimizer.format_network_compute_matrix())
 
             return False
 
