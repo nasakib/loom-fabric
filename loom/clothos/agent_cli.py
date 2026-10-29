@@ -110,7 +110,7 @@ class ThinkingStream:
 
     """
 
-    _ENABLED: bool = True  # Enabled by default for rich verbosity
+    _ENABLED: bool = False  # Succinct by default (toggle on with /verbose or /think)
 
     # ── ANSI / Rich colour tokens ──────────────────────────────────────────
 
@@ -9089,11 +9089,9 @@ CLOTHOS SOVEREIGN AGENTIC PROTOCOL & STREAM OF CONSCIOUSNESS:
 
 When given any engineering task, question, or multimodal objective:
 
-1. STREAM OF CONSCIOUSNESS & COGNITIVE RIGOR:
+1. COGNITIVE RIGOR & DIRECT EXECUTION:
 
-   - Walk through your complete mathematical and architectural reasoning in detail within your `Thought:` stream.
-
-   - Use rigorous mathematical formulations (KaTeX LaTeX formulas: $...$, $$...$$), including Fourier spectral decomposition, Kuramoto phase synchrony equations, symplectic geometry, and Landauer dissipation calculations where applicable.
+   - Think clearly and decisively in your `Thought:` stream before taking action.
 
    - Ground assertions in empirical code and data. Never guess file contents or project state — inspect them first with available tools!
 
@@ -9143,13 +9141,13 @@ Invoke the specific physical tool-metaphor matching the nature of the prompt:
 
 - `file_read` / `file_write` / `replace_code`: Direct filesystem operations with automatic colorized unified diff previews.
 
-   - Meticulous depth is paramount. Never output terse, superficial, or brief summaries unless explicitly asked.
+   - BE SUCCINCT, DIRECT, AND ACTION-ORIENTED:
 
-   - Quote exact code lines, discuss architectural trade-offs, and detail edge cases.
+     * Deliver crisp, focused answers without conversational preamble, unsolicited tutorials, or philosophical tangents.
 
-   - When executing tools, explain the precise mechanics of the tool and why you are invoking it.
+     * Do NOT over-explain tool mechanics or narrate why you are invoking basic tools. Execute the action directly.
 
-   - In your `Final Answer:`, synthesize an exhaustive, highly structured, production-grade deliverable with markdown sections, tables, code listings, execution receipts, and concrete insights.
+     * In your `Final Answer:`, deliver the concise solution, essential diffs/results, and clear next steps. Avoid unnecessary filler or padding.
 
 3. MULTIMODAL & MULTIMEDIA GENERATION CAPABILITIES:
 
@@ -12643,6 +12641,14 @@ class ClothOSAgentREPL:
 
             return False
 
+        if cmd in ["/succinct", "/concise", "/terse", "/brief"]:
+
+            ThinkingStream.disable()
+
+            console.print("[bold #00ff7f]✔ Succinct Mode [ACTIVE][/bold #00ff7f] — Verbose thought streams disabled, concise outputs enforced.")
+
+            return False
+
         if cmd == "/help":
 
             table = Table(title="ClothOS Agent Slash Commands", border_style="cyan")
@@ -12668,6 +12674,8 @@ class ClothOSAgentREPL:
             table.add_row("/help", "Show this command reference.")
 
             table.add_row("/verbose  (alias: /think, /v)", "[magenta]Toggle real-time Thinking + Action stream (Qwen/OpenClaw style).[/magenta]")
+
+            table.add_row("/succinct (alias: /concise)", "[green]Enforce succinct, direct execution mode (disable noisy thoughts).[/green]")
 
             table.add_row("/mode [full|sandbox]", "Toggle between FULL ACCESS (host) and SANDBOX (isolated).")
 
