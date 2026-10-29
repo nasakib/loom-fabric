@@ -63,6 +63,9 @@ Thumbs.db
 
 # Models & weight downloads (Prevent large GGUF uploads to git)
 models/*.gguf
+clothos_root/browsers/
+clothos_root/models/
+clothos_root/voice/*.bin
 *.gguf
 *.bin
 *.safetensors
@@ -75,3 +78,5 @@ target/
 .loom_*.json
 .loom_*_ledger/
 .loom/
+node_modules
+.aider*

@@ -4867,6 +4867,33 @@ class ToolRegistry:
         self.register_alias("prompt_studio", "prompt_developer")
         self.register_alias("metaprompt", "prompt_developer")
 
+        self.register(
+            "clothos_browser",
+            "Fetches and renders a web page using the vendored headless Chromium browser, returning full DOM text, title, and optional screenshot.",
+            self.tool_clothos_browser,
+            {"url": "string", "take_screenshot": "boolean", "wait_ms": "integer"}
+        )
+        self.register_alias("headless_browser", "clothos_browser")
+        self.register_alias("render_webpage", "clothos_browser")
+
+        self.register(
+            "clothos_voice",
+            "Synthesizes speech to audio file or system speaker using local offline TTS engine.",
+            self.tool_clothos_voice,
+            {"text": "string", "output_wav": "string"}
+        )
+        self.register_alias("voice_speak", "clothos_voice")
+        self.register_alias("synthesize_voice", "clothos_voice")
+
+        self.register(
+            "clothos_sovereign_status",
+            "Reports telemetry for local sovereign models, browser, voice, and ONNX embeddings.",
+            self.tool_clothos_sovereign_status,
+            {}
+        )
+        self.register_alias("sovereign_status", "clothos_sovereign_status")
+        self.register_alias("offline_runtime_status", "clothos_sovereign_status")
+
         # ---------------- Qwen-Agent Integrated Handlers ----------------
 
     # ── Fabric Workload Optimization & Crystallization Handlers ─────────────────
@@ -5303,6 +5330,33 @@ class ToolRegistry:
                 return {"success": True, "action": "list", "prompts": prompts}
             else:
                 return {"success": False, "error": f"Unknown prompt developer action '{action}'"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def tool_clothos_browser(self, url: str, take_screenshot: bool = False, wait_ms: int = 1500) -> Dict[str, Any]:
+        """Navigates and renders a web page using the vendored headless Chromium browser."""
+        try:
+            from loom.clothos.sovereign_runtime import ClothOSSovereignRuntime
+            rt = ClothOSSovereignRuntime.get_instance()
+            return rt.fetch_page_rendered(url=url, take_screenshot=take_screenshot, wait_ms=wait_ms)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def tool_clothos_voice(self, text: str, output_wav: Optional[str] = None) -> Dict[str, Any]:
+        """Synthesizes speech to audio file or system speaker using local offline TTS engine."""
+        try:
+            from loom.clothos.sovereign_runtime import ClothOSSovereignRuntime
+            rt = ClothOSSovereignRuntime.get_instance()
+            return rt.synthesize_speech(text=text, output_wav=output_wav)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def tool_clothos_sovereign_status(self) -> Dict[str, Any]:
+        """Reports telemetry for local sovereign models, browser, voice, and ONNX embeddings."""
+        try:
+            from loom.clothos.sovereign_runtime import ClothOSSovereignRuntime
+            rt = ClothOSSovereignRuntime.get_instance()
+            return {"success": True, **rt.get_sovereign_status()}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -12648,6 +12702,78 @@ class ClothOSAgentREPL:
             console.print("[bold #00ff7f]✔ Succinct Mode [ACTIVE][/bold #00ff7f] — Verbose thought streams disabled, concise outputs enforced.")
 
             return False
+
+        if cmd in ["/sovereign", "/sovereign-status", "/offline"]:
+            from loom.clothos.sovereign_runtime import ClothOSSovereignRuntime
+            rt = ClothOSSovereignRuntime.get_instance()
+            status = rt.get_sovereign_status()
+            
+            table = Table(title="🛡️ [bold #00ff7f]ClothOS Sovereign Offline Runtime (21.3 GB)[/bold #00ff7f]", border_style="#00ff7f")
+            table.add_column("Pillar", style="bold cyan")
+            table.add_column("Status / Engine", style="white")
+            table.add_column("Footprint", style="yellow")
+            
+            # Models
+            m_info = status.get("models", {})
+            table.add_row("1. Sovereign Models", f"{m_info.get('count')} GGUFs ready (Qwen2.5-Coder-7B, DeepSeek-R1-14B, Qwen2.5-3B)", f"{m_info.get('total_size_gb')} GB")
+            
+            # Browser
+            b_info = status.get("headless_browser", {})
+            b_status = "[bold #00ff7f]Installed & Operational[/bold #00ff7f]" if b_info.get("installed") else "[red]Not installed[/red]"
+            table.add_row("2. Headless Browser", f"{b_status} ({b_info.get('engine')})", "718 MB")
+            
+            # Voice
+            v_info = status.get("voice_stt_tts", {})
+            v_status = "Whisper Base + pyttsx3 / edge-tts" if v_info.get("whisper_model_present") else "TTS only"
+            table.add_row("3. Voice & Speech", v_status, "141 MB")
+            
+            # Embeddings
+            e_info = status.get("dense_embeddings", {})
+            e_status = f"{e_info.get('engine')} ({e_info.get('dimension')}d all-MiniLM-L6-v2)" if e_info.get("model_present") else "Hash fallback"
+            table.add_row("4. Neural Embeddings", e_status, "87 MB")
+            
+            console.print(table)
+            return False
+
+        if cmd in ["/browse", "/render"]:
+            if len(parts) < 2:
+                console.print("[yellow]Usage: /browse <url> [--screenshot][/yellow]")
+            else:
+                target_url = parts[1]
+                shoot = "--screenshot" in parts or "-s" in parts
+                console.print(f"[bold #38bdf8]✦ Launching Headless Chromium to render: {target_url}...[/bold #38bdf8]")
+                from loom.clothos.sovereign_runtime import ClothOSSovereignRuntime
+                rt = ClothOSSovereignRuntime.get_instance()
+                res = rt.fetch_page_rendered(target_url, take_screenshot=shoot)
+                if res.get("success"):
+                    title_str = res.get("title", "")
+                    text_snip = res.get("text", "")[:1200]
+                    panel_text = f"[bold white]{title_str}[/bold white]\n\n{text_snip}..."
+                    console.print(Panel(
+                        panel_text,
+                        title=f"[bold #00ff7f]Page Rendered ({res.get('content_length')} chars)[/bold #00ff7f]",
+                        border_style="#00ff7f"
+                    ))
+                    if res.get("screenshot"):
+                        console.print(f"[cyan]Screenshot saved:[/cyan] {res.get('screenshot')}")
+                else:
+                    console.print(f"[red]Render error: {res.get('error')}[/red]")
+            return False
+
+        if cmd in ["/voice", "/speak"]:
+            if len(parts) < 2:
+                console.print("[yellow]Usage: /voice <text to speak>[/yellow]")
+            else:
+                speech_text = " ".join(parts[1:])
+                from loom.clothos.sovereign_runtime import ClothOSSovereignRuntime
+                rt = ClothOSSovereignRuntime.get_instance()
+                res = rt.synthesize_speech(speech_text)
+                if res.get("success"):
+                    console.print(f"[bold #00ff7f]✔ Spoken:[/bold #00ff7f] \"{speech_text}\"")
+                else:
+                    console.print(f"[red]Voice error: {res.get('error')}[/red]")
+            return False
+
 
         if cmd == "/help":
 
