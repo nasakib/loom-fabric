@@ -48,13 +48,15 @@ if errorlevel 1 (
 :: Banner
 cls
 echo ============================================================================
-echo   CLOTHOS SOVEREIGN 24/7 AUTONOMOUS COMPUTE FABRIC
+echo   CLOTHOS SOVEREIGN 24/7 AUTONOMOUS COMPUTE FABRIC (SELF-EVOLUTION ENGINE)
 echo ============================================================================
-echo   [ENGINE]:   Loom Fabric Continuous Supervised Compute Engine
-echo   [RUNTIME]:  %PY_EXE%
+echo   [ENGINE]:   ClothOS Continuous 24x7 Orchestrator + Unified Autonomous Engine
+echo   [BRANCH]:   clothos/autonomous-evolution (Unbounded Self-Improvement)
+echo   [RESEARCH]: Reddit (/r/osdev, /r/kernel) + GitHub Operating Systems
+echo   [LIBRARY]:  deliverables\research_library\OS_RESEARCH_CITATIONS.md
 echo   [SILICON]:  Node 1: RTX 3060 12GB CUDA + RX 580 8GB OpenCL/Vulkan
 echo               Node 2: AMD Ryzen 7 7730U (16T AVX2 Mesh @ 192.168.99.2)
-echo   [PIPELINE]: Active Inference -^> Kuramoto Sweeps -^> Ratchet Invariant Locking
+echo   [PIPELINE]: Research Harvester -^> babelForge Invariants -^> Self-Evolution -^> Ratchet
 echo   [AIR-GAP]:  Sovereign Cluster Substrate -- Zero Cloud Leakage
 echo ============================================================================
 echo   Controls: Press [Ctrl+C] to halt the supervisor loop gracefully.
@@ -65,12 +67,12 @@ set CRASH_COUNT=0
 
 :LOOP
 echo [%TIME%] [ClothOS Supervisor] Engaging 24/7 Continuous Autonomous Compute Loop...
-"%PY_EXE%" -m loom.fabric.continuous_worker %*
+"%PY_EXE%" -m loom.clothos.continuous_24x7_orchestrator %*
 set "EXIT_CODE=%ERRORLEVEL%"
 
 if %EXIT_CODE% equ 0 (
     set CRASH_COUNT=0
-    echo [%TIME%] [ClothOS Supervisor] Worker completed cycle cleanly.
+    echo [%TIME%] [ClothOS Supervisor] Orchestrator completed cycle cleanly.
     timeout /t 1 >nul
     goto LOOP
 )
@@ -96,8 +98,8 @@ set "PY_EXE="
 if exist "%LOOM_DIR%\.venv\Scripts\python.exe" set "PY_EXE=%LOOM_DIR%\.venv\Scripts\python.exe"
 if not defined PY_EXE if exist "C:\Users\natsa\AppData\Local\Programs\FreeCAD 1.1\FreeCAD_1.1.3-Windows-x86_64-py311\bin\python.exe" set "PY_EXE=C:\Users\natsa\AppData\Local\Programs\FreeCAD 1.1\FreeCAD_1.1.3-Windows-x86_64-py311\bin\python.exe"
 if not defined PY_EXE set "PY_EXE=python"
-echo [ClothOS] Executing single supervised compute cycle...
-"%PY_EXE%" -m loom.fabric.continuous_worker
+echo [ClothOS] Executing single supervised compute cycle with research ingestion...
+"%PY_EXE%" -m loom.clothos.continuous_24x7_orchestrator --once
 exit /b %ERRORLEVEL%
 
 :IGNITE_ALL
