@@ -311,11 +311,116 @@ class ClothOSPosixSubsystem:
                 lines.append(f"[{c.status:4}] {c.subsystem:20}: {c.title}")
             return {"stdout": "\n".join(lines) + "\n", "stderr": "", "exit_code": 0, "cwd": self.cwd}
 
+        # Builtin: whoami
+        elif cmd == "whoami":
+            from loom.clothos.user_manager import user_manager
+            return {"stdout": f"{user_manager.current_user}\n", "stderr": "", "exit_code": 0, "cwd": self.cwd}
+
+        # Builtin: id
+        elif cmd == "id":
+            from loom.clothos.user_manager import user_manager
+            u = user_manager.users.get(user_manager.current_user)
+            if u:
+                return {
+                    "stdout": f"uid={u.uid}({u.username}) gid={u.gid}({u.username}) groups={u.gid}({u.username}),27(sudo),44(video),100(users) ring={u.ring_level}\n",
+                    "stderr": "",
+                    "exit_code": 0,
+                    "cwd": self.cwd
+                }
+            return {"stdout": "uid=1000(clothos) gid=1000(clothos)\n", "stderr": "", "exit_code": 0, "cwd": self.cwd}
+
+        # Builtin: sudo
+        elif cmd == "sudo":
+            if not args:
+                return {"stdout": "usage: sudo command\n", "stderr": "", "exit_code": 1, "cwd": self.cwd}
+            sub_res = self.execute_shell_command(" ".join(args))
+            sub_res["stdout"] = f"[sudo P0 Elevation]:\n" + sub_res.get("stdout", "")
+            return sub_res
+
+        # Builtin: useradd
+        elif cmd == "useradd":
+            if not args:
+                return {"stdout": "", "stderr": "useradd: missing username\n", "exit_code": 1, "cwd": self.cwd}
+            new_u = args[0]
+            from loom.clothos.user_manager import user_manager
+            res = user_manager.create_user(new_u, password="password123")
+            if res["success"]:
+                return {"stdout": f"User '{new_u}' created successfully with home /home/{new_u}.\n", "stderr": "", "exit_code": 0, "cwd": self.cwd}
+            return {"stdout": "", "stderr": f"useradd: {res['error']}\n", "exit_code": 1, "cwd": self.cwd}
+
+        # Builtin: su
+        elif cmd == "su":
+            target_u = args[0] if args else "root"
+            from loom.clothos.user_manager import user_manager
+            if user_manager.switch_user(target_u):
+                self.cwd = f"/home/{target_u}" if target_u != "root" else "/root"
+                return {"stdout": f"Switched to user {target_u}.\n", "stderr": "", "exit_code": 0, "cwd": self.cwd}
+            return {"stdout": "", "stderr": f"su: user '{target_u}' does not exist\n", "exit_code": 1, "cwd": self.cwd}
+
+        # Builtin: cloth-apt / apt
+        elif cmd in ("cloth-apt", "apt", "apt-get", "pkg"):
+            from loom.clothos.package_manager import package_manager
+            action = args[0] if args else "help"
+            if action == "update":
+                return {
+                    "stdout": (
+                        "Hit:1 https://repo.clothos.org/sovereign stable InRelease\n"
+                        "Get:2 https://repo.clothos.org/riscv-tpu rv64gcv InRelease [14.2 kB]\n"
+                        "Get:3 https://repo.clothos.org/x86-hal x86_64 InRelease [12.8 kB]\n"
+                        "Reading package lists... Done\n"
+                        "Building dependency tree... Done\n"
+                        "All packages are up to date.\n"
+                    ),
+                    "stderr": "",
+                    "exit_code": 0,
+                    "cwd": self.cwd
+                }
+            elif action == "install":
+                if len(args) < 2:
+                    return {"stdout": "", "stderr": "cloth-apt: missing package name\n", "exit_code": 1, "cwd": self.cwd}
+                target_pkg = args[1]
+                res = package_manager.install_package(target_pkg)
+                p = res["package"]
+                return {
+                    "stdout": (
+                        f"Reading package lists... Done\n"
+                        f"The following NEW packages will be installed: {p['name']} ({p['version']})\n"
+                        f"Need to get {p['size_mb']} MB of archives.\n"
+                        f"Unpacking {p['name']} ({p['version']}) ...\n"
+                        f"Setting up {p['name']} ({p['version']}) ...\n"
+                        f"✔ Successfully installed {p['name']} in /usr/bin/{p['name']}.\n"
+                    ),
+                    "stderr": "",
+                    "exit_code": 0,
+                    "cwd": self.cwd
+                }
+            elif action in ("list", "search"):
+                q = args[1] if len(args) > 1 else ""
+                pkgs = package_manager.search_packages(q) if q else package_manager.list_installed()
+                lines = [f"Listing... ({len(pkgs)} packages found)"]
+                for p in pkgs:
+                    inst = "[installed]" if p.get("installed") else "[available]"
+                    lines.append(f"{p['name']}/{p.get('category','Generic')} {p['version']} {inst}\n  {p['description']}")
+                return {"stdout": "\n".join(lines) + "\n", "stderr": "", "exit_code": 0, "cwd": self.cwd}
+            else:
+                return {
+                    "stdout": (
+                        "cloth-apt - ClothOS Sovereign Package Manager\n"
+                        "Usage: cloth-apt [update | install <pkg> | search <query> | list]\n"
+                    ),
+                    "stderr": "",
+                    "exit_code": 0,
+                    "cwd": self.cwd
+                }
+
         # Builtin: help
         elif cmd == "help":
             out = (
                 "ClothOS Sovereign Linux / POSIX Shell Commands:\n"
                 "  ls, cd, pwd, cat, echo, uname -a, ps, free, df, tpu-smi\n"
+                "  whoami, id, sudo <cmd>, su <user>, useradd <user>\n"
+                "  cloth-apt [update | install | search | list]\n"
+                "  rustc, cargo, java, javac, python3, git, curl, wget, ping, neofetch\n"
                 "  diag      - Full-system hardware and kernel diagnostic scan\n"
                 "  clear     - Clears the terminal screen\n"
                 "  help      - Displays this help message\n"
@@ -326,11 +431,18 @@ class ClothOSPosixSubsystem:
         elif cmd == "clear":
             return {"stdout": "\x1b[2J\x1b[H", "stderr": "", "exit_code": 0, "cwd": self.cwd}
 
+        # ── 4. Ecosystem Runtime Execution (Rust, Java, Python, Git, Curl, Ping) ──
+        from loom.clothos.package_manager import package_manager
+        prog_res = package_manager.execute_program(cmd, args)
+        if prog_res["stdout"] or prog_res["stderr"]:
+            prog_res["cwd"] = self.cwd
+            return prog_res
+
         # Generic fallback
         return {
             "stdout": "",
-            "stderr": f"clothos-sh: {cmd}: command executed under P3 ring\n",
-            "exit_code": 0,
+            "stderr": f"clothos-sh: {cmd}: command not found. Try 'cloth-apt install {cmd}'\n",
+            "exit_code": 127,
             "cwd": self.cwd
         }
 

@@ -102,6 +102,18 @@ class ClothOSDesktopApiHandler(BaseHTTPRequestHandler):
             self._set_headers()
             self.wfile.write(json.dumps({"dir": target_dir, "items": items}).encode("utf-8"))
 
+        elif path == "/api/users":
+            from loom.clothos.user_manager import user_manager
+            self._set_headers()
+            self.wfile.write(json.dumps(user_manager.list_users()).encode("utf-8"))
+
+        elif path == "/api/packages":
+            from loom.clothos.package_manager import package_manager
+            pkgs = [p for p in package_manager.packages.values()]
+            from dataclasses import asdict
+            self._set_headers()
+            self.wfile.write(json.dumps([asdict(p) for p in pkgs]).encode("utf-8"))
+
         else:
             self._set_headers("text/plain", 404)
             self.wfile.write(b"Not Found")
@@ -125,6 +137,29 @@ class ClothOSDesktopApiHandler(BaseHTTPRequestHandler):
             repair_res = diagnostics_ops.auto_repair_system()
             self._set_headers()
             self.wfile.write(json.dumps(repair_res).encode("utf-8"))
+
+        elif parsed_url.path == "/api/users/create":
+            from loom.clothos.user_manager import user_manager
+            username = data.get("username", "")
+            password = data.get("password", "clothos")
+            full_name = data.get("full_name", "")
+            res = user_manager.create_user(username, password, full_name)
+            self._set_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+
+        elif parsed_url.path == "/api/packages/install":
+            from loom.clothos.package_manager import package_manager
+            pkg_name = data.get("name", "")
+            res = package_manager.install_package(pkg_name)
+            self._set_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+
+        elif parsed_url.path == "/api/fs/write":
+            file_path = data.get("path", "")
+            content = data.get("content", "")
+            cloth_fs.write_file(file_path, content.encode("utf-8"))
+            self._set_headers()
+            self.wfile.write(json.dumps({"success": True, "path": file_path}).encode("utf-8"))
 
         else:
             self._set_headers("text/plain", 404)

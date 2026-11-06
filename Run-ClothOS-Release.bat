@@ -13,16 +13,24 @@ echo  [3] Boot Simulated RISC-V 64-bit + TPU Systolic Matrix Array (RV64GCV)
 echo  [4] Boot Simulated x86_64 Multiboot HAL with 4-Level Paging (PML4)
 echo  [5] Run Full Diagnostics ^& Operational Auto-Repair Doctor
 echo  [6] Inspect Verified Commercial Milestones ^& Quality Gate Audit Report
-echo  [7] Exit
+echo  [7] Bake Live Bootable Flashdrive Image (clothos-live-usb.img)
+echo  [8] Exit
 echo.
-set /p choice="Select target environment [1-7]: "
+set /p choice="Select target environment [1-8]: "
 if "%choice%"=="1" goto launch_desktop
 if "%choice%"=="2" goto launch_shell
 if "%choice%"=="3" goto launch_riscv
 if "%choice%"=="4" goto launch_x86
 if "%choice%"=="5" goto launch_diag
 if "%choice%"=="6" goto show_audit
-if "%choice%"=="7" exit /b 0
+if "%choice%"=="7" goto bake_usb
+if "%choice%"=="8" exit /b 0
+
+:bake_usb
+echo.
+echo [*] Launching Bootable USB Creator...
+call "%~dp0Make-Bootable-USB.bat"
+goto menu
 
 :launch_desktop
 echo.
