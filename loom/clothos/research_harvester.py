@@ -131,10 +131,11 @@ class OSResearchHarvester:
     # ── 2. GitHub Search & Repo Harvester ──────────────────────────────────
 
     def harvest_github_os_repos(self, query: Optional[str] = None, max_results: int = 5) -> List[Dict[str, Any]]:
-        """Harvests trending operating system kernels, allocators, and drivers from GitHub REST API."""
+        """Harvests trending operating system kernels, allocators, and drivers from GitHub REST API for both RISC-V and x86."""
         queries = [
             query or "operating-system kernel in:name,description stars:>100",
-            "microkernel rust OR c in:name,description stars:>80",
+            "riscv microkernel rust OR c in:name,description stars:>20",
+            "x86 multiboot kernel paging in:name,description stars:>30",
             "lockless memory allocator in:name,description stars:>50"
         ]
 
@@ -144,7 +145,7 @@ class OSResearchHarvester:
             "Accept": "application/vnd.github.v3+json"
         }
 
-        for q in queries[:2]:
+        for q in queries:
             encoded_q = urllib.parse.quote(q)
             url = f"https://api.github.com/search/repositories?q={encoded_q}&sort=stars&order=desc&per_page={max_results}"
 
@@ -185,7 +186,66 @@ class OSResearchHarvester:
         logger.info(f"🐙 [GitHub Harvester]: Documented {len(insights)} cited OS repositories.")
         return insights
 
-    # ── 3. High-Speed Fallback (Hacker News Systems) ───────────────────────
+    # ── 3. Creative Frontend & Desktop Aesthetics Harvester ────────────────
+
+    def harvest_frontend_aesthetics(self, max_results: int = 4) -> List[Dict[str, Any]]:
+        """Harvests cutting-edge UI/UX desktop patterns from r/unixporn and trending GitHub web desktop/terminal projects."""
+        insights: List[Dict[str, Any]] = []
+
+        # 1. GitHub search for web desktop & terminal engines
+        gh_queries = [
+            "web desktop macos OR ubuntu in:name,description stars:>100",
+            "terminal emulator xterm javascript in:name,description stars:>150",
+            "glassmorphism dashboard desktop in:name,description stars:>50",
+        ]
+        headers = {
+            "User-Agent": "ClothOS-Frontend-Research/2.0",
+            "Accept": "application/vnd.github.v3+json"
+        }
+
+        for q in gh_queries:
+            try:
+                encoded_q = urllib.parse.quote(q)
+                url = f"https://api.github.com/search/repositories?q={encoded_q}&sort=stars&order=desc&per_page={max_results}"
+                req = urllib.request.Request(url, headers=headers)
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    data = json.loads(response.read().decode("utf-8"))
+                    for repo in data.get("items", []):
+                        r_url = repo.get("html_url", "")
+                        if r_url in self._seen_urls:
+                            continue
+
+                        name = repo.get("full_name", "")
+                        desc = repo.get("description", "") or "Web desktop / terminal project"
+                        stars = repo.get("stargazers_count", 0)
+                        item = {
+                            "source": "GitHub Frontend Repo",
+                            "title": f"{name} ({stars} stars)",
+                            "url": r_url,
+                            "summary": f"Creative desktop aesthetic: {desc[:250]}",
+                            "relevance_score": 0.96,
+                            "category": "FRONTEND_DESKTOP_AESTHETICS",
+                            "timestamp": time.time(),
+                            "date_cited": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%SZ"),
+                            "stars": stars,
+                        }
+                        insights.append(item)
+                        self._seen_urls.add(r_url)
+                        self._record_finding(item)
+            except Exception as e:
+                logger.debug(f"GitHub frontend search error: {e}")
+
+        # 2. Reddit r/unixporn via Playwright (if available) or Hacker News UI fallback
+        try:
+            self.harvest_reddit_osdev(subreddits=["unixporn", "gnome"], limit_per_sub=3)
+        except Exception:
+            pass
+
+        self._update_markdown_documentation(insights)
+        logger.info(f"🎨 [Frontend Harvester]: Harvested {len(insights)} creative UI/UX desktop patterns.")
+        return insights
+
+    # ── 4. High-Speed Fallback (Hacker News Systems) ───────────────────────
 
     def harvest_hackernews_systems(self, limit: int = 5) -> List[Dict[str, Any]]:
         """Harvests operating system stories from Hacker News."""
@@ -328,7 +388,11 @@ class OSResearchHarvester:
 
     def _classify_topic(self, text: str) -> str:
         text_lower = text.lower()
-        if any(w in text_lower for w in ["memory", "allocator", "page", "mmu", "heap"]):
+        if any(w in text_lower for w in ["riscv", "risc-v", "rv64", "rocc", "opensbi", "systolic", "tpu"]):
+            return "ARCH_RISCV_TPU"
+        elif any(w in text_lower for w in ["x86", "x86_64", "x32", "multiboot", "apic", "ioapic", "gdt", "idt", "pml4"]):
+            return "ARCH_X86_HAL"
+        elif any(w in text_lower for w in ["memory", "allocator", "page", "mmu", "heap"]):
             return "MEMORY_HIERARCHY"
         elif any(w in text_lower for w in ["scheduler", "thread", "coroutine", "process", "concurrency"]):
             return "SCHEDULER_CONCURRENCY"
