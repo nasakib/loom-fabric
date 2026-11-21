@@ -27,6 +27,9 @@ class TransceiverBand(str, Enum):
     LOOPBACK_EMU = "Loopback_PCIe4"       # Local virtual test harness
     FIBER_BIDI_100G = "100G_BiDi_Fiber"   # Dedicated single-strand optical lambda link (100 Gbps, 4.9 us/km)
     FIBER_PON_10G = "10G_XGSPON_Fiber"    # Neighborhood passive optical network (10 Gbps, sub-ms)
+    CELLULAR_5G_URLLC = "5G_NR_URLLC"     # 5G Standalone Ultra-Reliable Low-Latency Slice (sub-10ms, 2.5 Gbps)
+    CELLULAR_5G_CBRS = "5G_Private_CBRS"  # Private 5G Band 48 Local Small Cell Mesh (3.5 GHz, 1 Gbps)
+    CELLULAR_5G_FWA = "5G_Home_FWA"       # Commercial 5G Fixed Wireless Access (T-Mobile/Verizon, 1 Gbps)
 
 
 class ModulationScheme(str, Enum):
@@ -80,7 +83,7 @@ class FabricTransceiver:
         bytes_per_lane_gb = 1.969 if pcie_gen == 4 else (3.938 if pcie_gen == 5 else 0.985)
         self.pcie_max_bandwidth_gbps = bytes_per_lane_gb * pcie_lanes * 8.0
 
-        # RF / Optical Base Bandwidth Limits
+        # RF / Optical / Cellular Base Bandwidth Limits
         self.rf_peak_bandwidth_gbps = {
             TransceiverBand.MMWAVE_60GHZ: 40.0,
             TransceiverBand.WIFI7_5GHZ: 15.0,
@@ -88,6 +91,9 @@ class FabricTransceiver:
             TransceiverBand.LOOPBACK_EMU: self.pcie_max_bandwidth_gbps,
             TransceiverBand.FIBER_BIDI_100G: 100.0,
             TransceiverBand.FIBER_PON_10G: 10.0,
+            TransceiverBand.CELLULAR_5G_URLLC: 2.5,
+            TransceiverBand.CELLULAR_5G_CBRS: 1.0,
+            TransceiverBand.CELLULAR_5G_FWA: 1.0,
         }[band]
 
     def calculate_link_quality(
@@ -121,6 +127,32 @@ class FabricTransceiver:
             phy_serdes_ms = 0.12 # SerDes framing + KP4 RS(544,514) FEC latency
             latency = phy_serdes_ms + fiber_delay_ms
             bw = self.rf_peak_bandwidth_gbps
+        elif self.band in (TransceiverBand.CELLULAR_5G_URLLC, TransceiverBand.CELLULAR_5G_CBRS, TransceiverBand.CELLULAR_5G_FWA):
+            # 5G Cellular NR & CBRS Model
+            if self.band == TransceiverBand.CELLULAR_5G_URLLC:
+                # 3GPP Rel-16 Standalone Low-Latency Slice (5QI 82/83)
+                rssi = -58.0 # Strong RSRP dBm
+                snr = 32.0
+                mod = ModulationScheme.QAM256
+                loss = 0.00001
+                latency = 6.5 # sub-10ms air interface
+                bw = 2.5
+            elif self.band == TransceiverBand.CELLULAR_5G_CBRS:
+                # Private 5G Band 48 Local Small Cell
+                rssi = -72.0
+                snr = 24.0
+                mod = ModulationScheme.QAM256
+                loss = 0.0001
+                latency = 9.5
+                bw = 1.0
+            else: # CELLULAR_5G_FWA
+                # Commercial Mid-band 5G Fixed Wireless Access (T-Mobile / Verizon)
+                rssi = -80.0
+                snr = 18.0
+                mod = ModulationScheme.QAM64
+                loss = 0.001
+                latency = 18.0
+                bw = 0.85
         else:
             # Wireless RF propagation model
             # Free-space path loss (FSPL) in dB: FSPL = 20*log10(d) + 20*log10(f) + 32.44

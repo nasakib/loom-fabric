@@ -16,6 +16,7 @@ import sys
 from typing import List, Optional
 
 from loom.hardware.fabric_modem import LoomFabricModem
+from loom.hardware.transceiver import FabricTransceiver, TransceiverBand
 from loom.hardware.seamless_gateway import SeamlessComputeGateway, ComputeMode
 from loom.governance.ring_p0 import RingP0GovernanceController
 from loom.csp.p2p_swarm import SwarmPeer, PeerRole, ConnectionMedium
@@ -61,6 +62,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     game_parser.add_argument("--fps", type=int, default=60, choices=[60, 120], help="Target frame rate")
     game_parser.add_argument("--res", type=str, default="1080p", choices=["720p", "1080p", "1440p", "4k"], help="Stream resolution")
     game_parser.add_argument("--peer", type=str, default=None, help="Target CSP node ID")
+
+    # Command: fiber
+    fiber_parser = subparsers.add_parser("fiber", help="Inspect and lease existing commercial/municipal dark fiber")
+    fiber_parser.add_argument("action", nargs="?", default="circuits", choices=["circuits", "providers", "lease"], help="Action: 'circuits', 'providers', or 'lease'")
+    fiber_parser.add_argument("--carrier", type=str, default="zayo_metro", help="Carrier ID (e.g. zayo_metro, crown_castle, open_access_metro)")
+    fiber_parser.add_argument("--type", type=str, default="DARK_FIBER_STRAND", choices=["DARK_FIBER_STRAND", "DWDM_ALIEN_WAVELENGTH", "MUNICIPAL_OPEN_ACCESS"], help="Lease type")
+    fiber_parser.add_argument("--km", type=float, default=3.5, help="Physical fiber length in km")
+
+    # Command: 5g
+    subparsers.add_parser("5g", help="Inspect 5G Standalone URLLC network slice, CBRS private mesh, and cellular link")
 
     # Command: scan
     subparsers.add_parser("scan", help="Scan local RF and direct-wire airwaves for compute nodes")
@@ -220,6 +231,59 @@ def main(argv: Optional[List[str]] = None) -> int:
         if res.payload_metadata:
             print("\nStream Telemetry:")
             print(json.dumps(res.payload_metadata, indent=2))
+        return 0
+
+    elif args.command == "fiber":
+        gateway = SeamlessComputeGateway.get_instance()
+        fm = gateway.fiber_manager
+        if args.action == "providers":
+            providers = fm.get_available_carriers()
+            print(f"\n🏢 Commercial & Municipal Fiber Providers Available in Region ({len(providers)}):\n")
+            print(f"{'CARRIER ID':<16} {'CARRIER NAME':<34} {'TIER':<24} {'RATE/MO/MI'}")
+            print("-" * 95)
+            for p in providers:
+                print(f"{p.carrier_id:<16} {p.name[:32]:<34} {p.tier.value:<24} ${p.typical_strand_cost_usd_mo:.2f}")
+            print("\nTip: Run 'python -m loom.hardware.cli fiber lease --carrier <ID>' to activate a leased strand.")
+            return 0
+        elif args.action == "lease":
+            from loom.csp.fiber_lease import FiberLeaseType
+            c = fm.provision_lease(
+                carrier_id=args.carrier,
+                lease_type=FiberLeaseType(args.type),
+                endpoint_a="skyTech-Worker",
+                endpoint_b="Ryzen7-Head",
+                length_km=args.km,
+            )
+            print(f"✅ Successfully provisioned leased fiber circuit:")
+            print(f"   Circuit ID: {c.circuit_id} via {c.carrier_name}")
+            print(f"   Length: {c.physical_length_km} km | Bandwidth: {c.committed_bandwidth_gbps} Gbps")
+            print(f"   Latency: {c.optical_propagation_latency_ms} ms (Speed of light in silica: 4.897 us/km)")
+            print(f"   Cost: ${c.monthly_lease_cost_usd:.2f}/mo (Amortized: ${c.hourly_amortized_cost_usd:.4f}/hr)")
+            return 0
+        else: # circuits
+            print(f"\n🔗 Active Leased Commercial Fiber Circuits ({len(fm.active_circuits)}):\n")
+            print(f"{'CIRCUIT ID':<18} {'CARRIER':<28} {'LENGTH':<10} {'BANDWIDTH':<11} {'LATENCY':<10} {'MONTHLY COST'}")
+            print("-" * 95)
+            for c in fm.active_circuits.values():
+                print(f"{c.circuit_id:<18} {c.carrier_name[:26]:<28} {str(c.physical_length_km) + ' km':<10} {str(c.committed_bandwidth_gbps) + ' Gbps':<11} {str(c.optical_propagation_latency_ms) + ' ms':<10} ${c.monthly_lease_cost_usd:.2f}/mo")
+            return 0
+
+    elif args.command == "5g":
+        gateway = SeamlessComputeGateway.get_instance()
+        phy = FabricTransceiver(band=TransceiverBand.CELLULAR_5G_URLLC)
+        l_5g = phy.calculate_link_quality()
+        cbrs_phy = FabricTransceiver(band=TransceiverBand.CELLULAR_5G_CBRS)
+        l_cbrs = cbrs_phy.calculate_link_quality()
+
+        print("\n📡 5G Cellular Infrastructure & Network Slicing Status:\n")
+        print("  [1] 3GPP 5G Standalone URLLC Network Slice (QoS 5QI=82/83 - Low-Latency Gaming/Compute):")
+        print(f"      Signal: {l_5g.signal_bars} ({l_5g.rssi_dbm} dBm RSRP) | SNR: {l_5g.snr_db} dB")
+        print(f"      Bandwidth: {l_5g.effective_bandwidth_gbps} Gbps | Air Interface Latency: {l_5g.latency_ms} ms")
+        print(f"      Packet Loss: {l_5g.packet_loss_rate * 100:.4f}% | Modulation: {l_5g.modulation.value}")
+        print("\n  [2] Private 5G CBRS Band 48 Local Small-Cell Mesh (3.55 - 3.70 GHz GAA/PAL):")
+        print(f"      Signal: {l_cbrs.signal_bars} ({l_cbrs.rssi_dbm} dBm RSRP) | SNR: {l_cbrs.snr_db} dB")
+        print(f"      Bandwidth: {l_cbrs.effective_bandwidth_gbps} Gbps | Local Air Latency: {l_cbrs.latency_ms} ms")
+        print("\n  Multi-Path Failover: Active (Seamless MPTCP aggregation across Fiber + 5G + 60GHz mmWave)")
         return 0
 
     elif args.command == "scan":

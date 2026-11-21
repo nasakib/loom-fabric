@@ -37,10 +37,15 @@ class PeerRole(str, enum.Enum):
 
 
 class ConnectionMedium(str, enum.Enum):
-    FIBER_DIRECT = "FIBER_DIRECT"         # Fiber optic dedicated link (<1ms latency, 10-100 Gbps)
-    MMWAVE_60GHZ = "MMWAVE_60GHZ"         # 60GHz IEEE 802.11ay wireless line-of-sight (1-2ms, 20-40 Gbps)
-    WIFI_7 = "WIFI_7"                     # Wi-Fi 7 / 802.11be MLO (2-4ms, 5-10 Gbps)
-    OVERLAY_WIREGUARD = "OVERLAY_WIREGUARD" # WireGuard/Tailscale encrypted P2P overlay (5-20ms)
+    FIBER_DIRECT = "FIBER_DIRECT"                 # Fiber optic dedicated link (<1ms latency, 10-100 Gbps)
+    LEASED_DARK_FIBER = "LEASED_DARK_FIBER"       # Commercial leased dark fiber strand (Zayo/Crown Castle) (<0.5ms, 25-100 Gbps)
+    DWDM_ALIEN_LAMBDA = "DWDM_ALIEN_LAMBDA"       # Lit 100G optical lambda on carrier ROADM (<0.2ms, 100 Gbps)
+    MUNICIPAL_OPEN_ACCESS = "MUNICIPAL_OPEN_ACCESS" # City/utility-owned open access fiber (UTOPIA/EPB) (<1ms, 10-25 Gbps)
+    MMWAVE_60GHZ = "MMWAVE_60GHZ"                 # 60GHz IEEE 802.11ay wireless line-of-sight (1-2ms, 20-40 Gbps)
+    CELLULAR_5G_SLICE = "CELLULAR_5G_SLICE"       # 3GPP Standalone URLLC 5G Network Slice (sub-10ms, 1-2.5 Gbps)
+    CELLULAR_5G_CBRS = "CELLULAR_5G_CBRS"         # Private 5G Band 48 local small-cell mesh (5-12ms, 1 Gbps)
+    WIFI_7 = "WIFI_7"                             # Wi-Fi 7 / 802.11be MLO (2-4ms, 5-10 Gbps)
+    OVERLAY_WIREGUARD = "OVERLAY_WIREGUARD"       # WireGuard/Tailscale encrypted P2P overlay (5-20ms)
 
 
 @dataclass
@@ -290,6 +295,46 @@ class P2PComputeSwarm:
                 downloaded_compute_units=70.0,
             )
         )
+        # Commercial Leased Dark Fiber Peer (Zayo Metro Strand)
+        self.register_peer(
+            SwarmPeer(
+                peer_id="LoomMesh-LeasedFiber-Zayo",
+                node_name="midtown-zayo-dark-strand",
+                address="192.168.99.75",
+                port=8002,
+                role=PeerRole.SEEDER,
+                medium=ConnectionMedium.LEASED_DARK_FIBER,
+                rtt_ms=0.42,
+                bandwidth_gbps=100.0,
+                total_vram_gb=48.0,
+                available_vram_gb=44.0,
+                capacity_tflops=70.0,
+                hardware_desc="Dual NVIDIA RTX 4090 24GB (Leased Metro Glass)",
+                is_pure_amd=False,
+                uploaded_compute_units=410.0,
+                downloaded_compute_units=25.0,
+            )
+        )
+        # 5G Standalone URLLC Network Slice Peer (Commercial / Private CBRS)
+        self.register_peer(
+            SwarmPeer(
+                peer_id="LoomMesh-5G-URLLC-Node",
+                node_name="cellular-5g-edge-rig",
+                address="192.168.99.90",
+                port=8002,
+                role=PeerRole.HYBRID,
+                medium=ConnectionMedium.CELLULAR_5G_SLICE,
+                rtt_ms=6.8,
+                bandwidth_gbps=2.5,
+                total_vram_gb=16.0,
+                available_vram_gb=12.0,
+                capacity_tflops=20.0,
+                hardware_desc="NVIDIA RTX 3080 12GB (5G Standalone URLLC Slice)",
+                is_pure_amd=False,
+                uploaded_compute_units=95.0,
+                downloaded_compute_units=90.0,
+            )
+        )
         # Initial Tit-for-Tat evaluation round
         self.tit_for_tat.evaluate_swarm(self.peers)
 
@@ -464,7 +509,9 @@ class P2PComputeSwarm:
         seeders = [p for p in active_peers if p.role in (PeerRole.SEEDER, PeerRole.HYBRID)]
         leechers = [p for p in active_peers if p.role in (PeerRole.LEECHER, PeerRole.HYBRID)]
         unchoked = [p for p in active_peers if not p.is_choked]
-        fiber_peers = [p for p in active_peers if p.medium == ConnectionMedium.FIBER_DIRECT]
+        fiber_peers = [p for p in active_peers if p.medium in (ConnectionMedium.FIBER_DIRECT, ConnectionMedium.LEASED_DARK_FIBER, ConnectionMedium.DWDM_ALIEN_LAMBDA, ConnectionMedium.MUNICIPAL_OPEN_ACCESS)]
+        leased_fiber_peers = [p for p in active_peers if p.medium in (ConnectionMedium.LEASED_DARK_FIBER, ConnectionMedium.DWDM_ALIEN_LAMBDA, ConnectionMedium.MUNICIPAL_OPEN_ACCESS)]
+        cellular_5g_peers = [p for p in active_peers if p.medium in (ConnectionMedium.CELLULAR_5G_SLICE, ConnectionMedium.CELLULAR_5G_CBRS)]
 
         total_vram = sum(p.available_vram_gb for p in active_peers)
         total_tflops = sum(p.capacity_tflops for p in active_peers)
@@ -476,6 +523,8 @@ class P2PComputeSwarm:
             "active_leechers": len(leechers),
             "unchoked_peers": len(unchoked),
             "fiber_direct_peers": len(fiber_peers),
+            "leased_commercial_fiber_peers": len(leased_fiber_peers),
+            "cellular_5g_peers": len(cellular_5g_peers),
             "pooled_available_vram_gb": round(total_vram, 2),
             "pooled_capacity_tflops": round(total_tflops, 2),
             "average_rtt_ms": round(avg_rtt, 2),

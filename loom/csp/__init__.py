@@ -32,6 +32,13 @@ from loom.csp.stream_engine import (
     InputEvent,
     InputEventType,
 )
+from loom.csp.fiber_lease import (
+    FiberLeaseManager,
+    FiberCarrier,
+    LeasedFiberCircuit,
+    FiberLeaseType,
+    FiberCarrierTier,
+)
 
 __all__ = [
     "CspNodeManifest",
@@ -68,4 +75,10 @@ __all__ = [
     "StreamCodec",
     "InputEvent",
     "InputEventType",
+    # Existing Fiber & 5G Infrastructure Leasing
+    "FiberLeaseManager",
+    "FiberCarrier",
+    "LeasedFiberCircuit",
+    "FiberLeaseType",
+    "FiberCarrierTier",
 ]

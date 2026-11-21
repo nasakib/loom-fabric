@@ -36,6 +36,7 @@ from loom.governance.ring_p0 import RingP0GovernanceController
 from loom.csp.p2p_swarm import P2PComputeSwarm, SwarmPeer, ConnectionMedium, PeerRole
 from loom.csp.gas_meter import SpotlightLocalGasLedger, PoVCReceipt, PLATFORM_GAS_TAX_RATE
 from loom.csp.stream_engine import GamingStreamSession, StreamResolution, StreamCodec
+from loom.csp.fiber_lease import FiberLeaseManager, FiberLeaseType
 
 logger = logging.getLogger("loom.hardware.seamless_gateway")
 
@@ -99,6 +100,7 @@ class SeamlessComputeGateway:
         # P2P Compute Swarm & Economic Settlement Engines
         self.p2p_swarm = P2PComputeSwarm(local_node_id="skyTech-Worker", local_node_name="skyTech-Rig-01")
         self.gas_ledger = SpotlightLocalGasLedger()
+        self.fiber_manager = FiberLeaseManager()
         self.compute_mode: ComputeMode = default_mode
         self.active_gaming_sessions: Dict[str, GamingStreamSession] = {}
         
@@ -537,10 +539,13 @@ class SeamlessComputeGateway:
                 "│ Signal: ○○○○○ (No Local Carrier Associated)                            │",
             ])
 
+        active_leased = len(self.fiber_manager.active_circuits)
+        c5g_count = swarm_stats.get('cellular_5g_peers', 1)
         card.extend([
             "├────────────────────────────────────────────────────────────────────────┤",
             f"│ 👥 P2P Swarm Peers: {swarm_stats['total_peers']:<3} (Seeders: {swarm_stats['active_seeders']}, Leechers: {swarm_stats['active_leechers']}, Unchoked: {swarm_stats['unchoked_peers']})       │",
             f"│ ⚡ Pooled Capacity: {swarm_stats['pooled_capacity_tflops']} TFLOPS | VRAM: {swarm_stats['pooled_available_vram_gb']} GB | Fiber: {swarm_stats['fiber_direct_peers']} Nodes │",
+            f"│ 🔗 Leased Metro Fiber: {active_leased} Circuits | 5G Slices: {c5g_count} Active Nodes          │",
             f"│ 💳 Spotlight-Local Balance: {op_wallet['balance_gas_units']:.0f} Gas (${op_wallet['balance_usd']:.2f} USD) | Tax Rake: 1.0%      │",
             "└────────────────────────────────────────────────────────────────────────┘",
         ])
