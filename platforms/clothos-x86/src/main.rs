@@ -37,9 +37,13 @@ pub struct X86HardwareProfile {
 
 impl X86HardwareProfile {
     pub fn probe_host() -> Self {
+        let cores = std::thread::available_parallelism()
+            .map(|n| n.get() as u32)
+            .unwrap_or(8);
+
         Self {
             cpu_brand: "x86_64 Multi-Core Microprocessor (SSE4.2/AVX2/APIC)".to_string(),
-            logical_cores: num_cpus::get() as u32,
+            logical_cores: cores,
             paging_mode: "4-Level Paging (CR3 -> PML4 -> PDPT -> PD -> PT, 48-bit Canonical)",
             apic_base_addr: 0xFEE0_0000,
             pcie_devices_found: 12, // Host bridge, Discrete GPU, Root ports, VirtIO
