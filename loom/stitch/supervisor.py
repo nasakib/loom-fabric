@@ -116,7 +116,7 @@ class NativeProcessSupervisor(SupervisorProtocol):
         try:
             creationflags = 0
             if sys.platform == "win32":
-                creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
+                creationflags = subprocess.CREATE_NEW_PROCESS_GROUP | 0x08000000  # CREATE_NO_WINDOW
 
             self.process = subprocess.Popen(
                 command,

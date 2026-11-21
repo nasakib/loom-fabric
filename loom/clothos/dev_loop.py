@@ -366,7 +366,7 @@ class ClothOSEvolutionLoop:
 
                 if sync_success:
 
-                    console.print("  + Node 2 Mesh Sync: [bold green]SUCCESS[/bold green] (Bit-exact SHA-256 verified at ~568 MB/s)")
+                    console.print("  + Node 2 Mesh Sync: [bold green]SUCCESS[/bold green] (Bit-exact SHA-256 verified over 2.5GbE mesh)")
 
                 else:
 

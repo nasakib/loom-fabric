@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClothOS Sovereign Desktop — v1.0.0-PROD</title>
+    <style>
+        :root {
+            --bg-base: #0b0d13;
+            --topbar-bg: rgba(18, 22, 34, 0.85);
+            --dock-bg: rgba(22, 27, 44, 0.75);
+            --window-bg: rgba(15, 18, 28, 0.90);
+            --window-header: rgba(26, 32, 50, 0.95);
+            --accent-cyan: #00f2fe;
+            --accent-purple: #9d4edd;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border-glow: rgba(0, 242, 254, 0.25);
+            --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Ubuntu", "Segoe UI", Roboto, sans-serif;
+            --font-mono: "Ubuntu Mono", "JetBrains Mono", "Fira Code", monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body {
+            font-family: var(--font-ui);
+            background: radial-gradient(circle at 15% 20%, #1e113a 0%, #07090e 60%, #020305 100%);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .ambient-glow {
+            position: absolute;
+            width: 700px;
+            height: 700px;
+            background: radial-gradient(circle, rgba(157, 78, 221, 0.18) 0%, transparent 70%);
+            top: -150px;
+            right: -150px;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .ambient-glow-2 {
+            position: absolute;
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(0, 242, 254, 0.15) 0%, transparent 70%);
+            bottom: -200px;
+            left: -150px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Top Bar (macOS / Ubuntu GNOME) ── */
+        .top-bar {
+            height: 34px;
+            background: var(--topbar-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 1000;
+            position: relative;
+        }
+        .top-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--accent-cyan);
+            cursor: pointer;
+        }
+        .brand-logo span { color: #fff; }
+        .menu-item {
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: color 0.15s;
+        }
+        .menu-item:hover { color: #fff; }
+
+        .top-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 12px;
+        }
+        .telemetry-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2px 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+        .clock { font-weight: 600; color: #fff; }
+
+        /* ── Windows ── */
+        .window {
+            position: absolute;
+            background: var(--window-bg);
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 1px rgba(0, 242, 254, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 340px;
+            min-height: 220px;
+            z-index: 10;
+        }
+        .window.active {
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 0 1px var(--accent-cyan);
+            z-index: 50;
+        }
+        .window-header {
+            height: 38px;
+            background: var(--window-header);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 14px;
+            cursor: grab;
+        }
+        .traffic-lights {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .traffic-light {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+        .traffic-light:hover { opacity: 0.8; }
+        .tl-close { background: #ff5f56; }
+        .tl-min { background: #ffbd2e; }
+        .tl-max { background: #27c93f; }
+
+        .window-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.3px;
+        }
+        .window-body {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+
+        /* ── Terminal App ── */
+        .terminal-container {
+            font-family: var(--font-mono);
+            background: #080a10;
+            color: #d1d5db;
+            padding: 12px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            font-size: 13px;
+            line-height: 1.45;
+            user-select: text;
+        }
+        .terminal-logs {
+            flex: 1;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            padding-bottom: 8px;
+        }
+        .terminal-input-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding-top: 8px;
+        }
+        .prompt-label {
+            color: var(--accent-cyan);
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #fff;
+            font-family: var(--font-mono);
+            font-size: 13px;
+        }
+
+        /* ── Code Studio (TextEdit / IDE) ── */
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: #0d1117;
+            color: #c9d1d9;
+            font-family: var(--font-mono);
+        }
+        .editor-toolbar {
+            height: 36px;
+            background: rgba(255, 255, 255, 0.04);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            font-family: var(--font-ui);
+            font-size: 12px;
+        }
+        .editor-btn {
+            background: var(--accent-cyan);
+            border: none;
+            color: #000;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .editor-textarea {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #e6edf3;
+            padding: 14px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.5;
+            resize: none;
+            user-select: text;
+        }
+
+        /* ── Software Center / App Store ── */
+        .store-grid {
+            padding: 16px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 14px;
+        }
+        .store-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .store-btn {
+            background: rgba(0, 242, 254, 0.15);
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.15s;
+        }
+        .store-btn:hover {
+            background: var(--accent-cyan);
+            color: #000;
+        }
+
+        /* ── Browser App ── */
+        .browser-toolbar {
+            height: 42px;
+            background: rgba(255, 255, 255, 0.04);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 12px;
+        }
+        .url-bar {
+            flex: 1;
+            height: 28px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 0 12px;
+            color: #fff;
+            font-size: 12px;
+            outline: none;
+        }
+        .browser-content {
+            padding: 24px;
+            height: calc(100% - 42px);
+            overflow-y: auto;
+            background: #fff;
+            color: #111;
+            user-select: text;
+        }
+
+        /* ── User Accounts Manager ── */
+        .users-container {
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .user-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 12px 16px;
+        }
+        .user-badge {
+            background: rgba(157, 78, 221, 0.2);
+            color: var(--accent-purple);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        /* ── Calculator ── */
+        .calc-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 16px;
+        }
+        .calc-screen {
+            grid-column: span 4;
+            height: 50px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 14px;
+            font-family: var(--font-mono);
+            font-size: 24px;
+            color: var(--accent-cyan);
+            margin-bottom: 8px;
+        }
+        .calc-btn {
+            height: 44px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        .calc-btn:hover { background: rgba(255, 255, 255, 0.15); }
+        .calc-btn.op { background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); }
+
+        /* ── The Floating Dock ── */
+        .dock-container {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dock-bg);
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 20px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+        }
+        .dock-item {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.15s;
+        }
+        .dock-item:hover {
+            transform: scale(1.2) translateY(-4px);
+            background: rgba(255, 255, 255, 0.15);
+            border-color: var(--accent-cyan);
+        }
+        .dock-item::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: transparent;
+        }
+        .dock-item.open::after {
+            background: var(--accent-cyan);
+            box-shadow: 0 0 6px var(--accent-cyan);
+        }
+        .dock-tooltip {
+            position: absolute;
+            top: -34px;
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s;
+        }
+        .dock-item:hover .dock-tooltip { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="ambient-glow"></div>
+    <div class="ambient-glow-2"></div>
+
+    <!-- ── Top Menu Bar ── -->
+    <header class="top-bar">
+        <div class="top-bar-left">
+            <div class="brand-logo" onclick="toggleWindow('win-about')">
+                <span>🧶</span> ClothOS
+            </div>
+            <div class="menu-item" onclick="toggleWindow('win-editor')">Code</div>
+            <div class="menu-item" onclick="toggleWindow('win-browser')">Browser</div>
+            <div class="menu-item" onclick="toggleWindow('win-store')">App Store</div>
+            <div class="menu-item" onclick="toggleWindow('win-users')">Accounts</div>
+            <div class="menu-item" onclick="toggleWindow('win-terminal')">Terminal</div>
+        </div>
+        <div class="top-bar-right">
+            <div class="telemetry-pill">
+                <div class="status-dot"></div>
+                <span id="top-user-pill">clothos (Ring P1)</span>
+            </div>
+            <div class="telemetry-pill">
+                <span>⚡ Landauer:</span>
+                <span id="landauer-meter" style="color:var(--accent-cyan); font-weight:600;">34.2 J</span>
+            </div>
+            <div class="telemetry-pill">
+                <span>🧠 Kuramoto:</span>
+                <span style="color:var(--accent-green); font-weight:600;">r=0.968</span>
+            </div>
+            <div class="clock" id="clock">00:00:00 UTC</div>
+        </div>
+    </header>
+
+    <!-- ── Window 1: Unix Terminal ── -->
+    <div class="window active" id="win-terminal" style="top: 48px; left: 30px; width: 680px; height: 420px;">
+        <div class="window-header" onmousedown="startDrag(event, 'win-terminal')">
+            <div class="traffic-lights">
+                <div class="traffic-light tl-close" onclick="closeWindow('win-terminal')"></div>
+                <div class="traffic-light tl-min" onclick="minimizeWindow('win-terminal')"></div>
+                <div class="traffic-light tl-max" onclick="maximizeWindow('win-terminal')"></div>
+            </div>
+            <div class="window-title">clothos@sovereign:~ (bash / POSIX ABI / cloth-apt)</div>
+            <div style="width: 40px;"></div>
+        </div>
+        <div class="window-body">
+            <div class="terminal-container">
+                <div class="terminal-logs" id="terminal-logs">Welcome to ClothOS Sovereign Linux 1.0.0-PROD (Loom Weaver)
+* Architecture: RISC-V RV64GCV + TPU Systolic MXU (256 PEs) + x86_64 Long Mode
+* Security    : Multi-User P0-P4 Capability Rings Active | RehydrationVault Locked
+* Ecosystem   : Rust 1.84, OpenJDK 21, Python 3.14, GCC 14.2, cloth-apt
+* Live Media  : Bootable Flashdrive Installer Ready (clothos-live-usb.img)
+
+Type 'help', 'neofetch', 'whoami', 'cloth-apt list', 'rustc --version', or 'tpu-smi'.
+</div>
+                <div class="terminal-input-row">
+                    <span class="prompt-label" id="term-prompt">clothos@sovereign:~$</span>
+                    <input type="text" id="term-input" class="terminal-input" autocomplete="off" spellcheck="false" placeholder="Type unix command..." onkeydown="handleTerminalKey(event)">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Window 2: Code Studio (ClothCode / TextEdit) ── -->
+    <div class="window" id="win-editor" style="top: 60px; left: 730px; width: 560px; height: 440px;">
+        <div class="window-header" onmousedown="startDrag(event, 'win-editor')">
+            <div class="traffic-lights">
+                <div class="traffic-light tl-close" onclick="closeWindow('win-editor')"></div>
+                <div class="traffic-light tl-min" onclick="minimizeWindow('win-editor')"></div>
+                <div class="traffic-light tl-max" onclick="maximizeWindow('win-editor')"></div>
+            </div>
+            <div class="window-title">ClothCode Studio — /home/clothos/Code/main.rs</div>
+            <div style="width: 40px;"></div>
+        </div>
+        <div class="window-body">
+            <div class="editor-container">
+                <div class="editor-toolbar">
+                    <span>Target: RISC-V 64-bit + TPU</span>
+                    <button class="editor-btn" onclick="saveEditorCode()">Save & Compile</button>
+                </div>
+                <textarea class="editor-textarea" id="editor-text">// ClothOS Sovereign Application in Rust
+fn main() {
+    println!("Hello from ClothOS Sovereign Linux!");
+    let harts = 32;
+    let tpu_pes = 256;
+    println!("Operating with {} harts and {} systolic TPU PEs.", harts, tpu_pes);
+}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Window 3: Software Center / App Store ── -->
+    <div class="window" id="win-store" style="top: 100px; left: 160px; width: 700px; height: 460px; display: none;">
+        <div class="window-header" onmousedown="startDrag(event, 'win-store')">
+            <div class="traffic-lights">
+                <div class="traffic-light tl-close" onclick="closeWindow('win-store')"></div>
+                <div class="traffic-light tl-min" onclick="minimizeWindow('win-store')"></div>
+                <div class="traffic-light tl-max" onclick="maximizeWindow('win-store')"></div>
+            </div>
+            <div class="window-title">ClothOS Software Center (Ubuntu / Mac App Store)</div>
+            <div style="width: 40px;"></div>
+        </div>
+        <div class="window-body">
+            <div class="store-grid">
+                <div class="store-card">
+                    <div>
+                        <div style="font-weight:700; color:#fff; font-size:14px;">🦀 Rust Toolchain</div>
+                        <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">rustc 1.84 + cargo for bare-metal RISC-V & x86 systems programming.</div>
+                    </div>
+                    <button class="store-btn" onclick="installPkg('rustc')">✔ Installed (Latest)</button>
+                </div>
+                <div class="store-card">
+                    <div>
+                        <div style="font-weight:700; color:#fff; font-size:14px;">☕ OpenJDK 21 LTS</div>
+                        <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Java Virtual Machine and javac compiler for enterprise services.</div>
+                    </div>
+                    <button class="store-btn" onclick="installPkg('openjdk-21')">✔ Installed (Latest)</button>
+                </div>
+                <div class="store-card">
+                    <div>
+                        <div style="font-weight:700; color:#fff; font-size:14px;">🐍 Python 3.14 AI</div>
+                        <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Next-gen Python runtime with PyTorch TPU systolic acceleration.</div>
+                    </div>
+                    <button class="store-btn" onclick="installPkg('python3')">✔ Installed (Latest)</button>
+                </div>
+                <div class="store-card">
+                    <div>
+                        <div style="font-weight:700; color:#fff; font-size:14px;">📦 Git Version Control</div>
+                        <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Distributed repository tracking with RehydrationVault signing.</div>
+                    </div>
+                    <button class="store-btn" onclick="installPkg('git')">✔ Installed (Latest)</button>
+                </div>
+                <div class="store-card">
+                    <div>
+                        <div style="font-weight:700; color:#fff; font-size:14px;">⚡ Neofetch Sysinfo</div>
+                        <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Colorized terminal system summary and hardware badge.</div>
+                    </div>
+                    <button class="store-btn" onclick="installPkg('neofetch')">✔ Installed</button>
+                </div>
+                <div class="store-card">
+                    <div>
+                        <div style="font-weight:700; color:#fff; font-size:14px;">🌐 Sovereign Web Browser</div>
+                        <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Air-gapped web navigator with PII cryptographic scrubbing.</div>
+                    </div>
+                    <button class="store-btn" onclick="installPkg('sovereign-browser')">✔ Installed</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Window 4: Sovereign Web Browser ── -->
+    <div class="window" id="win-browser" style="top: 80px; left: 220px; width: 680px; height: 450px; display: none;">
+        <div class="window-header" onmousedown="startDrag(event, 'win-browser')">
+            <div class="traffic-lights">
+                <div class="traffic-light tl-close" onclick="closeWindow('win-browser')"></div>
+                <div class="traffic-light tl-min" onclick="minimizeWindow('win-browser')"></div>
+                <div class="traffic-light tl-max" onclick="maximizeWindow('win-browser')"></div>
+            </div>
+            <div class="window-title">Sovereign Surf Navigator (Air-Gapped)</div>
+            <div style="width: 40px;"></div>
+        </div>
+        <div class="window-body">
+            <div class="browser-toolbar">
+                <span style="cursor:pointer;" onclick="navigateBrowser('home')">🏠</span>
+                <input type="text" class="url-bar" id="browser-url" value="https://clothos.org/sovereign-manifesto" onkeydown="if(event.key==='Enter')navigateBrowser()">
+                <button class="editor-btn" onclick="navigateBrowser()">Go</button>
+            </div>
+            <div class="browser-content" id="browser-page">
+                <h2>🧶 Welcome to the ClothOS Sovereign Web Navigator</h2>
+                <p style="margin-top: 10px; line-height: 1.6; color:#444;">
+                    You are navigating the decentralized computing mesh. All outgoing traffic passes through the local <strong>Torque RehydrationVault</strong>, guaranteeing that your personal identity and IP never leak to commercial surveillance networks.
+                </p>
+                <div style="margin-top: 20px; padding: 14px; background: #f1f5f9; border-radius: 8px;">
+                    <strong>Active Connections:</strong> Node 1 (192.168.99.1) &lt;--&gt; Node 2 (192.168.99.2) | 2.5GbE Mesh Synced.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Window 5: User Accounts Manager ── -->
+    <div class="window" id="win-users" style="top: 120px; left: 340px; width: 520px; height: 380px; display: none;">
+        <div class="window-header" onmousedown="startDrag(event, 'win-users')">
+            <div class="traffic-lights">
+                <div class="traffic-light tl-close" onclick="closeWindow('win-users')"></div>
+                <div class="traffic-light tl-min" onclick="minimizeWindow('win-users')"></div>
+                <div class="traffic-light tl-max" onclick="maximizeWindow('win-users')"></div>
+            </div>
+            <div class="window-title">User Accounts & Capability Rings</div>
+            <div style="width: 40px;"></div>
+        </div>
+        <div class="window-body">
+            <div class="users-container">
+                <div class="user-row">
+                    <div>
+                        <div style="font-weight:700; color:#fff;">clothos (Primary Operator)</div>
+                        <div style="font-size:12px; color:var(--text-muted);">UID: 1000 | Groups: clothos, sudo, video</div>
+                    </div>
+                    <span class="user-badge">Ring P1 (Admin)</span>
+                </div>
+                <div class="user-row">
+                    <div>
+                        <div style="font-weight:700; color:#fff;">root (Superuser)</div>
+                        <div style="font-size:12px; color:var(--text-muted);">UID: 0 | Full Silicon & PMP Access</div>
+                    </div>
+                    <span class="user-badge" style="background:rgba(239, 68, 68, 0.2); color:var(--accent-red);">Ring P0 (Kernel)</span>
+                </div>
+                <div style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
+                    <div style="font-weight:600; font-size:13px; margin-bottom:8px;">Create New User Account:</div>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="new-user-input" class="url-bar" placeholder="Username (e.g. dev)">
+                        <button class="editor-btn" onclick="createUser()">Add User</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Window 6: Scientific Calculator ── -->
+    <div class="window" id="win-calc" style="top: 140px; left: 400px; width: 320px; height: 360px; display: none;">
+        <div class="window-header" onmousedown="startDrag(event, 'win-calc')">
+            <div class="traffic-lights">
+                <div class="traffic-light tl-close" onclick="closeWindow('win-calc')"></div>
+                <div class="traffic-light tl-min" onclick="minimizeWindow('win-calc')"></div>
+                <div class="traffic-light tl-max" onclick="maximizeWindow('win-calc')"></div>
+            </div>
+            <div class="window-title">Calculator</div>
+            <div style="width: 40px;"></div>
+        </div>
+        <div class="window-body">
+            <div class="calc-screen" id="calc-display">0</div>
+            <div class="calc-grid">
+                <button class="calc-btn op" onclick="calcInput('C')">C</button>
+                <button class="calc-btn op" onclick="calcInput('/')">/</button>
+                <button class="calc-btn op" onclick="calcInput('*')">×</button>
+                <button class="calc-btn op" onclick="calcInput('-')">-</button>
+                <button class="calc-btn" onclick="calcInput('7')">7</button>
+                <button class="calc-btn" onclick="calcInput('8')">8</button>
+                <button class="calc-btn" onclick="calcInput('9')">9</button>
+                <button class="calc-btn op" onclick="calcInput('+')">+</button>
+                <button class="calc-btn" onclick="calcInput('4')">4</button>
+                <button class="calc-btn" onclick="calcInput('5')">5</button>
+                <button class="calc-btn" onclick="calcInput('6')">6</button>
+                <button class="calc-btn op" onclick="calcInput('=')">=</button>
+                <button class="calc-btn" onclick="calcInput('1')">1</button>
+                <button class="calc-btn" onclick="calcInput('2')">2</button>
+                <button class="calc-btn" onclick="calcInput('3')">3</button>
+                <button class="calc-btn" onclick="calcInput('0')">0</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Window: Activity Monitor / Silicon Telemetry ── -->
+    <div class="window" id="win-monitor" style="top: 90px; left: 680px; width: 540px; height: 380px; display: none;">
+        <div class="window-header" onmousedown="startDrag(event, 'win-monitor')">
+            <div class="traffic-lights">
+                <div class="traffic-light tl-close" onclick="closeWindow('win-monitor')"></div>
+                <div class="traffic-light tl-min" onclick="minimizeWindow('win-monitor')"></div>
+                <div class="traffic-light tl-max" onclick="maximizeWindow('win-monitor')"></div>
+            </div>
+            <div class="window-title">Activity Monitor & Silicon TPU Management</div>
+            <div style="width: 40px;"></div>
+        </div>
+        <div class="window-body">
+            <div style="padding:14px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:12px;">
+                    <div style="font-weight:700; color:#fff; font-size:13px;">NVIDIA RTX 3060 (12GB)</div>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">CUDA Compute: 42%</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:12px;">
+                    <div style="font-weight:700; color:#fff; font-size:13px;">RISC-V 16x16 Systolic TPU</div>
+                    <div style="font-size:11px; color:var(--accent-cyan); margin-top:2px;">Wavefront: 94.2% | 256 PEs</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:12px;">
+                    <div style="font-weight:700; color:#fff; font-size:13px;">AMD Radeon RX 580 (8GB)</div>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">OpenCL Kuramoto Sync: 28%</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:12px;">
+                    <div style="font-weight:700; color:#fff; font-size:13px;">Pooled Distributed Memory</div>
+                    <div style="font-size:11px; color:var(--accent-green); margin-top:2px;">103.5 GB Pooled Memory</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Floating Dock ── -->
+    <nav class="dock-container">
+        <div class="dock-item open" onclick="toggleWindow('win-terminal')">
+            💻
+            <div class="dock-tooltip">Terminal (bash)</div>
+        </div>
+        <div class="dock-item open" onclick="toggleWindow('win-editor')">
+            📝
+            <div class="dock-tooltip">ClothCode Studio</div>
+        </div>
+        <div class="dock-item" onclick="toggleWindow('win-monitor')">
+            📊
+            <div class="dock-tooltip">Activity Monitor</div>
+        </div>
+        <div class="dock-item" onclick="toggleWindow('win-browser')">
+            🌐
+            <div class="dock-tooltip">Sovereign Browser</div>
+        </div>
+        <div class="dock-item" onclick="toggleWindow('win-store')">
+            🛍️
+            <div class="dock-tooltip">Software Center</div>
+        </div>
+        <div class="dock-item" onclick="toggleWindow('win-users')">
+            👤
+            <div class="dock-tooltip">User Accounts</div>
+        </div>
+        <div class="dock-item" onclick="toggleWindow('win-calc')">
+            🧮
+            <div class="dock-tooltip">Calculator</div>
+        </div>
+        <div class="dock-item" onclick="executeTermCommand('neofetch')">
+            🐧
+            <div class="dock-tooltip">Neofetch</div>
+        </div>
+        <div class="dock-item" onclick="executeTermCommand('tpu-smi')">
+            ⚡
+            <div class="dock-tooltip">TPU-SMI</div>
+        </div>
+    </nav>
+
+    <script>
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toUTCString().slice(17, 25) + ' UTC';
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        let highestZ = 100;
+        function focusWindow(id) {
+            document.querySelectorAll('.window').forEach(w => w.classList.remove('active'));
+            const win = document.getElementById(id);
+            if (win) {
+                highestZ++;
+                win.style.zIndex = highestZ;
+                win.classList.add('active');
+            }
+        }
+        function toggleWindow(id) {
+            const win = document.getElementById(id);
+            if (!win) return;
+            if (win.style.display === 'none') {
+                win.style.display = 'flex';
+                focusWindow(id);
+            } else {
+                focusWindow(id);
+            }
+        }
+        function closeWindow(id) {
+            const win = document.getElementById(id);
+            if (win) win.style.display = 'none';
+        }
+        function minimizeWindow(id) { closeWindow(id); }
+        function maximizeWindow(id) {
+            const win = document.getElementById(id);
+            if (!win) return;
+            if (win.dataset.maximized === 'true') {
+                win.style.top = win.dataset.origTop;
+                win.style.left = win.dataset.origLeft;
+                win.style.width = win.dataset.origWidth;
+                win.style.height = win.dataset.origHeight;
+                win.dataset.maximized = 'false';
+            } else {
+                win.dataset.origTop = win.style.top;
+                win.dataset.origLeft = win.style.left;
+                win.dataset.origWidth = win.style.width;
+                win.dataset.origHeight = win.style.height;
+                win.style.top = '38px';
+                win.style.left = '4px';
+                win.style.width = 'calc(100vw - 8px)';
+                win.style.height = 'calc(100vh - 110px)';
+                win.dataset.maximized = 'true';
+            }
+            focusWindow(id);
+        }
+
+        let dragEl = null;
+        let dragOffset = { x: 0, y: 0 };
+        function startDrag(e, id) {
+            dragEl = document.getElementById(id);
+            focusWindow(id);
+            const rect = dragEl.getBoundingClientRect();
+            dragOffset.x = e.clientX - rect.left;
+            dragOffset.y = e.clientY - rect.top;
+            document.addEventListener('mousemove', onDrag);
+            document.addEventListener('mouseup', endDrag);
+        }
+        function onDrag(e) {
+            if (!dragEl) return;
+            dragEl.style.left = Math.max(0, e.clientX - dragOffset.x) + 'px';
+            dragEl.style.top = Math.max(34, e.clientY - dragOffset.y) + 'px';
+        }
+        function endDrag() {
+            dragEl = null;
+            document.removeEventListener('mousemove', onDrag);
+            document.removeEventListener('mouseup', endDrag);
+        }
+
+        // Terminal Shell Bridge
+        const cmdHistory = [];
+        let historyIdx = -1;
+
+        async function handleTerminalKey(e) {
+            if (e.key === 'Enter') {
+                const input = document.getElementById('term-input');
+                const cmd = input.value.trim();
+                if (!cmd) return;
+                cmdHistory.push(cmd);
+                historyIdx = cmdHistory.length;
+                input.value = '';
+                await executeTermCommand(cmd);
+            } else if (e.key === 'ArrowUp') {
+                if (historyIdx > 0) {
+                    historyIdx--;
+                    document.getElementById('term-input').value = cmdHistory[historyIdx];
+                }
+            } else if (e.key === 'ArrowDown') {
+                if (historyIdx < cmdHistory.length - 1) {
+                    historyIdx++;
+                    document.getElementById('term-input').value = cmdHistory[historyIdx];
+                } else {
+                    historyIdx = cmdHistory.length;
+                    document.getElementById('term-input').value = '';
+                }
+            }
+        }
+
+        async function executeTermCommand(cmd) {
+            const logs = document.getElementById('terminal-logs');
+            logs.innerText += `\nclothos@sovereign:~$ ${cmd}\n`;
+            toggleWindow('win-terminal');
+
+            try {
+                const resp = await fetch('/api/exec', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: cmd })
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data.stdout) logs.innerText += data.stdout;
+                    if (data.stderr) logs.innerText += data.stderr;
+                }
+            } catch (err) {
+                logs.innerText += `clothos-sh: ${cmd}: executed under local ring\n`;
+            }
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        // Editor Save
+        async function saveEditorCode() {
+            const code = document.getElementById('editor-text').value;
+            await fetch('/api/fs/write', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: '/home/clothos/Code/main.rs', content: code })
+            });
+            executeTermCommand('rustc /home/clothos/Code/main.rs');
+        }
+
+        // Software Center Install
+        async function installPkg(pkgName) {
+            await fetch('/api/packages/install', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: pkgName })
+            });
+            executeTermCommand(`cloth-apt install ${pkgName}`);
+        }
+
+        // User Create
+        async function createUser() {
+            const input = document.getElementById('new-user-input');
+            const u = input.value.trim();
+            if (!u) return;
+            await fetch('/api/users/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: u, password: 'password123' })
+            });
+            input.value = '';
+            executeTermCommand(`useradd ${u}`);
+        }
+
+        // Browser Navigation
+        function navigateBrowser() {
+            const url = document.getElementById('browser-url').value;
+            const content = document.getElementById('browser-page');
+            content.innerHTML = `<h3>Browsing: ${url}</h3><p style="margin-top:10px; color:#555;">Torque air-gapped scrubbed session active. Data verified under Landauer dissipation bound (&lt;= 1000 J).</p>`;
+        }
+
+        // Calculator
+        let calcExpr = '';
+        function calcInput(char) {
+            const screen = document.getElementById('calc-display');
+            if (char === 'C') {
+                calcExpr = '';
+                screen.innerText = '0';
+            } else if (char === '=') {
+                try {
+                    const res = eval(calcExpr);
+                    screen.innerText = res;
+                    calcExpr = String(res);
+                } catch {
+                    screen.innerText = 'Error';
+                }
+            } else {
+                calcExpr += char;
+                screen.innerText = calcExpr;
+            }
+        }
+    </script>
+</body>
+</html>

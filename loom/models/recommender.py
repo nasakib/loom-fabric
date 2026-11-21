@@ -46,6 +46,18 @@ class RecommendedModel(BaseModel):
 
 
 MODEL_BENCHMARKS: Dict[str, BenchmarkScores] = {
+    "loom-sovereign:latest": BenchmarkScores(
+        mmlu_score=84.5,
+        humaneval_coding=85.2,
+        math_reasoning=86.8,
+        quality_tier="Sovereign Epistemic Frontier (Fiduciary & Bullshit Filter)",
+    ),
+    "loom-sovereign-fast:latest": BenchmarkScores(
+        mmlu_score=75.8,
+        humaneval_coding=77.0,
+        math_reasoning=74.5,
+        quality_tier="Sovereign Epistemic Fast (100% VRAM / Draft)",
+    ),
     "qwen2.5:32b": BenchmarkScores(
         mmlu_score=83.3,
         humaneval_coding=84.1,

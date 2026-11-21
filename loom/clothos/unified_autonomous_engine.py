@@ -355,10 +355,23 @@ class ClothOSUnifiedAutonomousEngine:
         except Exception:
             node2_data = {"online": False}
 
+        try:
+            import psutil
+            host_ram_gb = round(psutil.virtual_memory().total / (1024**3), 2)
+        except Exception:
+            host_ram_gb = 39.87
+
+        measured_pooled = round(
+            host_ram_gb + (31.33 if node2_data.get("online") else 0.0),
+            2
+        )
+
         return {
             "device_count": len(prof.accelerators) + 1,
             "total_vram_gb": mesh_status.get("cluster_total_vram_gb", 20.0),
-            "pooled_memory_gb": mesh_status.get("total_pooled_memory_gb", 103.5),
+            "pooled_memory_gb": mesh_status.get("total_pooled_memory_gb", measured_pooled),
+            "host_physical_ram_gb": host_ram_gb,
+            "theoretical_pooled_capacity_gb": 103.5,
             "node2_peer": node2_data,
         }
 
@@ -489,20 +502,39 @@ class ClothOSUnifiedAutonomousEngine:
     # Phase 3: Epistemic Ingestion & Gap Discovery
     # =========================================================================
     def step_phase3_epistemic_ingestion(self) -> int:
-        """Harvests frontier signals from Moltbook feeds and science papers."""
+        """Harvests frontier signals from Reddit (/r/osdev), GitHub OS repos, and systems papers."""
         counts = self.hypothesis_store.count_by_status()
         pending_count = counts.get("pending", 0)
         synthesized = 0
 
         if pending_count < 6:
             self.stats["gpu0_status"] = "SYNTHESIZING_HYPOTHESIS"
-            new_id = self.hypothesis_engine.synthesize_new_hypothesis_from_moltbook()
-            if new_id:
-                synthesized += 1
-                logger.info(f"⚡ [GPU 0 Generator]: Formulated Moltbook hypothesis #{new_id}")
-                self.stats["gpu0_status"] = f"SYNTHESIZED_HYP_{new_id}"
-            else:
-                self.stats["gpu0_status"] = "ACTIVE_GENERATOR"
+            
+            # Primary: Ingest concrete OS research from Reddit / GitHub
+            try:
+                from loom.clothos.research_harvester import research_harvester
+                proposals = research_harvester.synthesize_clothos_proposals(limit=2)
+                for prop in proposals:
+                    new_id = self.hypothesis_store.add_hypothesis(
+                        submolt=prop.get("submolt", "m/systems"),
+                        claim=prop.get("claim", ""),
+                        author="ClothOS-OSDev-Harvester",
+                        rationale=prop.get("rationale", "")
+                    )
+                    if new_id:
+                        synthesized += 1
+                        logger.info(f"⚡ [OS Research Harvester]: Ratified OS hypothesis #{new_id}: {prop['claim'][:45]}... (Cited: {prop.get('provenance_url', '')})")
+            except Exception as exc:
+                logger.debug(f"OS Harvester note: {exc}")
+
+            # Secondary fallback: Moltbook generator if still starving
+            if synthesized == 0:
+                new_id = self.hypothesis_engine.synthesize_new_hypothesis_from_moltbook()
+                if new_id:
+                    synthesized += 1
+                    logger.info(f"⚡ [GPU 0 Generator]: Formulated Moltbook hypothesis #{new_id}")
+
+            self.stats["gpu0_status"] = f"SYNTHESIZED_HYP_{synthesized}"
         else:
             self.stats["gpu0_status"] = "QUEUE_STABLE"
         return synthesized

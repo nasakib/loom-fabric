@@ -1,0 +1,28 @@
+[package]
+name = "fabric-clothos-x86"
+version = "0.2.0"
+edition = "2021"
+publish = false
+license-file = "../../LICENSE"
+description = "PROPRIETARY — Fabric Special Edition for ClothOS on x86/x32 & x86_64 (Multiboot 1/2, Protected/Long Mode, 4-Level Paging, Local APIC, PCIe & Zero-Trust Ring Isolation)"
+authors = ["Najmos Sakib <natsakib@gmail.com>"]
+
+[features]
+default = ["std-userspace", "x86_64-longmode", "apic-timer"]
+std-userspace = []
+baremetal-clothos = []
+x86_64-longmode = []
+x86_32-protected = []
+apic-timer = []
+pcie-virtio = []
+
+[[bin]]
+name = "loom-clothos-x86"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

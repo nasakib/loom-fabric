@@ -49,6 +49,8 @@ dev = [
 [project.scripts]
 fabric = "loom.cli.main:app"
 loom = "loom.cli.main:app"
+clothos = "loom.clothos.shell:main"
+clothsh = "loom.clothos.shell:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

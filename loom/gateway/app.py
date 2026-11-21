@@ -896,3 +896,18 @@ async def api_cluster_action(req: Request) -> Dict[str, Any]:
 from loom.gateway.openclaw_bridge import router as openclaw_router
 app.include_router(openclaw_router)
 
+# Mount Spotlight-Local Compute Service Provider (sL-CSP) Router
+from loom.gateway.csp_router import router as csp_router
+app.include_router(csp_router)
+
+# Mount VectorCore CaaS and Sovereign Bank Router
+from loom.gateway.caas_router import router as caas_router
+app.include_router(caas_router)
+
+# Mount Ollama Protocol Compatibility & Network Onboarding Bridge
+from loom.gateway.ollama_bridge import router as ollama_bridge_router
+app.include_router(ollama_bridge_router)
+
+
+
+

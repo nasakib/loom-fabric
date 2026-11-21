@@ -1,0 +1,12 @@
+{
+  "_comment": "ClothOS Hardware & Cluster Configuration (Optional overrides). If omitted, ClothOS auto-discovers all specs dynamically.",
+  "auto_discovery": true,
+  "remote_node": {
+    "enabled": true,
+    "name": "Cluster Node 2 APU",
+    "ip": "192.168.99.2",
+    "vram_gb": 12.1,
+    "bandwidth_gbps": 50.0,
+    "role": "Remote Mesh Tensor Shard (Ray Cluster Head)"
+  }
+}

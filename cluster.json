@@ -1,0 +1,109 @@
+{
+    "cluster_name": "Antigravity-ClothOS-Fabric",
+    "version": "2.0.0",
+    "environment": "production",
+    "topology": {
+        "node1": {
+            "name": "skyTech",
+            "role": "compute_worker",
+            "description": "High-Density Dual-GPU Inference & Compute Rig",
+            "ip_wire": "192.168.99.1",
+            "ip_wifi": "192.168.1.110",
+            "ip_tailscale": "100.85.230.105",
+            "ports": {
+                "stitch_bridge": 5555,
+                "ollama": 11434,
+                "sentinel_gateway": 8000
+            },
+            "compute": {
+                "vcpus": 16,
+                "ram_gb": 40.0,
+                "gpus": [
+                    "RTX 3060 12GB",
+                    "RX 580 8GB"
+                ],
+                "vram_gb": 20.0
+            },
+            "models": [
+                {
+                    "tag": "loom-sovereign-fast:latest",
+                    "role": "drillbit_low_latency",
+                    "params": "7B"
+                },
+                {
+                    "tag": "loom-sovereign:latest",
+                    "role": "cortex_reasoner",
+                    "params": "32.8B"
+                },
+                {
+                    "tag": "loom-sovereign-70b:latest",
+                    "role": "epistemic_flagship",
+                    "params": "70.6B"
+                },
+                {
+                    "tag": "qwen2.5-coder:latest",
+                    "role": "code_synthesis",
+                    "params": "7B"
+                },
+                {
+                    "tag": "deepseek-r1:14b",
+                    "role": "math_chain_of_thought",
+                    "params": "14B"
+                }
+            ]
+        },
+        "node2": {
+            "name": "WIN-7CMAQLVP8MV",
+            "role": "orchestrator_decider",
+            "description": "Intelligent Decider, Context Arbiter & Client Interface",
+            "ip_wire": "192.168.99.2",
+            "ip_wifi": "192.168.1.116",
+            "ip_tailscale": "100.74.98.21",
+            "ports": {
+                "stitch_bridge": 5555,
+                "clothos_daemon": 8087,
+                "gui_server": 8090,
+                "ray_head": 6379,
+                "ray_dashboard": 8265
+            },
+            "compute": {
+                "vcpus": 16,
+                "ram_gb": 16.0,
+                "gpus": [
+                    "Radeon 680M / APU"
+                ]
+            }
+        }
+    },
+    "routing_policy": {
+        "delegator_node": "node2",
+        "compute_node": "node1",
+        "keep_alive_seconds": -1,
+        "max_context_window": 32768,
+        "overflow_strategy": "gemini-flash",
+        "timeouts": {
+            "fast_7b": 30.0,
+            "cortex_32b": 120.0,
+            "flagship_70b": 240.0
+        }
+    },
+    "csp_brokerage": {
+        "broker_authority": "VectorCore Holdings / ClothOS",
+        "settlement_partner": "Spotlight-Local, Inc.",
+        "in_network_fee_pct": 1.0,
+        "host_payout_pct": 99.0,
+        "primary_geohash": "dn5bpq",
+        "supported_workloads": [
+            "ai_inference",
+            "cloud_gaming",
+            "video_editing",
+            "3d_rendering"
+        ],
+        "supported_platforms": [
+            "windows_cuda",
+            "windows_vulkan",
+            "macos_apple_silicon_metal",
+            "linux_rocm"
+        ]
+    }
+}

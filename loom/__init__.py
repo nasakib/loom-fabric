@@ -4,6 +4,7 @@ import subprocess
 import sys
 
 __version__ = "0.1.0"
+LOOM_VERSION = __version__
 __author__ = "Vector Core Systems"
 
 # Guarantee zero stray console/terminal windows on Windows across GUI, Gateway, and Profiler
@@ -20,4 +21,7 @@ if sys.platform == "win32" and not getattr(subprocess.Popen, "_loom_windowless_p
 
     subprocess.Popen.__init__ = _loom_windowless_popen_init  # type: ignore[method-assign]
     subprocess.Popen._loom_windowless_patched = True  # type: ignore[attr-defined]
+
+from . import loom_types as types
+sys.modules["loom.types"] = types
 

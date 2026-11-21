@@ -33,13 +33,18 @@ from loom.tools.tap_die import TapDieThreader
 from loom.tools.vise import ViseLock
 from loom.tools.winch import WinchHoist
 from loom.tools.wrench import WrenchCoupler
+from loom.tools.inference_engine import InferenceIntelligenceSuite
+from loom.tools.crystallized_memory import CrystallizedMemorySuite
+from loom.tools.universal_mathematics import UniversalMathematicalAtlas, StatisticalMathematicalInferenceEngine
+from loom.tools.epistemic_grounding import BullshitMeter, EpistemicRigorGauge
+from loom.tools.genetics_tool import SoftwareGeneticsSuite
 from loom.torque.enclave import TorqueEnclave
 
 logger = logging.getLogger("loom.tools.toolbox")
 
 
 class SovereignToolbox:
-    """The complete mechanical workshop tool suite for Fabric, Loom & ClothOS."""
+    """The complete mechanical, mathematical, epistemic, and genetic tool suite for Fabric, Loom & ClothOS."""
 
     _instance: Optional[SovereignToolbox] = None
 
@@ -65,6 +70,38 @@ class SovereignToolbox:
         # 5. Kinetic Impulse & Forging
         self.hammer = HammerForge()
 
+        # 6. Advanced Mathematical & Cognitive Inference
+        self.inference = InferenceIntelligenceSuite()
+        self.crystallized_memory = CrystallizedMemorySuite()
+        self.universal_math = UniversalMathematicalAtlas()
+        self.math_inference = StatisticalMathematicalInferenceEngine()
+
+        # 7. Epistemic Reality & Empirical Truth Guard (The Rubbish Score Gauge)
+        self.bullshit_meter = BullshitMeter()
+        self.rubbish_meter = self.bullshit_meter
+        self.epistemic_gauge = self.bullshit_meter
+        self.rubbish_gauge = self.bullshit_meter
+
+        # 8. Constitutional Fiduciary Guardrail (Anti-Malignancy & Planetary Stewardship)
+        self.fiduciary = self.bullshit_meter.fiduciary
+
+        # 9. Software Genetics Autonomous Compute Paradigm
+        self.genetics = SoftwareGeneticsSuite()
+
+        # 10. Truth-Based Imagination Engine (Fiction Grounded in Nonfiction)
+        from loom.tools.truth_imagination import TruthBasedImaginationEngine
+        self.imagination = TruthBasedImaginationEngine(
+            bullshit_meter=self.bullshit_meter,
+            fiduciary_guard=self.fiduciary,
+        )
+
+        # 11. Temporal Cognition: Planning, Remembering, Insight & Foresight
+        from loom.tools.temporal_cognition import TemporalCognitionSuite
+        self.cognition = TemporalCognitionSuite(
+            bullshit_meter=self.bullshit_meter,
+            fiduciary_guard=self.fiduciary,
+        )
+
     @classmethod
     def get_instance(cls) -> SovereignToolbox:
         if cls._instance is None:
@@ -72,7 +109,7 @@ class SovereignToolbox:
         return cls._instance
 
     def get_full_tooling_status(self) -> Dict[str, Any]:
-        """Returns live status matrix across all 11 precision tools."""
+        """Returns live status matrix across all precision, mathematical, epistemic, and genetic tools."""
         return {
             "torque": {"vault_tokens_count": len(getattr(self.torque.vault, "_forward", {}))},
             "ratchet": self.ratchet.get_status(),
@@ -85,6 +122,16 @@ class SovereignToolbox:
             "tap_die": self.tap_die.get_status(),
             "winch": self.winch.get_status(),
             "hammer": self.hammer.get_status(),
+            "inference": self.inference.get_status(),
+            "crystallized_memory": self.crystallized_memory.get_status(),
+            "universal_mathematics": {"status": "OPERATIONAL", "pillars_count": 5},
+            "math_inference": {"status": "OPERATIONAL", "inferred_conjectures_count": len(self.math_inference.inferred_conjectures)},
+            "rubbish_score_gauge": self.rubbish_meter.get_status(),
+            "bullshit_meter": self.bullshit_meter.get_status(),
+            "fiduciary_guard": self.fiduciary.get_status(),
+            "software_genetics": self.genetics.get_status(),
+            "truth_imagination": self.imagination.get_status(),
+            "temporal_cognition": self.cognition.get_status(),
         }
 
 

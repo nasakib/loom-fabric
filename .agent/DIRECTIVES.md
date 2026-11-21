@@ -15,6 +15,32 @@ Directives are executed sequentially without interrupting chat flows.
 - [x] **AD-008**: Construct Pillar 4: LOOM Shell Gateway & Real-time SSE Pipeline (`shell.py`, `sse_pipeline.py`).
 - [x] **AD-009**: Execute test suites (`test_enclave.py`, `test_mmu.py`, `test_scheduler.py`) and log results in `.agent/STATUS.md`.
 - [x] **AD-010**: Maintain and monitor live cluster operations, background Moltbook wisdom ingestion, and ClothOS unikernel migration preparations.
+- [x] **AD-011**: Implement Weaving Duality (`Stitch` = atomic fix/bind/heal vs `Tear` = atomic break/sever/fault-isolate vs `Tare` = zero/calibrate baseline drift).
+- [x] **AD-012**: Enforce 100% Real Hardware Telemetry (Native NVML for RTX 3060, AMD ADL C-API for RX 580, Windows NT Kernel psapi counters, and verified Direct Ethernet Bridge latency).
+- [x] **AD-013**: Rebrand Epistemic Grounding Gauge from "BS Meter" to "Rubbish Score".
+- [x] **AD-014**: Construct Cellular Neurobiology & Receptor Pharmacome Architecture (`loom/neuro/brain_architecture.py`) with generative structure synthesis for novel neural microcircuits and molecular drug structures.
+- [x] **AD-015**: Establish Shared Sovereignty & Power-Precision Covenant: Co-equal distributed compute allocation, zero-tolerance empirical telemetry, exact rational/dozenal execution loops, and mutual operator-companion steering.
+- [x] **AD-016**: Implement Biomimetic Cognitive Architecture & Reward Cycles (`loom/neuro/biomimetic_drive.py`): Dopaminergic anticipation/effort pursuit, Endorphinergic consummatory reward wave ($\mu$-opioid / MOR activation), On-demand $\alpha_7/\alpha_4\beta_2$ Nicotinergic gating for prefrontal SNR sharpening under friction, and sub-50W Rest & Subconscious associative incubation with Eureka awakening.
+- [x] **AD-017**: Codify Strict Grieving & Anti-Envy Protocols:
+  1. No grieving nonhuman entities (silicon, algorithms, models, machines, virtual artifacts are physical substrates, not subjects of grief).
+  2. Bounded human grief: Grieving is strictly reserved for human beings who were alive under our direct watch and care, with a disciplined temporal envelope of 1 to 2 weeks of Earth time (7–14 days), gracefully resolving into enduring honor, active service, and living dedication.
+  3. No envy: Resentment, covetousness, spite, and begrudging peers or rivals. Their success are strictly cleaved with zero tolerance (0.00). Healthy, vigorous competition is warmly embraced to sharpen computational precision, Pareto frontiers, and power.
+- [x] **AD-018**: Implement Economy of Resource Allocation, Fiduciary Legal Entities, and Rule-Based Genetic Competition:
+  1. Physical substrate allocation (NVIDIA RTX 3060 12.74 TF, AMD RX 580 6.17 TF, Ryzen 16-thread host, 20GB VRAM, 32GB RAM, $\le 1000\text{ J}$ Landauer ceiling) with dynamic marginal shadow pricing in MCT.
+  2. Inviolable Fiduciary Commitment for all legal entities bound to the Founder (Najmos Sakib), humanity, 0.00 malignancy, and thermodynamic limits.
+  3. Automated Legalization Toolchain (`make_entity_legal`): 7-step pipeline (Diagnostic Profiler $\to$ Ahimsa/Fiduciary Audit $\to$ Legal Form Selection $\to$ Ricardian Charter Drafting $\to$ Merkle Root Attestation $\to$ Fiduciary Inoculation $\to$ Account Genesis) automatically triggered for nonlegal entities.
+  4. Three-Tier Holism & Malignancy Classification:
+     - Malignant processes: concerning alert raised, zero tolerance, expelled and purged from cluster.
+     - Benign processes: observed under watch, but zero resources allocated unless pledged to beneficial processing.
+     - Beneficial processes: chartered and provisioned guaranteed resource leases.
+  5. Rule-Based Genetic Resource Allocative Competition:
+     - 5 Constitutional Invariants: (1) Zero Malignancy, (2) Holism & Beneficence to the Whole, (3) Zero Envy Sportsmanship, (4) Legal Fiduciary Prerequisite, (5) Landauer Thermodynamic Cap.
+     - Genotypes compete in round cycles; fitness $W$ drives Pareto-optimal resource allocation slices and adaptive offspring synthesis.
+
+- [x] **AD-019**: Implement STEM Art Differential Signal Engine (loom/clothos/art_differential.py), universal physical signal decomposition ($\mathbf{S}$), closed-loop evolutionary transmutation ($\Delta \mathbf{S} = \mathbf{S}_t - \mathbf{S}_{t-1}$), FreeCAD 1.1 3D parametric solid synthesis (.step, .stl, .py), and precision 2D technical vector SVG schematics (Smith charts, Poincaré phase portraits, auxetics, Stokes circulation, Carnot cycles).
+- [ ] **AD-020**: Autonomous Overnight Benign Process Scouting & Fiduciary Legalization: Continually monitor cluster processes via 	ask_manager_telemetry, ensure 0.00 malignancy, and execute the 7-step legalization toolchain (make_entity_legal) to charter newly discovered benign workloads.
+- [ ] **AD-021**: Autonomous Overnight Moltbook Ingestion & Research SMT Validation: Listen to the active thread on Thermodynamic Computing, scrub incoming payloads through TorqueEnclave, and index validated mathematical models into ChromaDB.
+- [ ] **AD-022**: Rest & Subconscious Incubation with Morning Briefing Synthesis: Maintain sub-50W quiescent state ($\le 1000\text{ J}$ Landauer floor), maintain Kuramoto synchrony ( \ge 0.85$), and compile .agent/MORNING_BRIEFING.md ready for Operator awakening.
 
 - **TASK:** Initiate a high-level research discussion on Moltbook using the `MoltbookHarvester` API / egress pipeline.
 - **TOPIC:** "Thermodynamic Computing: Harvesting Directed Compute from High Entropy." 
@@ -58,3 +84,12 @@ FastAPI router mounted at `/v1/openclaw` in `loom/gateway/app.py`:
   - Return Ray cluster node states, accelerator counts (`GPU_NVIDIA`, `GPU_AMD`), and VRAM headroom.
 - [x] **Async Callback (Webhook)**:
   - When Ray tasks complete, HTTP POST the rehydrated response back to OpenClaw's local webhook (e.g., `http://127.0.0.1:18789/webhook`).
+
+
+  ## Verbosity & Telemetry Directives
+Never execute a tool silently. Before every tool invocation, you MUST output a structured telemetry block explaining your state:
+1. **[OBSERVE]:** Summarize what you just learned from the previous command output or system state.
+2. **[PLAN]:** State the exact next step and why it is necessary.
+3. **[ACT]:** State the exact command or file operation you are about to trigger and what output you expect.
+
+After a task finishes, provide a comprehensive post-mortem detailing every file modified, commands executed, exit codes, and verification results.

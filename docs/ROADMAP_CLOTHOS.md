@@ -61,5 +61,46 @@ flowchart LR
 | **Memory Architecture** | 4KB / 2MB POSIX Virtual Pages | 64MB Contiguous Tensor Tiles (`tmap`) |
 | **Driver Boundary** | User Space $\to$ Kernel $\to$ Hardware | Zero-Copy Capability Ring Buffer |
 | **Security Enclave** | Userspace Regex Scrubber | Hardware Page-Permission Cryptographic Enclave |
-| **Vector Registers** | $VLEN=128\text{ bits}$ (Scalar Fallback) | $VLEN=512\text{ bits}$ with Systolic Coprocessor |
-| **Latency to First Token** | 15–40 ms OS Dispatch Overhead | $< 1.2\text{ ms}$ Direct Core Interrupt |
+---
+
+## 4. Vision: Dual-Subsystem Hardware Evolution & Bare-Metal Transition
+
+ClothOS defines a staged dual-personality roadmap bridging present standard workstation silicon to future sovereign bare-metal hardware:
+
+```mermaid
+graph TD
+    subgraph STAGE_NOW ["Stage 1 (Current): Host Subsystem (WCOS / LCOS)"]
+        HOST_OS["Host Workstation (Windows 11 x86_64 / Linux)"]
+        WCOS_LAYER["ClothOS POSIX & Virtual Subsystem (`loom/clothos/posix_compat.py`)"]
+        EMU_TPU["Systolic Array Emulation (`loom/clothos/riscv_tpu_emulator.py`)"]
+        HOST_DEVICES["Accelerators (RTX 3060 CUDA, RX 580 OpenCL, 2.5GbE Mesh)"]
+        
+        HOST_OS --> WCOS_LAYER
+        WCOS_LAYER --> EMU_TPU
+        WCOS_LAYER --> HOST_DEVICES
+    end
+
+    subgraph STAGE_FUTURE ["Stage 2 (Vision Roadmap): Sovereign Bare-Metal OS"]
+        FIRMWARE["OpenSBI / U-Boot Firmware (`uEnv.txt`)"]
+        RV_KERNEL["ClothOS Sovereign RV64GCV Rust Unikernel (`clothos_rv64.ld`)"]
+        PMP["Hardware Physical Memory Protection (`pmpcfg0` CSR 0x3A0 / 0x9D NAPOT)"]
+        RVV["RISC-V Vector 1.0 (RVV) VLEN=512"]
+        HW_TPU["Physical Systolic Array Matrix Processing Units (TPU MXUs MMIO)"]
+        
+        FIRMWARE --> RV_KERNEL
+        RV_KERNEL --> PMP
+        RV_KERNEL --> RVV
+        RV_KERNEL --> HW_TPU
+    end
+```
+
+### Staged Silicon Architecture Matrix
+
+| Architectural Subsystem | Present Implementation (Stage 1: Host Workstation) [Status: Implemented] | Future Hardware Target (Stage 2: Bare-Metal Unikernel) [Status: Planned] |
+| :--- | :--- | :--- |
+| **Execution Mode** | WCOS/POSIX guest layer running under Windows 11 / Linux with `/proc`, `/dev`, and virtual VFS. | Primary bootable operating system with direct bare-metal hardware ownership (no host OS or hypervisor). |
+| **Silicon Platform** | Heterogeneous x86_64 dual-node cluster (skyTech RTX 3060 + AMD RX 580 + Node 2 AMD Ryzen 7). | Custom RV64GCV RISC-V SoC with integrated 2D systolic array TPU coprocessor. |
+| **Memory Isolation** | Sandboxed virtualization with Ring P0–P5 hierarchical capabilities in Python/C++. | Hardware-enforced RISC-V Physical Memory Protection (`pmpcfg0` CSR 0x3A0, byte `0x9D` locked NAPOT). |
+| **Matrix Processing** | Cycle-accurate 2D systolic array emulation (`riscv_tpu_emulator.py`) + CUDA/OpenCL dispatch. | Direct MMIO and memory-mapped PCIe streaming into physical 2D systolic TPU Matrix Units (MXUs). |
+| **Kernel Entry** | CLI entry points (`wcos`, `wcoss`, `clothsh`, or `python -m loom.cli.main`). | Hardware reset vector initialized via OpenSBI Supervisor Binary Interface into `clothos_rv64.ld`. |
+| **Memory Architecture** | Dynamic host RAM metrology (psutil) + Tailscale/2.5GbE distributed mesh pooling. | Contiguous 64MB tensor tiles (`tmap`) with zero-copy capability ring buffers. |

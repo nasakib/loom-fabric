@@ -18,8 +18,14 @@ The Interactive 8-Stage Reality Foundry of ClothOS:
 
 from __future__ import annotations
 
-import math
+from pathlib import Path
 import sys
+
+_WORKSPACE_ROOT = str(Path(__file__).resolve().parents[1])
+if _WORKSPACE_ROOT not in sys.path:
+    sys.path.insert(0, _WORKSPACE_ROOT)
+
+import math
 import time
 from typing import Any, Dict, List, Optional
 import numpy as np
