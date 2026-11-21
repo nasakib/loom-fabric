@@ -908,6 +908,11 @@ app.include_router(caas_router)
 from loom.gateway.ollama_bridge import router as ollama_bridge_router
 app.include_router(ollama_bridge_router)
 
+# Mount Loom Fabric Modem & Seamless Mesh Router ("Wi-Fi for Compute")
+from loom.gateway.modem_router import router as modem_router
+app.include_router(modem_router)
+
+
 
 
 
