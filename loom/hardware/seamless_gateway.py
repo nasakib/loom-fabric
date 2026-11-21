@@ -99,9 +99,55 @@ class SeamlessComputeGateway:
         )
 
         # ---------------------------------------------------------------------
-        # 1. Specialized Algorithmic Handlers (P2: Base-12, Base-16, 2-Bit ATGC)
+        # 1. Specialized Algorithmic Handlers (Base-16 Primary, Base-12 & ATGC)
         # ---------------------------------------------------------------------
-        if req.workload_type == "base12_convert":
+        if req.workload_type in ("base16", "base16_frame", "base16_convert"):
+            inp = req.prompt_or_payload
+            if isinstance(inp, (int, float)):
+                # Numeric hexadecimal conversion
+                if isinstance(inp, int):
+                    hex_str = f"0x{inp:X}"
+                else:
+                    # IEEE 754 double precision float to hex
+                    import struct
+                    packed_float = struct.pack(">d", float(inp))
+                    hex_str = f"0x{self.b16_codec.encode(packed_float)}"
+                elapsed_ms = (time.time() - start_time) * 1000.0
+                return SeamlessComputeResult(
+                    task_id=task_id,
+                    status="SUCCESS",
+                    result_text=hex_str,
+                    execution_route="Hardware-Native Base-16 ALU & Memory Transformer",
+                    total_latency_ms=round(elapsed_ms, 3),
+                    dma_transit_time_ms=0.01,
+                    tflops_dispatched=1.0,
+                    carrier_link_bars="●●●●●",
+                    payload_metadata={"base16": hex_str, "input": inp, "nibble_aligned": True},
+                )
+            else:
+                # Buffer DMA framing
+                raw_data = inp if isinstance(inp, bytes) else str(inp).encode("utf-8")
+                framed = self.b16_codec.frame_dma_packet(raw_data, sequence_id=self.total_routed_tasks + 1)
+                crc_hex = self.b16_codec.compute_checksum_hex(raw_data)
+                elapsed_ms = (time.time() - start_time) * 1000.0
+                return SeamlessComputeResult(
+                    task_id=task_id,
+                    status="SUCCESS",
+                    result_text=f"Framed {len(framed)} bytes into Base-16 DMA packet with CRC32 {crc_hex}",
+                    execution_route="Native Base-16 DMA Packetizer (Zero-Copy 4-bit Nibble)",
+                    total_latency_ms=round(elapsed_ms, 3),
+                    dma_transit_time_ms=0.02,
+                    tflops_dispatched=1.0,
+                    carrier_link_bars="●●●●●",
+                    payload_metadata={
+                        "packet_bytes": len(framed),
+                        "crc32": crc_hex,
+                        "hex_sample": self.b16_codec.encode(framed[:16]),
+                        "base16_aligned": True,
+                    },
+                )
+
+        elif req.workload_type == "base12_convert":
             val = float(req.prompt_or_payload)
             fp = self.b12_codec.encode_float(val)
             elapsed_ms = (time.time() - start_time) * 1000.0
@@ -109,29 +155,12 @@ class SeamlessComputeGateway:
                 task_id=task_id,
                 status="SUCCESS",
                 result_text=fp.to_string(),
-                execution_route="Local Polymorphic Radix Engine (Base-12 ALU)",
+                execution_route="Secondary Polymorphic Radix Engine (Base-12 Harmonic ALU)",
                 total_latency_ms=round(elapsed_ms, 3),
                 dma_transit_time_ms=0.01,
                 tflops_dispatched=1.0,
                 carrier_link_bars="●●●●●",
                 payload_metadata={"dozenal": fp.to_string(), "decimal": val, "integral": fp.integral_digits, "fractional": fp.fractional_digits},
-            )
-
-        elif req.workload_type == "base16_frame":
-            raw_data = req.prompt_or_payload if isinstance(req.prompt_or_payload, bytes) else str(req.prompt_or_payload).encode("utf-8")
-            framed = self.b16_codec.frame_dma_packet(raw_data, sequence_id=self.total_routed_tasks + 1)
-            crc_hex = self.b16_codec.compute_checksum_hex(raw_data)
-            elapsed_ms = (time.time() - start_time) * 1000.0
-            return SeamlessComputeResult(
-                task_id=task_id,
-                status="SUCCESS",
-                result_text=f"Framed {len(framed)} bytes with CRC32 {crc_hex}",
-                execution_route="Local Base-16 DMA Packetizer",
-                total_latency_ms=round(elapsed_ms, 3),
-                dma_transit_time_ms=0.02,
-                tflops_dispatched=1.0,
-                carrier_link_bars="●●●●●",
-                payload_metadata={"packet_bytes": len(framed), "crc32": crc_hex, "hex_sample": self.b16_codec.encode(framed[:16])},
             )
 
         elif req.workload_type == "atgc_analysis":

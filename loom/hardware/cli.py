@@ -41,8 +41,26 @@ def main(argv: Optional[List[str]] = None) -> int:
     exec_parser.add_argument("prompt", type=str, help="Prompt or task to execute")
     exec_parser.add_argument("--model", type=str, default="auto", help="Target model tier (auto, 7b, 70b)")
     exec_parser.add_argument("--vram", type=float, default=4.0, help="Required VRAM in GB")
-    exec_parser.add_argument("--type", type=str, default="llm_inference", choices=["llm_inference", "base12_convert", "base16_frame", "atgc_analysis"], help="Workload type")
+    exec_parser.add_argument(
+        "--type",
+        type=str,
+        default="llm_inference",
+        choices=["llm_inference", "base16", "base16_frame", "base12_convert", "atgc_analysis"],
+        help="Workload type (Base-16 is primary native substrate)"
+    )
     exec_parser.add_argument("--nvidia", action="store_true", help="Explicitly require NVIDIA hardware (triggers Node 2 purity protection)")
+
+    # Command: base16 (Dedicated Base-16 Native Inspector)
+    b16_parser = subparsers.add_parser("base16", help="Convert number or frame buffer into canonical Base-16 hexadecimal")
+    b16_parser.add_argument("input", type=str, help="Number or string payload to encode in Base-16")
+
+    # Command: base12 (Harmonic RoPE Coprocessor)
+    b12_parser = subparsers.add_parser("base12", help="Convert number into Base-12 duodecimal (harmonic attention RoPE)")
+    b12_parser.add_argument("input", type=str, help="Number to encode in Base-12")
+
+    # Command: atgc (2-Bit Genomic Accelerator)
+    atgc_parser = subparsers.add_parser("atgc", help="Analyze DNA/RNA in 2-bit genomic format with exact tail-bits")
+    atgc_parser.add_argument("sequence", type=str, help="Nucleotide string (A, C, G, T, U)")
 
     # Command: governance
     subparsers.add_parser("governance", help="Show Ring P0 Governance Root of Trust audit report")
@@ -102,6 +120,36 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"\nResponse:\n{res.result_text}\n")
         if res.payload_metadata:
             print("Payload Metadata:", json.dumps(res.payload_metadata, indent=2))
+        return 0
+
+    elif args.command == "base16":
+        gateway = SeamlessComputeGateway.get_instance()
+        # Parse numeric if possible, else pass as string/bytes
+        inp = args.input
+        try:
+            inp_parsed = int(inp, 0) if (inp.startswith("0x") or inp.startswith("0b")) else (float(inp) if "." in inp else int(inp))
+        except ValueError:
+            inp_parsed = inp
+        res = gateway.dispatch(prompt_or_payload=inp_parsed, workload_type="base16")
+        print(f"Base-16 Output: {res.result_text}")
+        if res.payload_metadata:
+            print("Metadata:", json.dumps(res.payload_metadata, indent=2))
+        return 0
+
+    elif args.command == "base12":
+        gateway = SeamlessComputeGateway.get_instance()
+        res = gateway.dispatch(prompt_or_payload=float(args.input), workload_type="base12_convert")
+        print(f"Base-12 Output: {res.result_text}")
+        if res.payload_metadata:
+            print("Metadata:", json.dumps(res.payload_metadata, indent=2))
+        return 0
+
+    elif args.command == "atgc":
+        gateway = SeamlessComputeGateway.get_instance()
+        res = gateway.dispatch(prompt_or_payload=args.sequence, workload_type="atgc_analysis")
+        print(f"ATGC Analysis: {res.result_text}")
+        if res.payload_metadata:
+            print("Metadata:", json.dumps(res.payload_metadata, indent=2))
         return 0
 
     elif args.command == "governance":

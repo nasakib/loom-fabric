@@ -350,13 +350,13 @@ class PolymorphicRadixEngine:
             )
             entropy_reduction = 32.0
         else:
-            base = 12
-            name = "Duodecimal (Base-12)"
+            base = 16
+            name = "Hexadecimal (Base-16)"
             rationale = (
-                "Default ClothOS AGI substrate radix: superior composite factorization (2, 3, 4, 6) "
-                "minimizes cumulative floating-point drift across deep DAG pipelines."
+                "Default ClothOS Silicon & Mesh substrate radix: native 4-bit nibble and byte-aligned "
+                "addressing provides zero-copy DMA line-rate throughput and zero hardware translation overhead."
             )
-            entropy_reduction = 38.2
+            entropy_reduction = 25.0
 
         return RadixRecommendation(
             optimal_base=base,
