@@ -1,0 +1,8 @@
+# ClothOS Sovereign RISC-V Boot Manifest (uEnv.txt / OpenSBI)
+# Target ISA: RV64GCV_zba_zbb_zbc_zkn
+# Inscribed: Najmos Sakib Sovereign Compute Continuum
+boot_target=rv64gcv
+kernel_addr=0x80200000
+fdt_addr=0x83000000
+initrd_addr=0x84000000
+bootargs=console=ttyS0,115200 root=/dev/ram0 clothos.prio=P0 clothos.landauer=1000J

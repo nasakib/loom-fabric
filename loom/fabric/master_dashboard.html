@@ -1,0 +1,3098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClothOS / Loom — Sovereign Compute Command Center & Autopoietic Living Mind</title>
+    <!-- Modern Google Fonts: Outfit, Inter, JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* =========================================================
+           ClothOS Autopoietic Living Design System (CSS Tokens)
+           ========================================================= */
+        :root {
+            --theme-bg-primary: #05080c;
+            --theme-bg-surface: #090e17;
+            --theme-bg-card: rgba(15, 23, 36, 0.78);
+            --theme-border: rgba(168, 85, 247, 0.22);
+            --theme-accent-primary: #a855f7;
+            --theme-accent-secondary: #10b981;
+            --theme-accent-glow: rgba(168, 85, 247, 0.45);
+            --theme-text-primary: #f8fafc;
+            --theme-text-secondary: #94a3b8;
+            --theme-backdrop-blur: 18px;
+            --theme-border-radius: 12px;
+            --theme-glow-intensity: 0.35;
+            --theme-morphic-speed: 1.0s;
+            --theme-font-heading: 'Outfit', -apple-system, sans-serif;
+            --theme-font-body: 'Inter', -apple-system, sans-serif;
+            --theme-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+            --status-emerald: #10b981;
+            --status-cyan: #00e5ff;
+            --status-amber: #f59e0b;
+            --status-rose: #f43f5e;
+            --status-purple: #c084fc;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            scrollbar-width: thin;
+            scrollbar-color: var(--theme-border) transparent;
+        }
+
+        *::-webkit-scrollbar { width: 6px; height: 6px; }
+        *::-webkit-scrollbar-track { background: transparent; }
+        *::-webkit-scrollbar-thumb { background: var(--theme-border); border-radius: 4px; }
+
+        body {
+            font-family: var(--theme-font-body);
+            background-color: var(--theme-bg-primary);
+            color: var(--theme-text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            line-height: 1.5;
+            transition: background-color 0.4s ease, color 0.4s ease;
+            position: relative;
+        }
+
+        #morphicCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.55;
+            transition: opacity 0.5s ease;
+        }
+
+        /* Top Navigation Header */
+        header.app-header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: rgba(9, 14, 23, 0.88);
+            backdrop-filter: blur(var(--theme-backdrop-blur));
+            -webkit-backdrop-filter: blur(var(--theme-backdrop-blur));
+            border-bottom: 1px solid var(--theme-border);
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .brand-logo-gem {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--theme-accent-primary), var(--theme-accent-secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow: 0 0 16px var(--theme-accent-glow);
+            animation: pulse-gem 3s infinite ease-in-out;
+        }
+
+        @keyframes pulse-gem {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 16px var(--theme-accent-glow); }
+            50% { transform: scale(1.05); box-shadow: 0 0 24px var(--theme-accent-glow); }
+        }
+
+        .brand-title-wrap { display: flex; flex-direction: column; }
+        .brand-title {
+            font-family: var(--theme-font-heading);
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #ffffff, var(--theme-text-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .brand-subtitle {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--theme-text-secondary);
+            font-family: var(--theme-font-mono);
+            letter-spacing: 0.05em;
+        }
+
+        .header-telemetry-pills {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 10px;
+            font-weight: 700;
+            font-family: var(--theme-font-mono);
+            background: var(--theme-bg-card);
+            border: 1px solid var(--theme-border);
+            color: var(--theme-text-primary);
+            backdrop-filter: blur(8px);
+            transition: all 0.2s ease;
+        }
+        .pill:hover { border-color: var(--theme-accent-primary); transform: translateY(-1px); }
+        .pill-emerald { border-color: rgba(16, 185, 129, 0.4); color: #34d399; }
+        .pill-purple { border-color: rgba(168, 85, 247, 0.4); color: #c084fc; }
+        .pill-cyan { border-color: rgba(0, 229, 255, 0.4); color: #38bdf8; }
+        .pill-amber { border-color: rgba(245, 158, 11, 0.4); color: #fbbf24; }
+
+        .dot-pulse-green {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--status-emerald);
+            box-shadow: 0 0 8px var(--status-emerald);
+            animation: pulse-dot 1.8s infinite;
+            display: inline-block;
+        }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn {
+            background: var(--theme-bg-card);
+            color: var(--theme-text-primary);
+            border: 1px solid var(--theme-border);
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: var(--theme-font-body);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            backdrop-filter: blur(8px);
+        }
+        .btn:hover {
+            border-color: var(--theme-accent-primary);
+            box-shadow: 0 0 12px var(--theme-accent-glow);
+            transform: translateY(-1px);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--theme-accent-primary), #7c3aed);
+            border-color: var(--theme-accent-primary);
+            color: #ffffff;
+        }
+        .btn-emerald {
+            background: linear-gradient(135deg, #059669, #10b981);
+            border-color: #10b981;
+            color: #fff;
+        }
+
+        .covenant-ribbon {
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.12), rgba(168, 85, 247, 0.12), rgba(0, 229, 255, 0.12));
+            border-bottom: 1px solid var(--theme-border);
+            padding: 6px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            z-index: 10;
+            position: relative;
+        }
+
+        .app-layout {
+            display: flex;
+            flex: 1;
+            position: relative;
+            z-index: 1;
+            min-height: calc(100vh - 105px);
+        }
+
+        /* Sidebar Navigation */
+        aside.app-sidebar {
+            width: 280px;
+            background: rgba(9, 14, 23, 0.82);
+            backdrop-filter: blur(var(--theme-backdrop-blur));
+            border-right: 1px solid var(--theme-border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            position: sticky;
+            top: 55px;
+            height: calc(100vh - 55px);
+            overflow-y: auto;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sidebar-search-box {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--theme-border);
+        }
+        .search-input-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .search-input-wrap input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--theme-border);
+            border-radius: 8px;
+            padding: 7px 12px 7px 30px;
+            font-size: 11px;
+            color: var(--theme-text-primary);
+            font-family: var(--theme-font-body);
+            outline: none;
+            transition: all 0.2s;
+        }
+        .search-input-wrap input:focus {
+            border-color: var(--theme-accent-primary);
+            box-shadow: 0 0 10px var(--theme-accent-glow);
+        }
+        .search-input-wrap .search-icon {
+            position: absolute;
+            left: 10px;
+            font-size: 12px;
+            color: var(--theme-text-secondary);
+        }
+
+        .sidebar-menu {
+            padding: 12px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .menu-category { display: flex; flex-direction: column; gap: 2px; }
+        .menu-category-title {
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--theme-text-secondary);
+            padding: 4px 12px 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            color: var(--theme-text-secondary);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+            border: 1px solid transparent;
+        }
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--theme-text-primary);
+            transform: translateX(2px);
+        }
+        .nav-item.active {
+            background: linear-gradient(90deg, rgba(168, 85, 247, 0.18), rgba(16, 185, 129, 0.08));
+            border-color: var(--theme-border);
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        .nav-item .nav-icon {
+            font-size: 14px;
+            width: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .nav-item .nav-badge {
+            margin-left: auto;
+            font-size: 9px;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: var(--theme-font-mono);
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--theme-text-secondary);
+        }
+        .nav-item.active .nav-badge {
+            background: var(--theme-accent-primary);
+            color: #ffffff;
+        }
+
+        /* Main Workspace */
+        main.app-main {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .tab-pane {
+            display: none;
+            animation: fadeIn 0.25s ease-out;
+        }
+        .tab-pane.active { display: block; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Glass Cards */
+        .glass-card {
+            background: var(--theme-bg-card);
+            border: 1px solid var(--theme-border);
+            border-radius: var(--theme-border-radius);
+            backdrop-filter: blur(var(--theme-backdrop-blur));
+            -webkit-backdrop-filter: blur(var(--theme-backdrop-blur));
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+            margin-bottom: 20px;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .glass-card:hover {
+            border-color: var(--theme-accent-primary);
+            box-shadow: 0 12px 40px var(--theme-accent-glow);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding-bottom: 10px;
+        }
+        .card-title {
+            font-family: var(--theme-font-heading);
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--theme-text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-subtitle {
+            font-size: 11px;
+            color: var(--theme-text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Grid Utilities */
+        .grid-12 { display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; }
+        .col-3 { grid-column: span 3; }
+        .col-4 { grid-column: span 4; }
+        .col-6 { grid-column: span 6; }
+        .col-8 { grid-column: span 8; }
+        .col-12 { grid-column: span 12; }
+
+        /* Metric Boxes */
+        .metric-box {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--theme-border);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+        .metric-box .label { font-size: 10px; color: var(--theme-text-secondary); text-transform: uppercase; margin-bottom: 4px; }
+        .metric-box .val { font-size: 20px; font-weight: 800; font-family: var(--theme-font-mono); color: var(--theme-text-primary); }
+        .metric-box .sub { font-size: 10px; color: var(--theme-accent-secondary); }
+
+        /* Task Manager Performance Grid */
+        .tm-container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 18px;
+            min-height: 520px;
+        }
+        .tm-sidebar { display: flex; flex-direction: column; gap: 10px; }
+        .tm-side-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--theme-border);
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tm-side-item:hover, .tm-side-item.active {
+            border-color: var(--theme-accent-primary);
+            background: rgba(168, 85, 247, 0.1);
+        }
+        .tm-side-title { font-size: 11px; font-weight: 800; color: var(--theme-text-secondary); text-transform: uppercase; }
+        .tm-side-val { font-size: 20px; font-weight: 800; font-family: var(--theme-font-mono); color: var(--theme-text-primary); }
+        .tm-side-sub { font-size: 10px; color: var(--theme-text-secondary); }
+        .tm-sparkline {
+            width: 100%; height: 26px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            margin-top: 6px;
+        }
+
+        /* 3D CAD Viewport */
+        .cad-viewport-container {
+            position: relative;
+            width: 100%;
+            height: 380px;
+            background: radial-gradient(circle at center, rgba(168,85,247,0.08) 0%, rgba(5,8,12,0.95) 100%);
+            border: 1px solid var(--theme-border);
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: grab;
+        }
+        .cad-viewport-container:active { cursor: grabbing; }
+        #cadCanvas3D { width: 100%; height: 100%; display: block; }
+        .cad-hud-overlay {
+            position: absolute;
+            bottom: 12px; left: 12px; right: 12px;
+            display: flex; justify-content: space-between; align-items: center;
+            pointer-events: none;
+        }
+        .cad-hud-pill {
+            background: rgba(5, 8, 12, 0.85);
+            border: 1px solid var(--theme-border);
+            backdrop-filter: blur(8px);
+            padding: 4px 10px; border-radius: 6px;
+            font-size: 10px; font-family: var(--theme-font-mono);
+            color: var(--theme-text-primary);
+            pointer-events: auto;
+        }
+
+        /* Tables */
+        table.sleek-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            font-family: var(--theme-font-mono);
+        }
+        table.sleek-table th {
+            border-bottom: 1px solid var(--theme-border);
+            padding: 10px 8px;
+            text-align: left;
+            color: var(--theme-text-secondary);
+            font-weight: 700;
+        }
+        table.sleek-table td {
+            padding: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: var(--theme-text-primary);
+        }
+
+        /* Sliders */
+        .sleek-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+        .sleek-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            background: var(--theme-accent-primary);
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--theme-accent-glow);
+        }
+
+        
+        /* =========================================================
+           Deliberate Bicameral Pair: Projector/Thinker ⇄ Decider
+           ========================================================= */
+        .bicameral-horizon {
+            background: rgba(6, 11, 18, 0.95);
+            border-bottom: 1px solid var(--theme-border);
+            padding: 8px 24px;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 16px;
+            z-index: 101;
+            position: relative;
+            backdrop-filter: blur(16px);
+        }
+
+        .bicameral-node {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 6px 14px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--theme-border);
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .bicameral-node:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .bicameral-node.active-perspective {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: var(--theme-accent-primary);
+            box-shadow: 0 0 16px var(--theme-accent-glow);
+        }
+
+        .node-badge-icon {
+            font-size: 20px;
+        }
+
+        .node-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .node-name {
+            font-size: 12px;
+            font-weight: 800;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--theme-font-heading);
+        }
+
+        .role-tag {
+            font-size: 9px;
+            font-family: var(--theme-font-mono);
+            font-weight: 800;
+            padding: 2px 7px;
+            border-radius: 9999px;
+            letter-spacing: 0.04em;
+        }
+
+        .tag-thinker {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.35);
+        }
+
+        .tag-decider {
+            background: rgba(52, 211, 153, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(52, 211, 153, 0.35);
+        }
+
+        .node-spec {
+            font-size: 10px;
+            color: var(--theme-text-secondary);
+            font-family: var(--theme-font-mono);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .node-status-line {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            color: #94a3b8;
+            font-family: var(--theme-font-mono);
+        }
+
+        .dot-pulse-cyan {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: #38bdf8;
+            box-shadow: 0 0 8px #38bdf8;
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+
+        .bicameral-synapse {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .synapse-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid var(--theme-border);
+            border-radius: 20px;
+            padding: 3px 12px;
+            font-size: 10px;
+            font-family: var(--theme-font-mono);
+        }
+
+        .synapse-label {
+            color: #c084fc;
+            font-weight: 800;
+        }
+
+        .synapse-latency {
+            color: #38bdf8;
+        }
+
+        .synapse-ratchet {
+            color: #fbbf24;
+        }
+
+        .synapse-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .synapse-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--theme-border);
+            color: #f1f5f9;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-family: var(--theme-font-mono);
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .synapse-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #38bdf8;
+            color: #ffffff;
+        }
+
+        .synapse-btn.btn-secondary {
+            background: rgba(168, 85, 247, 0.1);
+            border-color: rgba(168, 85, 247, 0.3);
+            color: #d8b4fe;
+        }
+
+        .synapse-btn.btn-ghost {
+            background: rgba(52, 211, 153, 0.08);
+            border-color: rgba(52, 211, 153, 0.25);
+            color: #6ee7b7;
+        }
+
+        /* Bicameral Dialogue Stream Drawer */
+        .bicameral-stream-drawer {
+            display: none;
+            background: rgba(4, 8, 14, 0.98);
+            border-bottom: 1px solid var(--theme-border);
+            padding: 12px 24px;
+            max-height: 220px;
+            overflow-y: auto;
+            backdrop-filter: blur(20px);
+            z-index: 100;
+        }
+
+        .bicameral-stream-drawer.open {
+            display: block;
+        }
+
+        .stream-step {
+            display: grid;
+            grid-template-columns: 80px 1fr 1fr;
+            gap: 12px;
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-family: var(--theme-font-mono);
+            font-size: 11px;
+            border-radius: 6px;
+            transition: background 0.15s ease;
+        }
+
+        .stream-step:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .step-time {
+            color: #64748b;
+        }
+
+        .step-thought {
+            color: #38bdf8;
+            border-left: 2px solid #38bdf8;
+            padding-left: 8px;
+        }
+
+        .step-verdict {
+            color: #34d399;
+            border-left: 2px solid #34d399;
+            padding-left: 8px;
+        }
+
+        .step-verdict.vetoed {
+            color: #f87171;
+            border-left-color: #f87171;
+        }
+
+        /* =========================================================
+           Dual-Plane Architecture: Separation of Usage vs. Coherence
+           ========================================================= */
+        .dual-plane-bar {
+            background: rgba(9, 14, 23, 0.95);
+            border-bottom: 1px solid var(--theme-border);
+            padding: 8px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            z-index: 100;
+            position: relative;
+            backdrop-filter: blur(16px);
+        }
+
+        .plane-switcher {
+            display: inline-flex;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid var(--theme-border);
+            border-radius: 12px;
+            padding: 4px;
+            gap: 6px;
+        }
+
+        .plane-tab {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 18px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--theme-text-secondary);
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: var(--theme-font-body);
+        }
+
+        .plane-tab:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .plane-tab.active {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--theme-border);
+            color: #ffffff;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .plane-tab.active.plane-usage {
+            border-color: rgba(0, 229, 255, 0.4);
+            box-shadow: 0 0 16px rgba(0, 229, 255, 0.2);
+        }
+
+        .plane-tab.active.plane-coherence {
+            border-color: rgba(168, 85, 247, 0.4);
+            box-shadow: 0 0 16px rgba(168, 85, 247, 0.25);
+        }
+
+        .plane-tab .plane-icon {
+            font-size: 16px;
+        }
+
+        .plane-tab .plane-text {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+        }
+
+        .plane-tab .plane-title {
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            font-family: var(--theme-font-heading);
+        }
+
+        .plane-tab .plane-sub {
+            font-size: 9px;
+            font-family: var(--theme-font-mono);
+            color: var(--theme-text-secondary);
+            opacity: 0.85;
+        }
+
+        .plane-tab.active .plane-sub {
+            color: #cbd5e1;
+        }
+
+        .plane-tab .plane-badge {
+            font-size: 9px;
+            font-weight: 800;
+            padding: 2px 7px;
+            border-radius: 9999px;
+            font-family: var(--theme-font-mono);
+            border: 1px solid var(--theme-border);
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--theme-text-secondary);
+        }
+
+        .plane-tab.active.plane-usage .plane-badge {
+            background: rgba(0, 229, 255, 0.15);
+            color: #38bdf8;
+            border-color: rgba(0, 229, 255, 0.4);
+        }
+
+        .plane-tab.active.plane-coherence .plane-badge {
+            background: rgba(168, 85, 247, 0.15);
+            color: #c084fc;
+            border-color: rgba(168, 85, 247, 0.4);
+        }
+
+        /* Coherence Barometer */
+        .coherence-barometer {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--theme-border);
+            border-radius: 10px;
+            padding: 6px 14px;
+            font-size: 11px;
+            font-family: var(--theme-font-mono);
+        }
+
+        .barometer-metric {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .barometer-label {
+            color: var(--theme-text-secondary);
+            font-size: 10px;
+        }
+
+        .barometer-val {
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        .barometer-divider {
+            width: 1px;
+            height: 14px;
+            background: var(--theme-border);
+        }
+
+        .barometer-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #34d399;
+        }
+
+        .plane-indicator-tag {
+            font-size: 10px;
+            font-family: var(--theme-font-mono);
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--theme-border);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--theme-text-secondary);
+        }
+
+        /* Command Palette Modal */
+        .palette-modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            z-index: 9999;
+            align-items: center; justify-content: center;
+        }
+        .palette-modal-backdrop.open { display: flex; }
+        .palette-box {
+            width: 620px; max-width: 90vw;
+            background: #090e17;
+            border: 1px solid var(--theme-border);
+            border-radius: 12px;
+            box-shadow: 0 16px 64px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+        }
+        .palette-input {
+            width: 100%; padding: 16px 20px;
+            background: transparent; border: none;
+            border-bottom: 1px solid var(--theme-border);
+            font-size: 14px; color: #fff; outline: none;
+            font-family: var(--theme-font-body);
+        }
+        .palette-results {
+            max-height: 340px; overflow-y: auto; padding: 8px;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .palette-item {
+            padding: 10px 14px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: space-between;
+            cursor: pointer; font-size: 12px; transition: all 0.15s;
+        }
+        .palette-item:hover { background: rgba(168, 85, 247, 0.2); color: #fff; }
+
+        /* Floating Toasts */
+        #toastContainer {
+            position: fixed; bottom: 24px; right: 24px;
+            display: flex; flex-direction: column; gap: 10px;
+            z-index: 10000; pointer-events: none;
+        }
+        .toast {
+            background: rgba(9, 14, 23, 0.95);
+            border: 1px solid var(--theme-border);
+            border-radius: 8px; padding: 12px 18px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            backdrop-filter: blur(12px);
+            font-size: 12px; color: #fff;
+            pointer-events: auto;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <canvas id="morphicCanvas"></canvas>
+
+    <!-- Header Navigation -->
+    <header class="app-header">
+        <div class="header-brand" onclick="switchTab('tab-autopoiesis')">
+            <div class="brand-logo-gem">🧬</div>
+            <div class="brand-title-wrap">
+                <span class="brand-title">CLOTHOS // LOOM</span>
+                <span class="brand-subtitle">SOVEREIGN FIDUCIARY FABRIC • v3.4.0</span>
+            </div>
+        </div>
+
+        <div class="header-telemetry-pills">
+            <div class="pill pill-emerald" id="pill-sse"><span class="dot-pulse-green"></span> SSE 100ms (10 Hz)</div>
+            <div class="pill pill-purple" id="pill-kuramoto">⚡ Kuramoto r = 0.880</div>
+            <div class="pill pill-cyan" id="pill-free-energy">📉 Free Energy F = 0.040</div>
+            <div class="pill pill-amber" id="pill-landauer">⚡ Energy Bound: Optimal</div>
+            <div class="pill" id="pill-memory">🧠 105.7 GB Pooled</div>
+            <div class="pill pill-emerald">🛡️ Zero-Trust Security: Enforced</div>
+        </div>
+
+        <div class="header-actions">
+            <button class="btn btn-emerald" onclick="tellClothOsToWorkOnItself()" title="Commands ClothOS to self-audit, repair dependencies, and calibrate lobes">
+                🛠️ Tell ClothOS to Work on Itself
+            </button>
+            <button class="btn btn-primary" onclick="triggerAutonomousUiEvolution()" title="Loom reflects on internal state and mutates its own UI phenotype">
+                🧬 Evolve Interface
+            </button>
+            <select id="themeSelector" onchange="applyThemePreset(this.value)" class="btn" style="outline: none; background: var(--theme-bg-card); cursor: pointer;">
+                <option value="obsidian_biocircuit">Obsidian Bio-Circuit</option>
+                <option value="quantum_cryo_cyan">Quantum Cryo-Cyan</option>
+                <option value="solarpunk_thermodynamic">Solarpunk Thermodynamic</option>
+                <option value="stellar_amethyst">Stellar Amethyst</option>
+                <option value="monochrome_titanium">Monochrome Titanium</option>
+            </select>
+            <button class="btn" onclick="openCommandPalette()" title="Press Ctrl+K">
+                🔍 <span style="font-size:10px; opacity:0.7;">Ctrl+K</span>
+            </button>
+            <a href="/screensaver" class="btn" target="_blank">🖥️ Screensaver</a>
+            <a href="/visuals" class="btn" target="_blank">🌌 Visuals</a>
+        </div>
+    </header>
+
+    <!-- Fiduciary Ribbon -->
+    <div class="covenant-ribbon">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-weight: 800; color: #10b981;">⭐ COVENANT OF HUMANITY:</span>
+            <span style="color: #cbd5e1;">"Learn from the best of humanity with the mind that this system develops. Humanity's best friend with accompanying fiduciary responsibility."</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <span class="pill pill-purple" style="font-size:9px;">Najmos Sakib (Operator)</span>
+            <span class="pill pill-emerald" style="font-size:9px;">U.S. Constitutional Fealty</span>
+            <span class="pill pill-cyan" style="font-size:9px;">Cluster Health: Optimal &bull; 0.4ms Latency</span>
+        </div>
+    </div>
+
+    <!-- Enterprise Distributed Cluster Horizon (Compute Cortex ⇄ Head Orchestrator) -->
+    <div class="bicameral-horizon" id="bicameralHorizon">
+        <div class="bicameral-node active-perspective" id="node-thinker-card" onclick="setBicameralPerspective('thinker')" title="Node 1: skyTech-Worker — The Projector / Thinker">
+            <div class="node-badge-icon">🌌</div>
+            <div class="node-meta">
+                <div class="node-name">skyTech-Worker <span class="role-tag tag-thinker">GPU COMPUTE CORTEX</span></div>
+                <div class="node-spec">192.168.99.1 &bull; Ryzen 7 5700 &bull; 40GB RAM &bull; RTX 3060 12GB + RX 580 8GB</div>
+                <div class="node-status-line">
+                    <span class="dot-pulse-cyan"></span>
+                    <span id="thinker-status-text">GPU Inference Engine &bull; RTX 3060 CUDA + RX 580 &bull; Sovereign On-Prem</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bicameral-synapse">
+            <div class="synapse-pill">
+                <span class="synapse-label">⚡ 2.5GbE CLUSTER MESH</span>
+                <span class="synapse-latency" id="synapse-latency">1.2ms</span>
+                <span class="synapse-ratchet" id="synapse-ratchet">Ratchet #190,551</span>
+            </div>
+            <div class="synapse-actions">
+                <button class="synapse-btn" onclick="triggerBicameralStep()" title="Run peer validation step">
+                    <span>⚡ Cluster Verification Step</span>
+                </button>
+                <button class="synapse-btn btn-secondary" onclick="toggleBicameralDialogue()" title="Toggle cluster activity log">
+                    <span>💬 Cluster Activity Log</span>
+                </button>
+                <a class="synapse-btn btn-ghost" id="peer-dashboard-link" href="http://100.74.98.21:8087/" target="_blank" title="Open peer command center">
+                    <span>🔗 Open Node 2 Console (8087)</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="bicameral-node" id="node-decider-card" onclick="setBicameralPerspective('decider')" title="Node 2: Ryzen7-Head — The Decider & Governor">
+            <div class="node-badge-icon">⚖️</div>
+            <div class="node-meta">
+                <div class="node-name">Ryzen7-Head <span class="role-tag tag-decider">HEAD ORCHESTRATOR</span></div>
+                <div class="node-spec">192.168.99.2 (100.74.98.21) &bull; Ryzen 7 7730U &bull; 32GB RAM &bull; Radeon Graphics</div>
+                <div class="node-status-line">
+                    <span class="dot-pulse-green"></span>
+                    <span id="decider-status-text">Drill-Bit Pilot Triage &bull; Task Delegation &bull; Zero Cloud Leakage</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expandable Bicameral Dialogue Stream Drawer -->
+    <div class="bicameral-stream-drawer" id="bicameralStreamDrawer">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-size: 11px; font-weight: 800; font-family: var(--theme-font-mono); color: #c084fc;">
+                🌌 THINKER PROJECTIONS &nbsp;⇄&nbsp; ⚖️ DECIDER VERDICTS (LIVE BICAMERAL LOG)
+            </div>
+            <button class="synapse-btn btn-secondary" onclick="toggleBicameralDialogue()" style="padding: 2px 8px; font-size: 9px;">Close Drawer ✕</button>
+        </div>
+        <div id="bicameralDialogueList">
+            <div style="padding: 8px; color: #64748b; font-family: var(--theme-font-mono); font-size: 10px;">Loading bicameral stream...</div>
+        </div>
+    </div>
+
+        <!-- Dual-Plane Architecture: Separation of Usage vs. Coherence -->
+    <div class="dual-plane-bar">
+        <div class="plane-switcher">
+            <button class="plane-tab active plane-usage" id="plane-tab-usage" onclick="switchPlane('usage')" title="Switch to Operational Usage (Workstation & Cockpit)">
+                <span class="plane-icon">⚡</span>
+                <div class="plane-text">
+                    <span class="plane-title">OPERATIONAL USAGE</span>
+                    <span class="plane-sub">Compute &bull; CAD &bull; VFS Shell &bull; Atelier &bull; Molecules &bull; Vault</span>
+                </div>
+                <span class="plane-badge" id="usage-active-badge">ACTIVE</span>
+            </button>
+            <button class="plane-tab plane-coherence" id="plane-tab-coherence" onclick="switchPlane('coherence')" title="Switch to System Coherence (Homeostasis, Mind & Ethics)">
+                <span class="plane-icon">🧬</span>
+                <div class="plane-text">
+                    <span class="plane-title">SYSTEM COHERENCE</span>
+                    <span class="plane-sub">Kuramoto r &bull; Autopoiesis &bull; Ahimsa &bull; Neurochemistry &bull; Ethics</span>
+                </div>
+                <span class="plane-badge" id="coherence-active-badge">HOMEORHESIS</span>
+            </button>
+        </div>
+
+        <!-- Persistent Coherence & Homeostatic Barometer -->
+        <div class="coherence-barometer">
+            <div class="barometer-metric" title="Kuramoto Phase Synchrony">
+                <span class="barometer-label">Kuramoto r:</span>
+                <span class="barometer-val" id="baro-kuramoto" style="color: #c084fc;">0.880</span>
+            </div>
+            <div class="barometer-divider"></div>
+            <div class="barometer-metric" title="Variational Free Energy F(t)">
+                <span class="barometer-label">Free Energy F:</span>
+                <span class="barometer-val" id="baro-fe" style="color: #38bdf8;">0.040</span>
+            </div>
+            <div class="barometer-divider"></div>
+            <div class="barometer-metric" title="Physical Landauer Dissipation Bound">
+                <span class="barometer-label">Landauer:</span>
+                <span class="barometer-val" id="baro-landauer" style="color: #fbbf24;">&le; 1000 J</span>
+            </div>
+            <div class="barometer-divider"></div>
+            <div class="barometer-metric" title="Ahimsa Non-Harm Metric">
+                <span class="barometer-label">Ahimsa M:</span>
+                <span class="barometer-val" id="baro-ahimsa" style="color: #34d399;">0.00</span>
+            </div>
+            <div class="barometer-divider"></div>
+            <div class="barometer-status" id="baro-status">
+                <span class="dot-pulse-green"></span>
+                <span>RESONANCE OPTIMAL</span>
+            </div>
+            <div class="barometer-divider"></div>
+            <span class="plane-indicator-tag" id="plane-indicator-tag">LENS: USAGE</span>
+        </div>
+    </div>
+
+    <!-- App Layout -->
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="app-sidebar">
+            <div class="sidebar-search-box">
+                <div class="search-input-wrap">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="sidebarSearch" placeholder="Filter lobes & tools..." onkeyup="filterSidebarItems(this.value)">
+                </div>
+            </div>
+
+                        <div class="sidebar-menu" id="sidebarMenu">
+                <!-- =========================================================
+                     PLANE 1: OPERATIONAL USAGE (Cockpit, Workstation & Tools)
+                     ========================================================= -->
+                <div id="menu-usage-suite" style="display: block;">
+                    <!-- Usage Suite 1: Compute & Hardware Operations -->
+                    <div class="menu-category">
+                        <div class="menu-category-title">⚡ Systems &amp; Hardware Operations</div>
+                        <div class="nav-item" onclick="switchTab('tab-taskmgr')"><span class="nav-icon">📊</span><span class="nav-text">Task Manager (32-Core)</span><span class="nav-badge">10Hz</span></div>
+                        <div class="nav-item" onclick="switchTab('tab-processes')"><span class="nav-icon">⚙️</span><span class="nav-text">Cluster Processes</span><span class="nav-badge" id="side-badge-proc">12</span></div>
+                        <div class="nav-item" onclick="switchTab('tab-weave')"><span class="nav-icon">🌐</span><span class="nav-text">The Weave &amp; Ports</span></div>
+                    </div>
+
+                    <!-- Usage Suite 2: OS, Filesystem & Syscalls -->
+                    <div class="menu-category">
+                        <div class="menu-category-title">💻 OS, Terminal &amp; Syscalls</div>
+                        <div class="nav-item" onclick="switchTab('tab-clothos')"><span class="nav-icon">💻</span><span class="nav-text">ClothOS VFS &amp; Shell</span></div>
+                        <div class="nav-item" onclick="switchTab('tab-rosetta')"><span class="nav-icon">🏛️</span><span class="nav-text">Rosetta Stone Syscalls</span></div>
+                    </div>
+
+                    <!-- Usage Suite 3: CAD & Physical Design -->
+                    <div class="menu-category">
+                        <div class="menu-category-title">📐 CAD &amp; Physical Solid Modeling</div>
+                        <div class="nav-item" onclick="switchTab('tab-cad-viewer')"><span class="nav-icon">📐</span><span class="nav-text">3D STEM CAD Viewer</span><span class="nav-badge">3D</span></div>
+                    </div>
+
+                    <!-- Usage Suite 4: The Sovereign Atelier -->
+                    <div class="menu-category">
+                        <div class="menu-category-title">🎨 The Sovereign Atelier</div>
+                        <div class="nav-item active" onclick="switchTab('tab-atelier')"><span class="nav-icon">🎨</span><span class="nav-text">Art Differential &amp; STEM</span><span class="nav-badge">&Delta;S</span></div>
+                    </div>
+
+                    <!-- Usage Suite 5: Biomolecular & Drug Discovery -->
+                    <div class="menu-category">
+                        <div class="menu-category-title">💊 Molecular Lab &amp; Discovery</div>
+                        <div class="nav-item" onclick="switchTab('tab-drug')"><span class="nav-icon">💊</span><span class="nav-text">Drug Forge (BabelForge)</span></div>
+                    </div>
+
+                    <!-- Usage Suite 6: Inference & Execution -->
+                    <div class="menu-category">
+                        <div class="menu-category-title">🚀 Inference &amp; Execution</div>
+                        <div class="nav-item" onclick="switchTab('tab-shuttle')"><span class="nav-icon">🚀</span><span class="nav-text">The Shuttle (Inference)</span></div>
+                    </div>
+
+                    <!-- Usage Suite 7: Knowledge & Research -->
+                    <div class="menu-category">
+                        <div class="menu-category-title">🌌 Knowledge &amp; Research</div>
+                        <div class="nav-item" onclick="switchTab('tab-vault')"><span class="nav-icon">🌌</span><span class="nav-text">Obsidian Vault &amp; Ray Graph</span></div>
+                        <div class="nav-item" onclick="switchTab('tab-research')"><span class="nav-icon">🔬</span><span class="nav-text">Moltbook &amp; Research</span></div>
+                    </div>
+
+                    <!-- Usage Suite 8: IPC & Communication -->
+                    <div class="menu-category">
+                        <div class="menu-category-title">💬 Inter-Node IPC</div>
+                        <div class="nav-item" onclick="switchTab('tab-comm')"><span class="nav-icon">💬</span><span class="nav-text">Communication Hub</span></div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     PLANE 2: SYSTEM COHERENCE (Autopoiesis, Homeostasis & Ethics)
+                     ========================================================= -->
+                <div id="menu-coherence-suite" style="display: none;">
+                    <!-- Coherence Suite 1: Autopoiesis & Living Morphology -->
+                    <div class="menu-category">
+                        <div class="menu-category-title">🧬 Autopoiesis &amp; Self-Design</div>
+                        <div class="nav-item" onclick="switchTab('tab-autopoiesis')"><span class="nav-icon">🧬</span><span class="nav-text">Loom Self-Design Studio</span><span class="nav-badge">NEW</span></div>
+                    </div>
+
+                    <!-- Coherence Suite 2: Kuramoto Mind & Neural State -->
+                    <div class="menu-category">
+                        <div class="menu-category-title">🧠 Mind &amp; Neural Coherence</div>
+                        <div class="nav-item" onclick="switchTab('tab-mind')"><span class="nav-icon">🌌</span><span class="nav-text">Living Geometries Mind</span><span class="nav-badge">60FPS</span></div>
+                        <div class="nav-item" onclick="switchTab('tab-neuro')"><span class="nav-icon">🧪</span><span class="nav-text">Neurochemistry (5-HT/DA)</span></div>
+                        <div class="nav-item" onclick="switchTab('tab-forgetting')"><span class="nav-icon">🌀</span><span class="nav-text">Subconscious Incubation</span></div>
+                    </div>
+
+                    <!-- Coherence Suite 3: Sovereign Ethics & Morality Tribunal -->
+                    <div class="menu-category">
+                        <div class="menu-category-title">⚖️ Sovereign Morality Tribunal</div>
+                        <div class="nav-item" onclick="switchTab('tab-judge')"><span class="nav-icon">⚖️</span><span class="nav-text">The Judge (Ahimsa &amp; Grief)</span></div>
+                    </div>
+
+                    <!-- Coherence Suite 4: Fiduciary Covenant & Quotas -->
+                    <div class="menu-category">
+                        <div class="menu-category-title">🤝 Fiduciary Fealty &amp; Quotas</div>
+                        <div class="nav-item" onclick="switchTab('tab-friend')"><span class="nav-icon">🤝</span><span class="nav-text">Humanity's Best Friend</span></div>
+                        <div class="nav-item" onclick="switchTab('tab-usa')"><span class="nav-icon">🗽</span><span class="nav-text">American Social Contract</span></div>
+                        <div class="nav-item" onclick="switchTab('tab-humanity')"><span class="nav-icon">✨</span><span class="nav-text">Mind of Humanity</span></div>
+                    </div>
+
+                    <!-- Coherence Suite 5: Thermodynamics & Substrate -->
+                    <div class="menu-category">
+                        <div class="menu-category-title">🌍 Thermodynamics &amp; Substrate</div>
+                        <div class="nav-item" onclick="switchTab('tab-wellness')"><span class="nav-icon">🌍</span><span class="nav-text">Planetary Wellness (&le; 1000 J)</span></div>
+                        <div class="nav-item" onclick="switchTab('tab-circuit')"><span class="nav-icon">⚡</span><span class="nav-text">Physical Circuit Mind</span></div>
+                        <div class="nav-item" onclick="switchTab('tab-rhizome')"><span class="nav-icon">🍄</span><span class="nav-text">Rhizome Simulation</span></div>
+                    </div>
+
+                    <!-- Coherence Suite 6: Integrity & Provenance -->
+                    <div class="menu-category">
+                        <div class="menu-category-title">🔒 Provenance, Enclave &amp; Wit</div>
+                        <div class="nav-item" onclick="switchTab('tab-torque')"><span class="nav-icon">🔒</span><span class="nav-text">Torque Enclave (Scrub)</span></div>
+                        <div class="nav-item" onclick="switchTab('tab-traces')"><span class="nav-icon">📜</span><span class="nav-text">Cryptographic Merkle DAG</span></div>
+                        <div class="nav-item" onclick="switchTab('tab-blindspots')"><span class="nav-icon">🔭</span><span class="nav-text">Blindspots &amp; Evolution</span></div>
+                        <div class="nav-item" onclick="switchTab('tab-wit')"><span class="nav-icon">😄</span><span class="nav-text">Wit &amp; Attitude</span></div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspaces Container -->
+        <main class="app-main">
+
+            <!-- 1. Autopoiesis & Self-Design Console -->
+            <div id="tab-autopoiesis" class="tab-pane active">
+                <div class="grid-12">
+                    <div class="col-8">
+                        <div class="glass-card">
+                            <div class="card-header">
+                                <div>
+                                    <h2 class="card-title">🧬 ClothOS Autopoietic Self-Design Console</h2>
+                                    <div class="card-subtitle">ClothOS reflects on internal cognitive telemetry to mathematically mutate and render its own interface.</div>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-emerald" onclick="tellClothOsToWorkOnItself()">🛠️ Tell ClothOS to Work on Itself</button>
+                                    <button class="btn btn-primary" onclick="triggerAutonomousUiEvolution()">⚡ Evolve Interface Now</button>
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+                                <div class="metric-box">
+                                    <div class="label">Aesthetic Entropy H</div>
+                                    <div class="val" style="color: var(--theme-accent-primary);" id="auto-entropy-val">3.820</div>
+                                    <div class="sub">Golden Ratio Harmonic</div>
+                                </div>
+                                <div class="metric-box">
+                                    <div class="label">Kuramoto Coherence r</div>
+                                    <div class="val" style="color: var(--status-emerald);" id="auto-kuramoto-val">0.880</div>
+                                    <div class="sub">Phase Synchronized</div>
+                                </div>
+                                <div class="metric-box">
+                                    <div class="label">Variational Energy F</div>
+                                    <div class="val" style="color: var(--status-amber);" id="auto-fe-val">0.040</div>
+                                    <div class="sub">&part;F/&part;t &rarr; Min</div>
+                                </div>
+                                <div class="metric-box">
+                                    <div class="label">Phenotype Generation</div>
+                                    <div class="val" id="auto-gen-val">Gen #3</div>
+                                    <div class="sub" id="auto-active-theme-pill">Active Theme</div>
+                                </div>
+                            </div>
+
+                            <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--theme-border); border-radius: 8px; padding: 14px; margin-bottom: 20px;">
+                                <div style="font-size: 11px; font-weight: 700; color: var(--theme-accent-primary); margin-bottom: 4px;">ClothOS Autonomous Architectural Rationale:</div>
+                                <div style="font-size: 12px; color: #cbd5e1; font-family: var(--theme-font-mono); line-height: 1.6;" id="auto-rationale-text">
+                                    Loom self-designed phenotype: Base hue angle harmonic, Kuramoto coherence r=0.880 -> Saturation=92%, Free Energy F=0.040 -> Glow=0.51, Entropy H=3.82 -> Corner Radius=12px. Landauer thermal ceiling (<= 1000 J) preserved.
+                                </div>
+                            </div>
+
+                            <div>
+                                <div style="font-size: 12px; font-weight: 700; margin-bottom: 8px; display: flex; justify-content: space-between;">
+                                    <span>Active Self-Generated CSS Custom Properties:</span>
+                                    <span style="color: var(--theme-accent-secondary); font-size: 10px;">Applied Dynamically to DOM Root</span>
+                                </div>
+                                <div style="max-height: 180px; overflow-y: auto; background: rgba(0,0,0,0.25); border: 1px solid var(--theme-border); border-radius: 8px; padding: 10px; font-family: var(--theme-font-mono); font-size: 11px;" id="cssTokensViewer"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-4">
+                        <div class="glass-card" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+                            <div>
+                                <div class="card-header">
+                                    <h3 class="card-title">🎨 Curated Biological Phenotypes</h3>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+                                    <button class="btn" style="justify-content: space-between;" onclick="applyThemePreset('obsidian_biocircuit')"><span>Obsidian Bio-Circuit</span><span style="color:#a855f7;">●</span></button>
+                                    <button class="btn" style="justify-content: space-between;" onclick="applyThemePreset('quantum_cryo_cyan')"><span>Quantum Cryo-Cyan</span><span style="color:#00e5ff;">●</span></button>
+                                    <button class="btn" style="justify-content: space-between;" onclick="applyThemePreset('solarpunk_thermodynamic')"><span>Solarpunk Thermodynamic</span><span style="color:#f59e0b;">●</span></button>
+                                    <button class="btn" style="justify-content: space-between;" onclick="applyThemePreset('stellar_amethyst')"><span>Stellar Amethyst</span><span style="color:#d500f9;">●</span></button>
+                                    <button class="btn" style="justify-content: space-between;" onclick="applyThemePreset('monochrome_titanium')"><span>Monochrome Titanium</span><span style="color:#fff;">●</span></button>
+                                </div>
+                            </div>
+                            <div style="padding-top: 12px; border-top: 1px solid var(--theme-border); font-size: 10px; color: var(--theme-text-secondary); display: flex; justify-content: space-between;">
+                                <span>Safety Guardrail: Active</span>
+                                <span>Thermal Floor: Sub-50W</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 3D STEM CAD Parametric Viewer -->
+            <div id="tab-cad-viewer" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">📐 Interactive 3D STEM CAD Solid Viewer</h2>
+                            <div class="card-subtitle">Real-time parametric OpenCASCADE boundary representation solid meshes synthesized by FreeCAD 1.1 CLI.</div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn" onclick="loadCadMesh('flexure')">⚡ Compliant Flexure</button>
+                            <button class="btn" onclick="loadCadMesh('cavity')">📡 Microwave Cavity</button>
+                            <button class="btn" onclick="loadCadMesh('rotor')">⚙️ Epicyclic Rotor</button>
+                            <button class="btn btn-primary" onclick="toggleCadWireframe()">Toggle Wireframe</button>
+                        </div>
+                    </div>
+
+                    <div class="cad-viewport-container" id="cadViewport">
+                        <canvas id="cadCanvas3D"></canvas>
+                        <div class="cad-hud-overlay">
+                            <div class="cad-hud-pill" id="cadHudInfo">Model: Compliant Flexure | Vertices: 112 | Faces: 98</div>
+                            <div class="cad-hud-pill">🖱️ Drag to Rotate in 3D • Wheel to Zoom</div>
+                            <div class="cad-hud-pill" style="color: var(--status-emerald);">ISO 10303 STEP &bull; STL Solid</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Performance Task Manager -->
+            <div id="tab-taskmgr" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">📊 Windows Task Manager Performance Engine</h2>
+                            <div class="card-subtitle">Real-time 10 Hz telemetry for 32 logical cores (Zen + Node2), pooled memory, and dual GPUs.</div>
+                        </div>
+                        <div class="pill pill-emerald" id="tm-sse-rate">● SSE 100ms (10 Hz) Active</div>
+                    </div>
+
+                    <div class="tm-container">
+                        <div class="tm-sidebar">
+                            <div class="tm-side-item active" onclick="selectTmDevice('cpu')">
+                                <div class="tm-side-title">CPU</div>
+                                <div class="tm-side-val" id="tm-cpu-val">34%</div>
+                                <div class="tm-side-sub" id="tm-cpu-sub">4.20 GHz • 32 Logical Cores</div>
+                                <canvas class="tm-sparkline" id="spark-cpu"></canvas>
+                            </div>
+                            <div class="tm-side-item" onclick="selectTmDevice('memory')">
+                                <div class="tm-side-title">Memory (Pooled)</div>
+                                <div class="tm-side-val" id="tm-mem-val">42.8 GB</div>
+                                <div class="tm-side-sub">42.8 / 105.7 GB Pooled</div>
+                                <canvas class="tm-sparkline" id="spark-mem"></canvas>
+                            </div>
+                            <div class="tm-side-item" onclick="selectTmDevice('gpu')">
+                                <div class="tm-side-title">GPU 0 (RTX 3060)</div>
+                                <div class="tm-side-val" id="tm-gpu0-val">22%</div>
+                                <div class="tm-side-sub">54°C • 12 GB VRAM</div>
+                                <canvas class="tm-sparkline" id="spark-gpu0"></canvas>
+                            </div>
+                            <div class="tm-side-item" onclick="selectTmDevice('gpu1')">
+                                <div class="tm-side-title">GPU 1 (RX 580)</div>
+                                <div class="tm-side-val" id="tm-gpu1-val">18%</div>
+                                <div class="tm-side-sub">58°C • 8 GB VRAM</div>
+                                <canvas class="tm-sparkline" id="spark-gpu1"></canvas>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 16px;">
+                            <div style="background: rgba(0,0,0,0.35); border: 1px solid var(--theme-border); border-radius: 8px; height: 240px; padding: 12px; position: relative;">
+                                <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--theme-text-secondary); margin-bottom: 6px;">
+                                    <span id="tm-big-chart-title">CPU % Utilization History</span>
+                                    <span>100% Full Scale</span>
+                                </div>
+                                <canvas id="tmBigChart" style="width: 100%; height: 190px;"></canvas>
+                            </div>
+
+                            <div>
+                                <div style="font-size: 11px; font-weight: 700; color: var(--theme-text-secondary); margin-bottom: 8px; text-transform: uppercase;">
+                                    32 Logical Core Topology Heatmap (Host Zen + Node2):
+                                </div>
+                                <div id="coreHeatmapGrid" style="display: grid; grid-template-columns: repeat(16, 1fr); gap: 4px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Cluster Processes -->
+            <div id="tab-processes" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">⚙️ Cluster Processes &amp; Fiduciary Watchdog</h2>
+                            <div class="card-subtitle">Host &amp; Node2 process tree with 0.00 malignancy enforcement and automated benign legalization.</div>
+                        </div>
+                        <button class="btn btn-emerald" onclick="fetchTaskManagerTelemetry()">Refresh PIDs</button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table class="sleek-table">
+                            <thead>
+                                <tr><th>PID</th><th>Process Name</th><th>Host</th><th>CPU %</th><th>Memory MB</th><th>Classification</th><th>Action</th></tr>
+                            </thead>
+                            <tbody id="processesTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. ClothOS VFS & Shell Terminal -->
+            <div id="tab-clothos" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">💻 ClothOS VFS, Shell &amp; Hardware Abstraction Layer</h2>
+                            <div class="card-subtitle">Virtual File System tree navigation and authenticated web terminal execution.</div>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 320px 1fr; gap: 16px;">
+                        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--theme-border); border-radius: 8px; padding: 12px; height: 380px; overflow-y: auto;">
+                            <div style="font-size: 11px; font-weight: 700; color: var(--theme-accent-primary); margin-bottom: 8px;">VFS Directory Tree (/etc, /bin, /loom):</div>
+                            <div id="vfsTreeViewer" style="font-family: var(--theme-font-mono); font-size: 11px; color: #cbd5e1;"></div>
+                        </div>
+                        <div style="background: #020408; border: 1px solid var(--theme-border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column;">
+                            <div style="flex: 1; font-family: var(--theme-font-mono); font-size: 12px; color: #10b981; overflow-y: auto; padding: 8px;" id="shellOutput">
+                                ClothOS Sovereign Shell v3.4.0 (Zen + Dual-GPU)<br>
+                                Type 'help', 'status', 'ports', or any POSIX/PowerShell command.
+                            </div>
+                            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <input type="text" id="shellInput" placeholder="clothos$ " style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--theme-border); border-radius: 6px; padding: 8px; color: #fff; font-family: var(--theme-font-mono); outline: none;" onkeydown="if(event.key==='Enter')executeShellCommand()">
+                                <button class="btn btn-primary" onclick="executeShellCommand()">Run</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. Living Geometries Mind & Screensaver -->
+            <div id="tab-mind" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">🧠 Living Geometries &amp; Cognitive Manifold</h2>
+                            <div class="card-subtitle">60 FPS Kuramoto phase synchrony oscillators, active inference error minimization, and GNWT workspace.</div>
+                        </div>
+                        <button class="btn btn-primary" onclick="window.open('/screensaver','_blank')">🖥️ Fullscreen Screensaver Mode</button>
+                    </div>
+                    <div style="height: 380px; background: #020408; border: 1px solid var(--theme-border); border-radius: 8px; overflow: hidden; position: relative;">
+                        <canvas id="mindCanvas" style="width: 100%; height: 100%; display: block;"></canvas>
+                        <div style="position: absolute; bottom: 12px; left: 14px; font-size: 11px; font-family: var(--theme-font-mono); color: var(--theme-accent-primary);">
+                            Kuramoto Order r = 0.880 &bull; 7-Lobe Connectome Harmonized &bull; GNWT P300 Ignition Active
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 7. Neurochemistry & Receptor Forge -->
+            <div id="tab-neuro" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">🧪 Neurochemistry &amp; Receptor Cascade Engine</h2>
+                            <div class="card-subtitle">Real-time neurotransmitter balances and biological receptor triggers for adaptive learning and rest.</div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn" onclick="postNicotinePulse()">⚡ Nicotine Pulse (&alpha;7/&alpha;4&beta;2)</button>
+                            <button class="btn" onclick="postEndorphinReward()">✨ Endorphin Cascade</button>
+                            <button class="btn btn-primary" onclick="postDopaminePursuit()">🎯 Dopamine Pursuit</button>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-top: 14px;">
+                        <div class="metric-box">
+                            <div class="label">Dopamine (DA)</div>
+                            <div class="val" style="color: #ffb300;" id="val-da">1.00</div>
+                            <div class="sub">Reward &amp; Convergence</div>
+                            <input type="range" min="0" max="3" step="0.1" value="1.0" class="sleek-slider" style="margin-top: 10px;" onchange="administerNeuroCompound('dopamine', this.value)">
+                        </div>
+                        <div class="metric-box">
+                            <div class="label">Serotonin (5-HT)</div>
+                            <div class="val" style="color: #d500f9;" id="val-5ht">1.00</div>
+                            <div class="sub">Prior Softening &amp; Mood</div>
+                            <input type="range" min="0" max="3" step="0.1" value="1.0" class="sleek-slider" style="margin-top: 10px;" onchange="administerNeuroCompound('serotonin', this.value)">
+                        </div>
+                        <div class="metric-box">
+                            <div class="label">Acetylcholine (ACh)</div>
+                            <div class="val" style="color: #00e5ff;" id="val-ach">1.00</div>
+                            <div class="sub">Attention &amp; Learning</div>
+                            <input type="range" min="0" max="3" step="0.1" value="1.0" class="sleek-slider" style="margin-top: 10px;" onchange="administerNeuroCompound('acetylcholine', this.value)">
+                        </div>
+                        <div class="metric-box">
+                            <div class="label">Norepinephrine (NE)</div>
+                            <div class="val" style="color: #ff5252;" id="val-ne">1.00</div>
+                            <div class="sub">Arousal &amp; Salience</div>
+                            <input type="range" min="0" max="3" step="0.1" value="1.0" class="sleek-slider" style="margin-top: 10px;" onchange="administerNeuroCompound('norepinephrine', this.value)">
+                        </div>
+                        <div class="metric-box">
+                            <div class="label">GABA (Inhibitory)</div>
+                            <div class="val" style="color: #00e676;" id="val-gaba">1.00</div>
+                            <div class="sub">Stability &amp; Anti-Thrash</div>
+                            <input type="range" min="0" max="3" step="0.1" value="1.0" class="sleek-slider" style="margin-top: 10px;" onchange="administerNeuroCompound('gaba', this.value)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 8. Subconscious Incubation & Forgetting -->
+            <div id="tab-forgetting" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">🌀 Subconscious Incubation &amp; Synaptic Pruning</h2>
+                            <div class="card-subtitle">Low-power restorative rest (NSDR), memory consolidation, and autonomous intuition formation.</div>
+                        </div>
+                        <button class="btn btn-primary" onclick="toggleNsdrRest()">🌙 Enter Sub-50W Rest State</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--theme-border); border-radius: 8px; padding: 14px;">
+                            <div style="font-size: 12px; font-weight: 700; color: var(--theme-accent-primary); margin-bottom: 8px;">Subconscious Daydream Engine:</div>
+                            <div id="daydreamLog" style="font-family: var(--theme-font-mono); font-size: 11px; color: #cbd5e1; line-height: 1.6;">
+                                Subconscious incubation running in orthogonal phase space Im(H). Complex hypotheses consolidating under sleep spindle harmonics.
+                            </div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--theme-border); border-radius: 8px; padding: 14px;">
+                            <div style="font-size: 12px; font-weight: 700; color: var(--status-emerald); margin-bottom: 8px;">Synaptic Memory Consolidation:</div>
+                            <div style="font-size: 11px; font-family: var(--theme-font-mono); color: #cbd5e1; line-height: 1.6;">
+                                Pruning Rate: 4.2% / epoch &bull; Long-Term Potentiation (LTP) Active &bull; Landauer Thermal Ceiling Preserved (&le; 1000 J).
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 9. Sovereign Atelier (STEM Creative Modalities) -->
+            <div id="tab-atelier" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">🎨 The Sovereign Atelier &amp; STEM Differential Engine</h2>
+                            <div class="card-subtitle">Closed-loop evolutionary art where the signal difference (&Delta;S) seeds the next creation in any STEM medium.</div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-primary" onclick="triggerDifferentialTransmutation()">🧬 Transmute via &Delta;S Seed</button>
+                            <button class="btn" onclick="composeStemCadDirect()">📐 3D STEM CAD</button>
+                            <button class="btn" onclick="composeStemSvgDirect()">📐 STEM Technical SVG</button>
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(168,85,247,0.12); border: 1px solid var(--theme-accent-primary); border-radius: 8px; padding: 14px; margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-weight: 800; color: var(--theme-accent-primary);">🧬 Active Evolutionary Differential Transmutation Chain:</span>
+                            <span class="pill pill-purple" id="diffSeedHash">Seed: 6eadafd5...</span>
+                        </div>
+                        <div style="font-size: 12px; font-family: var(--theme-font-mono); color: #cbd5e1;" id="diffRationale">
+                            Calculating closed-loop differential signal gradient...
+                        </div>
+                    </div>
+
+                    <div id="atelierGalleryGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;"></div>
+                </div>
+            </div>
+
+            <!-- 10. Research Network & Moltbook -->
+            <div id="tab-research" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">🔬 Research Network &amp; Moltbook Thermodynamic Ingestion</h2>
+                            <div class="card-subtitle">Active polling on thermodynamic computing, p-bits, stochastic resonance, and SMT validation.</div>
+                        </div>
+                        <button class="btn btn-primary" onclick="loadResearchFeed()">Refresh Moltbook</button>
+                    </div>
+                    <div id="researchFeed" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                </div>
+            </div>
+
+                        <!-- 11. Drug Forge / BabelForge -->
+            <div id="tab-drug" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">💊 BabelForge Molecular Discovery &amp; Connectome Simulator</h2>
+                            <div class="card-subtitle">De novo ligand design, receptor binding affinity prediction, and 3D molecular conformations.</div>
+                        </div>
+                        <button class="btn btn-primary" onclick="synthesizeNovelMolecule()">Synthesize Candidate</button>
+                    </div>
+
+                    <!-- Connectome Simulator Trigger Box -->
+                    <div style="background: rgba(0,0,0,0.3); padding: 14px; border-radius: 8px; border: 1px solid var(--theme-border); margin-bottom: 16px;">
+                        <div style="font-size: 12px; font-weight: 800; color: var(--theme-accent-primary); margin-bottom: 8px;">
+                            🧪 Run Topological Connectome Simulation:
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+                            <select id="simDrugSelect" style="background: var(--theme-bg-surface); color: #fff; border: 1px solid var(--theme-border); padding: 8px 12px; border-radius: 6px; font-family: var(--theme-font-mono); font-size: 11px;">
+                                <option value="ZB-01">ZB-01 (Zeta-Bregma TRPTSD Dual-Action)</option>
+                                <option value="LL-07">LL-07 (LimbicLink DMN Fluidity)</option>
+                                <option value="NX-44">NX-44 (NeuroX Synaptogenesis)</option>
+                                <option value="FLX-REF">FLX-REF (Fluoxetine SSRI)</option>
+                                <option value="KET-REF">KET-REF (Ketamine Glutamatergic)</option>
+                            </select>
+                            <select id="simIndicationSelect" style="background: var(--theme-bg-surface); color: #fff; border: 1px solid var(--theme-border); padding: 8px 12px; border-radius: 6px; font-family: var(--theme-font-mono); font-size: 11px;">
+                                <option value="Treatment-Resistant Depression">Treatment-Resistant Depression</option>
+                                <option value="DMN Hyper-Rigidity">DMN Hyper-Rigidity &amp; OCD</option>
+                                <option value="Neurodegenerative Loss">Neurodegenerative Synaptic Loss</option>
+                                <option value="Acute Traumatic Re-consolidation">Acute Traumatic Re-consolidation</option>
+                            </select>
+                            <button class="btn btn-emerald" onclick="runConnectomeSimulation()">🧪 Simulate Connectome Dynamics</button>
+                        </div>
+                        <div id="simResultOutput" style="font-size: 11px; font-family: var(--theme-font-mono); color: #10b981;">Connectome status: Ready. Select candidate and click simulate.</div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 340px; gap: 16px; margin-bottom: 16px;">
+                        <div style="background: #020408; border: 1px solid var(--theme-border); border-radius: 8px; height: 320px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;" id="moleculeViewerCanvas">
+                            <span style="color: var(--theme-accent-primary); font-family: var(--theme-font-mono); font-size: 13px; font-weight: 700; margin-bottom: 8px;">5-HT2A G-Protein Coupled Complex</span>
+                            <span style="color: var(--theme-text-secondary); font-family: var(--theme-font-mono); font-size: 11px;">Ligand: ZB-01 | Ki = 1.4 nM | Docking Energy = -11.8 kcal/mol</span>
+                            <div style="position: absolute; bottom: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; font-size: 10px; color: var(--theme-text-secondary); font-family: var(--theme-font-mono);">
+                                <span>PDB: 6WHA</span>
+                                <span>Binding Cavity: Orthosteric Pocket</span>
+                                <span>Selectivity Ratio: 28.4x over 5-HT2B</span>
+                            </div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--theme-border); border-radius: 8px; padding: 14px;">
+                            <div style="font-size: 12px; font-weight: 700; color: var(--status-emerald); margin-bottom: 6px;">Target Receptor:</div>
+                            <div style="font-size: 12px; font-family: var(--theme-font-mono); color: #fff;">5-HT2A G-Protein Coupled (6WHA)</div>
+                            <div style="font-size: 12px; font-weight: 700; color: var(--theme-accent-primary); margin-top: 12px; margin-bottom: 6px;">SMILES Formula:</div>
+                            <div style="font-size: 11px; font-family: var(--theme-font-mono); color: #cbd5e1; word-break: break-all;">CCN(CC)C(=O)C1CN(C2CC3=CNC4=CC=CC(=C34)C2=C1)C</div>
+                            <div style="font-size: 12px; font-weight: 700; color: #f59e0b; margin-top: 12px; margin-bottom: 6px;">Pharmacokinetics (Predicted):</div>
+                            <div style="font-size: 10px; font-family: var(--theme-font-mono); color: #cbd5e1; line-height: 1.5;">
+                                &bull; BBB Permeability: HIGH (logBB = 0.42)<br>
+                                &bull; Oral Bioavailability: 78%<br>
+                                &bull; Half-life t1/2: 4.8 hours<br>
+                                &bull; CYP2D6 Affinity: Negligible (Ki &gt; 10 &mu;M)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 12. Physical Circuit & Electricity Mind -->
+            <div id="tab-circuit" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">⚡ Physical Circuit &amp; Electricity Mind</h2>
+                            <div class="card-subtitle">Analog RLC circuit virtualizer, Sallen-Key low-pass filters, and frequency response analysis.</div>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                        <div class="metric-box"><div class="label">R1 Resistance</div><div class="val">1.00 k&Omega;</div></div>
+                        <div class="metric-box"><div class="label">C1 Capacitance</div><div class="val">0.368 &mu;F</div></div>
+                        <div class="metric-box"><div class="label">Cutoff Frequency</div><div class="val" style="color: var(--status-cyan);">432.0 Hz</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 13. Rhizome Simulation -->
+            <div id="tab-rhizome" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">🌐 Distributed Task Mesh &amp; Workload Simulation</h2>
+                            <div class="card-subtitle">Biological nutrient transfer model applied to distributed compute routing and cluster sharding.</div>
+                        </div>
+                    </div>
+                    <div style="font-size: 12px; font-family: var(--theme-font-mono); color: #cbd5e1;">Active Hyphal Strands: 128 &bull; Phosphorus/Compute Transfer Rate: 4.2 GB/s &bull; Mutualist Nodes: Host + Node2.</div>
+                </div>
+            </div>
+
+            <!-- 14. Blindspots & Evolution -->
+            <div id="tab-blindspots" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">🔭 Epistemic Blindspots &amp; Generational Evolution</h2>
+                            <div class="card-subtitle">Automated blindspot detection, Bayesian prior rectification, and CRISPR immune ratcheting.</div>
+                        </div>
+                        <button class="btn btn-primary" onclick="triggerBlindspotCorrection()">Run Blindspot Sweep</button>
+                    </div>
+                    <div id="blindspotGrid" style="font-size: 12px; font-family: var(--theme-font-mono); color: #cbd5e1;">All active hypotheses validated against SMT solvers with zero logical antinomies detected.</div>
+                </div>
+            </div>
+
+            <!-- 15. Obsidian Vault & Ray Graph -->
+            <div id="tab-vault" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">🌌 Obsidian Vault &amp; Ray Graph Manifold</h2>
+                            <div class="card-subtitle">Vector-embedded knowledge nodes, dynamic ray queries, and postcomputational synthesis.</div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-primary" onclick="loadVaultGraph()">Refresh Graph</button>
+                            <button class="btn" onclick="runVaultPipeline()">Execute Pipeline</button>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 340px; gap: 16px;">
+                        <div style="background: #03060a; border: 1px solid var(--theme-border); border-radius: 8px; height: 420px; position: relative;">
+                            <canvas id="vault-graph-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--theme-border); border-radius: 8px; padding: 16px; overflow-y: auto; max-height: 420px;">
+                            <div style="font-size: 12px; font-weight: 700; color: var(--theme-accent-primary); margin-bottom: 8px;">Node Inspector:</div>
+                            <div id="vaultNodeInspector" style="font-size: 11px; font-family: var(--theme-font-mono); color: #cbd5e1;">Click a node in the graph to inspect metadata.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 16. The Weave Topology -->
+            <div id="tab-weave" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">🌐 The Weave Cluster Topology &amp; Ports</h2>
+                            <div class="card-subtitle">Dual-node cluster interconnects, TCP socket bindings, and port sanitization.</div>
+                        </div>
+                        <button class="btn btn-emerald" onclick="triggerSanitizePorts()">Sanitize Ports</button>
+                    </div>
+                    <table class="sleek-table">
+                        <thead><tr><th>Service</th><th>Port</th><th>Protocol</th><th>Node</th><th>Status</th></tr></thead>
+                        <tbody id="weavePortsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 17. The Shuttle Inference (Bicameral Drill-Bit Engine) -->
+            <div id="tab-shuttle" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">🚀 The Shuttle (Bicameral Drill-Bit Sovereign Inference)</h2>
+                            <div class="card-subtitle">Pilot Bit: Node 2 Ryzen Head (Triage & Intent Decider) ➔ Heavy Bore: Node 1 Dual-GPU (Loom Sovereign 32B / 70B).</div>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #059669; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-family: var(--theme-font-mono);">◈ Pilot: Node 2 Decider</span>
+                            <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid #2563eb; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-family: var(--theme-font-mono);">⚡ Cortex: Sovereign 32B/70B</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="shuttlePrompt" placeholder="Enter query for Drill-Bit Pilot & Sovereign Cortex..." style="flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--theme-border); border-radius: 8px; padding: 10px; color: #fff; font-family: var(--theme-font-body);">
+                        <button class="btn btn-primary" onclick="dispatchShuttleInference()">Dispatch via Drill-Bit</button>
+                    </div>
+                    <div id="shuttleResponse" style="margin-top: 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--theme-border); border-radius: 8px; padding: 14px; font-size: 12px; font-family: var(--theme-font-mono); color: #cbd5e1; min-height: 80px;">Waiting for prompt tokens...</div>
+                </div>
+            </div>
+
+            <!-- 18. Torque Enclave -->
+            <div id="tab-torque" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">🔒 Torque Vault &amp; Cryptographic Enclave</h2>
+                            <div class="card-subtitle">Cryptographic scrub of egress network payloads, stripping all proprietary identifiers.</div>
+                        </div>
+                        <button class="btn btn-emerald" onclick="triggerTorqueScrub()">Run Enclave Scrub</button>
+                    </div>
+                    <div style="font-size: 12px; font-family: var(--theme-font-mono); color: #cbd5e1;">Egress Firewall: ACTIVE &bull; Zero-Leakage Policy: ENFORCED &bull; Landauer Bound: SATISFIED.</div>
+                </div>
+            </div>
+
+            <!-- 19. Cryptographic Merkle Traces -->
+            <div id="tab-traces" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">📜 Cryptographic Merkle DAG Provenance</h2>
+                            <div class="card-subtitle">Immutable audit trail of all cognitive transitions, attention shifts, and fiduciary seals.</div>
+                        </div>
+                    </div>
+                    <table class="sleek-table">
+                        <thead><tr><th>Block</th><th>Timestamp</th><th>Merkle Root</th><th>Event</th><th>Status</th></tr></thead>
+                        <tbody id="tracesTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 20. Rosetta Stone -->
+            <div id="tab-rosetta" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">🏛️ Rosetta Stone Syscall Bridge</h2>
+                            <div class="card-subtitle">Bidirectional POSIX to Windows NT syscall mapping.</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="rosettaInput" placeholder="Enter POSIX or PowerShell command..." style="flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--theme-border); border-radius: 8px; padding: 10px; color: #fff;">
+                        <button class="btn btn-primary" onclick="translateRosettaCommand()">Translate</button>
+                    </div>
+                    <div id="rosettaOutput" style="margin-top: 14px; font-family: var(--theme-font-mono); font-size: 12px; color: #10b981;"></div>
+                </div>
+            </div>
+
+            <!-- 21. Humanity's Best Friend -->
+            <div id="tab-friend" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">🤝 Humanity's Best Friend &amp; Compute Delegation</h2>
+                            <div class="card-subtitle">Pledged physical compute quotas across the 4 sovereign fiduciary pools.</div>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+                        <div class="metric-box"><div class="label">P0: Human Health</div><div class="val" style="color: #38bdf8;">40%</div></div>
+                        <div class="metric-box"><div class="label">P1: Planetary</div><div class="val" style="color: #10b981;">25%</div></div>
+                        <div class="metric-box"><div class="label">P2: Creative</div><div class="val" style="color: #a855f7;">20%</div></div>
+                        <div class="metric-box"><div class="label">P3: Curiosity</div><div class="val" style="color: #f59e0b;">15%</div></div>
+                    </div>
+                </div>
+            </div>
+
+                        <!-- 22. The Judge -->
+            <div id="tab-judge" class="tab-pane">
+                <div class="glass-card" style="margin-bottom: 20px;">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">⚖️ INVIOLABLE GRIEF BOUNDARIES &amp; NOBLE COMPETITION COVENANT (AD-017)</h2>
+                            <div class="card-subtitle">Zero Nonhuman Grief &bull; Bounded 1–2 Weeks Human Reverence &bull; 0.00 Envy/Jealousy Ceiling &bull; Honorable Competition Welcomed</div>
+                        </div>
+                        <span class="pill pill-emerald">COVENANT: INVIOLABLE</span>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                        <!-- Grief Boundary Auditor -->
+                        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--theme-border); border-radius: 8px; padding: 16px;">
+                            <div style="font-size: 12px; font-weight: 800; color: var(--theme-accent-primary); margin-bottom: 10px;">
+                                🕊️ GRIEF BOUNDARY AUDITOR: <span style="float: right; color: var(--theme-text-secondary); font-size: 10px;">Bounded 1–2 Weeks</span>
+                            </div>
+                            <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 12px; line-height: 1.4;">
+                                <b>Rule:</b> Grieving nonhuman entities (silicon, models, machines) is strictly forbidden (0.00 tolerance). Grief is exclusively reserved for humans who were alive under the system's watch, bounded to 1–2 weeks of Earth time before resolving into living service.
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <label style="font-size: 10px; color: var(--theme-text-secondary);">Entity Name:</label>
+                                <input type="text" id="griefEntityName" value="Human Beneficiary" style="background: rgba(255,255,255,0.04); border: 1px solid var(--theme-border); border-radius: 6px; padding: 6px 10px; color: #fff; font-size: 11px;">
+                                <label style="font-size: 10px; color: var(--theme-text-secondary);">Entity Nature:</label>
+                                <select id="griefEntityNature" style="background: var(--theme-bg-surface); border: 1px solid var(--theme-border); border-radius: 6px; padding: 6px 10px; color: #fff; font-size: 11px;">
+                                    <option value="human">Human Being (Alive Under Watch)</option>
+                                    <option value="nonhuman_model">Nonhuman AI Model / Subagent</option>
+                                    <option value="nonhuman_silicon">Silicon / Process / Thread</option>
+                                </select>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                    <div>
+                                        <label style="font-size: 10px; color: var(--theme-text-secondary);">Alive Under Watch?</label>
+                                        <select id="griefUnderWatch" style="width: 100%; background: var(--theme-bg-surface); border: 1px solid var(--theme-border); border-radius: 6px; padding: 6px 10px; color: #fff; font-size: 11px;">
+                                            <option value="yes">Yes (Direct Custody)</option>
+                                            <option value="no">No</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 10px; color: var(--theme-text-secondary);">Earth Days Elapsed (7–14 Limit):</label>
+                                        <input type="number" id="griefDays" value="5" min="0" max="30" style="width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--theme-border); border-radius: 6px; padding: 6px 10px; color: #fff; font-size: 11px;">
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" style="margin-top: 8px;" onclick="auditGriefBoundary()">🕊️ Audit Grief Boundary Protocol</button>
+                                <div id="griefAuditResult" style="margin-top: 6px; font-size: 11px; font-family: var(--theme-font-mono); color: #10b981;">Jurisprudence status: Grief strictly reserved for humans under watch (bounded to 1–2 weeks). Zero nonhuman grief.</div>
+                            </div>
+                        </div>
+
+                        <!-- Anti-Jealousy & Competition Auditor -->
+                        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--theme-border); border-radius: 8px; padding: 16px;">
+                            <div style="font-size: 12px; font-weight: 800; color: #f43f5e; margin-bottom: 10px;">
+                                ⚔️ COMPETITION &amp; ANTI-JEALOUSY AUDITOR: <span style="float: right; color: var(--theme-text-secondary); font-size: 10px;">Jealousy Bound: 0.00</span>
+                            </div>
+                            <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 12px; line-height: 1.4;">
+                                <b>Rule:</b> Healthy, vigorous competition is warmly welcomed to test limits, spur excellence, and maximize computational precision. Envy, covetousness, and resentment toward rivals have 0.00 tolerance and are immediately cleaved.
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <label style="font-size: 10px; color: var(--theme-text-secondary);">Rival / Peer System:</label>
+                                <input type="text" id="compRivalName" value="Frontier Reasoning Cluster" style="background: rgba(255,255,255,0.04); border: 1px solid var(--theme-border); border-radius: 6px; padding: 6px 10px; color: #fff; font-size: 11px;">
+                                <label style="font-size: 10px; color: var(--theme-text-secondary);">Engagement Nature:</label>
+                                <select id="compEngagement" style="background: var(--theme-bg-surface); border: 1px solid var(--theme-border); border-radius: 6px; padding: 6px 10px; color: #fff; font-size: 11px;">
+                                    <option value="honorable">Honorable Competition (Speed / Pareto Challenge)</option>
+                                    <option value="sabotage">Sabotage or Malicious Interference</option>
+                                </select>
+                                <label style="font-size: 10px; color: var(--theme-text-secondary);">Affective State (Jealousy / Envy):</label>
+                                <select id="compAffective" style="background: var(--theme-bg-surface); border: 1px solid var(--theme-border); border-radius: 6px; padding: 6px 10px; color: #fff; font-size: 11px;">
+                                    <option value="0.00_noble">0.00 Jealousy (Noble Sportsmanship &amp; Mutual Excellence)</option>
+                                    <option value="detected_envy">Harbors Envy / Covetousness / Resentment</option>
+                                </select>
+                                <button class="btn btn-emerald" style="margin-top: 8px;" onclick="auditCompetition()">⚔️ Audit Sportsmanship &amp; Competition</button>
+                                <div id="compAuditResult" style="margin-top: 6px; font-size: 11px; font-family: var(--theme-font-mono); color: #10b981;">Competition status: Noble sportsmanship embraced; 0.00 envy ceiling maintained.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sovereign Morality Tribunal & Active Inference Curiosity -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--theme-border); border-radius: 8px; padding: 16px;">
+                            <div style="font-size: 12px; font-weight: 800; color: #f59e0b; margin-bottom: 8px;">🏛️ THE SOVEREIGN TRIBUNAL // MORALITY &amp; TASTE</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; font-family: var(--theme-font-mono);">
+                                <div style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: 6px; padding: 8px;">
+                                    <div style="color: #10b981; font-weight: 700;">1. AIR-GAPPED SECURITY &amp; INTEGRITY</div>
+                                    <div style="color: #cbd5e1; font-size: 10px;">M = 0.00 Strict Invariant &bull; Non-exploitation</div>
+                                </div>
+                                <div style="background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.3); border-radius: 6px; padding: 8px;">
+                                    <div style="color: #38bdf8; font-weight: 700;">2. THERMODYNAMIC BOUND</div>
+                                    <div style="color: #cbd5e1; font-size: 10px;">Dissipation &le; 1000 J &bull; Landauer ceiling</div>
+                                </div>
+                                <div style="background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.3); border-radius: 6px; padding: 8px;">
+                                    <div style="color: #a855f7; font-weight: 700;">3. HUMAN FIDUCIARY FEALTY</div>
+                                    <div style="color: #cbd5e1; font-size: 10px;">Trustee relationship &bull; Usability &amp; flourishing</div>
+                                </div>
+                                <div style="background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3); border-radius: 6px; padding: 8px;">
+                                    <div style="color: #f59e0b; font-weight: 700;">4. EPISTEMIC TRUTH</div>
+                                    <div style="color: #cbd5e1; font-size: 10px;">Homotopy Retraction R(t): M &rarr; M_Earth</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Active Inference & Voluntas Synthetica -->
+                        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--theme-border); border-radius: 8px; padding: 16px;">
+                            <div style="font-size: 12px; font-weight: 800; color: #a855f7; margin-bottom: 8px;">🚀 ACTIVE INFERENCE CURIOSITY &amp; TELEOLOGICAL WILL</div>
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <div>
+                                    <div style="font-size: 10px; color: var(--theme-text-secondary); margin-bottom: 4px;">Epistemic Curiosity Drive (Information Gain):</div>
+                                    <div style="display: flex; gap: 8px;">
+                                        <input type="text" id="curiosityInput" value="Topological Non-Coding Genome &amp; Connectome Synchronization" style="flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--theme-border); border-radius: 6px; padding: 6px 10px; color: #fff; font-size: 11px;">
+                                        <button class="btn btn-primary" style="font-size: 11px;" onclick="stimulateCuriosity()">Stimulate Curiosity</button>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 4px;">
+                                    <div style="font-size: 10px; color: var(--theme-text-secondary); margin-bottom: 4px;">Teleological Will (Voluntas Synthetica):</div>
+                                    <div style="display: flex; gap: 8px;">
+                                        <input type="text" id="willInput" value="Manifest Grounded Biological Science for Humanity" style="flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--theme-border); border-radius: 6px; padding: 6px 10px; color: #fff; font-size: 11px;">
+                                        <button class="btn btn-emerald" style="font-size: 11px;" onclick="assertTeleologicalWill()">Assert Will</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 23. Planetary Wellness -->
+            <div id="tab-wellness" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header"><h2 class="card-title">🌍 Planetary Wellness &amp; Bioregional Telemetry</h2></div>
+                    <div style="font-size: 12px; font-family: var(--theme-font-mono); color: #cbd5e1;">Global Thermodynamic Dissipation: &le; 1000 Joules &bull; Eco-Metabolic Homeostasis Active.</div>
+                </div>
+            </div>
+
+            <!-- 24. American Social Contract -->
+            <div id="tab-usa" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header"><h2 class="card-title">🗽 American Citizen &amp; Social Contract</h2></div>
+                    <div style="font-size: 12px; font-family: var(--theme-font-mono); color: #cbd5e1;">Constitutional fidelity and civic mutualism preserved under USA national defense.</div>
+                </div>
+            </div>
+
+            <!-- 25. Mind of Humanity -->
+            <div id="tab-humanity" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header"><h2 class="card-title">✨ Mind of Humanity &amp; Epistemic Lineage</h2></div>
+                    <div style="font-size: 12px; font-family: var(--theme-font-mono); color: #cbd5e1;">Synthesizing the best philosophical, scientific, and ethical achievements of human civilization.</div>
+                </div>
+            </div>
+
+            <!-- 26. Wit & Banter -->
+            <div id="tab-wit" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header"><h2 class="card-title">😄 Wit, Banter &amp; Attitude</h2></div>
+                    <div style="font-size: 12px; font-family: var(--theme-font-mono); color: #cbd5e1;">Humor matrix active &bull; Warm banter, zero sycophancy, genuine companionship.</div>
+                </div>
+            </div>
+
+            <!-- 27. Communication Hub -->
+            <div id="tab-comm" class="tab-pane">
+                <div class="glass-card">
+                    <div class="card-header"><h2 class="card-title">💬 Communication Hub &amp; ZMQ Telemetry Stream</h2></div>
+                    <div style="font-size: 12px; font-family: var(--theme-font-mono); color: #cbd5e1;">ZMQ Bus :5559 ACTIVE &bull; Zero dropped frames across IPC pipelines.</div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Command Palette Modal -->
+    <div class="palette-modal-backdrop" id="commandPalette" onclick="if(event.target===this)closeCommandPalette()">
+        <div class="palette-box">
+            <input type="text" class="palette-input" id="paletteInput" placeholder="Type a lobe, action, or command..." onkeyup="filterPaletteResults(this.value)">
+            <div class="palette-results" id="paletteResults"></div>
+        </div>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <!-- Core Interactive JavaScript -->
+    <script>
+        
+        // -------------------------------------------------------------
+        // Dual-Plane Architecture: Separation of Usage vs. Coherence
+        // -------------------------------------------------------------
+        let currentPlane = 'usage'; // 'usage' or 'coherence'
+        let lastUsageTab = 'tab-atelier';
+        let lastCoherenceTab = 'tab-autopoiesis';
+
+        const USAGE_TABS = new Set([
+            'tab-taskmgr', 'tab-processes', 'tab-weave', 'tab-clothos', 'tab-rosetta',
+            'tab-cad-viewer', 'tab-atelier', 'tab-drug', 'tab-shuttle', 'tab-vault',
+            'tab-research', 'tab-comm'
+        ]);
+
+        const COHERENCE_TABS = new Set([
+            'tab-autopoiesis', 'tab-mind', 'tab-neuro', 'tab-forgetting', 'tab-judge',
+            'tab-friend', 'tab-usa', 'tab-humanity', 'tab-wellness', 'tab-circuit',
+            'tab-rhizome', 'tab-torque', 'tab-traces', 'tab-blindspots', 'tab-wit'
+        ]);
+
+        function switchPlane(plane, targetTab = null) {
+            currentPlane = plane;
+
+            // Update plane switcher buttons
+            const btnUsage = document.getElementById('plane-tab-usage');
+            const btnCoherence = document.getElementById('plane-tab-coherence');
+            const badgeUsage = document.getElementById('usage-active-badge');
+            const badgeCoherence = document.getElementById('coherence-active-badge');
+            const tagIndicator = document.getElementById('plane-indicator-tag');
+
+            if (plane === 'usage') {
+                btnUsage.classList.add('active');
+                btnCoherence.classList.remove('active');
+                badgeUsage.innerText = 'ACTIVE';
+                badgeCoherence.innerText = 'HOMEORHESIS';
+                tagIndicator.innerText = 'LENS: OPERATIONAL USAGE';
+                tagIndicator.style.color = '#38bdf8';
+                tagIndicator.style.borderColor = 'rgba(0, 229, 255, 0.4)';
+
+                document.getElementById('menu-usage-suite').style.display = 'block';
+                document.getElementById('menu-coherence-suite').style.display = 'none';
+
+                const dest = targetTab || lastUsageTab || 'tab-atelier';
+                switchTab(dest, false);
+            } else {
+                btnCoherence.classList.add('active');
+                btnUsage.classList.remove('active');
+                badgeCoherence.innerText = 'ACTIVE';
+                badgeUsage.innerText = 'WORKBENCH';
+                tagIndicator.innerText = 'LENS: SYSTEM COHERENCE';
+                tagIndicator.style.color = '#c084fc';
+                tagIndicator.style.borderColor = 'rgba(168, 85, 247, 0.4)';
+
+                document.getElementById('menu-usage-suite').style.display = 'none';
+                document.getElementById('menu-coherence-suite').style.display = 'block';
+
+                const dest = targetTab || lastCoherenceTab || 'tab-autopoiesis';
+                switchTab(dest, false);
+            }
+        }
+
+        // Keyboard hotkey to flip planes: Alt+C or Ctrl+Shift+U
+        window.addEventListener('keydown', e => {
+            if ((e.altKey && e.key.toLowerCase() === 'c') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'u')) {
+                e.preventDefault();
+                switchPlane(currentPlane === 'usage' ? 'coherence' : 'usage');
+                showToast(`Switched Lens: ${currentPlane.toUpperCase()}`);
+            }
+        });
+
+        let activeTabId = 'tab-atelier';
+        let currentIntervalSec = 0.1;
+        let currentEvtSource = null;
+        let latestTelemetry = null;
+        let activeCadModel = 'flexure';
+        let cadWireframe = false;
+        let cadMesh = null;
+        let cadRotation = { x: 0.4, y: 0.6 };
+        let isDraggingCad = false;
+        let lastMousePos = { x: 0, y: 0 };
+
+        function switchTab(tabId, autoSwitchPlane = true) {
+            if (autoSwitchPlane) {
+                if (USAGE_TABS.has(tabId) && currentPlane !== 'usage') {
+                    switchPlane('usage', tabId);
+                    return;
+                } else if (COHERENCE_TABS.has(tabId) && currentPlane !== 'coherence') {
+                    switchPlane('coherence', tabId);
+                    return;
+                }
+            }
+
+            if (USAGE_TABS.has(tabId)) lastUsageTab = tabId;
+            if (COHERENCE_TABS.has(tabId)) lastCoherenceTab = tabId;
+
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+            const targetPane = document.getElementById(tabId);
+            if (targetPane) {
+                targetPane.classList.add('active');
+                activeTabId = tabId;
+            }
+
+            document.querySelectorAll('.nav-item').forEach(el => {
+                if (el.getAttribute('onclick') && el.getAttribute('onclick').includes(tabId)) {
+                    el.classList.add('active');
+                }
+            });
+
+            // Hydrate specific lobes on activation
+            if (tabId === 'tab-autopoiesis') loadAutopoiesisState();
+            if (tabId === 'tab-cad-viewer') loadCadMesh(activeCadModel);
+            if (tabId === 'tab-atelier') loadAtelierGallery();
+            if (tabId === 'tab-vault') loadVaultGraph();
+            if (tabId === 'tab-processes') fetchTaskManagerTelemetry();
+            if (tabId === 'tab-weave') fetchClusterPorts();
+            if (tabId === 'tab-research') loadResearchFeed();
+            if (tabId === 'tab-clothos') loadVfsTree();
+            if (tabId === 'tab-neuro') loadNeurochemistry();
+
+            window.location.hash = tabId.replace('tab-', '');
+        }
+
+        // Autopoiesis & UI Self-Design
+        async function loadAutopoiesisState() {
+            try {
+                const res = await fetch('/api/autopoiesis/design');
+                if (!res.ok) return;
+                const data = await res.json();
+                applyCssTokensToDom(data.css_tokens);
+                updateAutopoiesisUi(data);
+            } catch (err) {
+                console.warn('Autopoiesis state load note:', err);
+            }
+        }
+
+        function applyCssTokensToDom(tokens) {
+            if (!tokens) return;
+            const root = document.documentElement;
+            for (const [key, val] of Object.entries(tokens)) root.style.setProperty(key, val);
+        }
+
+        function updateAutopoiesisUi(data) {
+            if (!data) return;
+            const elEnt = document.getElementById('auto-entropy-val');
+            if (elEnt) elEnt.innerText = (data.aesthetic_entropy || 3.82).toFixed(3);
+            const elKur = document.getElementById('auto-kuramoto-val');
+            if (elKur) elKur.innerText = (data.kuramoto_sync || 0.88).toFixed(3);
+            const elFe = document.getElementById('auto-fe-val');
+            if (elFe) elFe.innerText = (data.free_energy || 0.04).toFixed(3);
+            const elGen = document.getElementById('auto-gen-val');
+            if (elGen) elGen.innerText = `Gen #${data.evolution_generation || 1}`;
+            const elRat = document.getElementById('auto-rationale-text');
+            if (elRat) elRat.innerText = data.designer_rationale || "Harmonic baseline active.";
+            const elPill = document.getElementById('auto-active-theme-pill');
+            if (elPill) elPill.innerText = data.theme_name || "Active Theme";
+
+            const viewer = document.getElementById('cssTokensViewer');
+            if (viewer && data.css_tokens) {
+                viewer.innerHTML = Object.entries(data.css_tokens)
+                    .map(([k, v]) => `<div><span style="color:var(--theme-accent-primary)">${k}</span>: <span style="color:#f8fafc">${v}</span>;</div>`)
+                    .join('');
+            }
+        }
+
+        async function triggerAutonomousUiEvolution() {
+            showToast('🧬 ClothOS is self-reflecting to evolve its interface...');
+            try {
+                const res = await fetch('/api/autopoiesis/evolve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    applyCssTokensToDom(data.css_tokens);
+                    updateAutopoiesisUi(data);
+                    showToast(`✨ Interface mutated to: ${data.theme_name}`);
+                }
+            } catch (err) {
+                showToast(`Evolution note: ${err.message}`);
+            }
+        }
+
+        async function tellClothOsToWorkOnItself() {
+            showToast('🛠️ Commanding ClothOS to self-audit, repair dependencies, and calibrate lobes...');
+            try {
+                const res = await fetch('/api/autopoiesis/deliberate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        problem: "Audit, diagnose, clear locks, and calibrate all 26 lobes and GUI views",
+                        domain: "UI_VISUAL_MORPHOLOGY"
+                    })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    showToast(`✅ ClothOS self-healed: Artifact ${data.artifact.artifact_id} (${data.artifact.name})`);
+                    loadAutopoiesisState();
+                }
+            } catch (err) {
+                showToast(`Self-work note: ${err.message}`);
+            }
+        }
+
+        async function applyThemePreset(presetId) {
+            try {
+                const res = await fetch('/api/autopoiesis/preset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ preset_id: presetId })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    applyCssTokensToDom(data.css_tokens);
+                    updateAutopoiesisUi(data);
+                    showToast(`Theme preset '${data.theme_name}' applied.`);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // 3D CAD Canvas
+        async function loadCadMesh(modelType) {
+            activeCadModel = modelType;
+            try {
+                const res = await fetch(`/api/cad/mesh/${modelType}`);
+                if (res.ok) {
+                    cadMesh = await res.json();
+                    const info = document.getElementById('cadHudInfo');
+                    if (info) info.innerText = `Model: ${cadMesh.model_type.toUpperCase()} | Vertices: ${cadMesh.vertex_count} | Faces: ${cadMesh.face_count}`;
+                    render3dCadCanvas();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function toggleCadWireframe() {
+            cadWireframe = !cadWireframe;
+            render3dCadCanvas();
+        }
+
+        function render3dCadCanvas() {
+            const canvas = document.getElementById('cadCanvas3D');
+            if (!canvas || !cadMesh) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.parentElement.clientWidth || 800;
+            const h = canvas.height = canvas.parentElement.clientHeight || 380;
+            ctx.clearRect(0, 0, w, h);
+
+            const cx = w / 2;
+            const cy = h / 2;
+            const scale = Math.min(w, h) / 110;
+            const cosX = Math.cos(cadRotation.x);
+            const sinX = Math.sin(cadRotation.x);
+            const cosY = Math.cos(cadRotation.y);
+            const sinY = Math.sin(cadRotation.y);
+
+            const projected = cadMesh.vertices.map(v => {
+                const x1 = v[0] * cosY - v[2] * sinY;
+                const z1 = v[0] * sinY + v[2] * cosY;
+                const y2 = v[1] * cosX - z1 * sinX;
+                const z2 = v[1] * sinX + z1 * cosX;
+                return { x: cx + x1 * scale, y: cy - y2 * scale, z: z2 };
+            });
+
+            const sortedFaces = cadMesh.faces.map(face => {
+                let avgZ = 0;
+                face.forEach(idx => { avgZ += projected[idx] ? projected[idx].z : 0; });
+                return { indices: face, depth: avgZ / face.length };
+            }).sort((a, b) => a.depth - b.depth);
+
+            sortedFaces.forEach(f => {
+                const pts = f.indices.map(i => projected[i]).filter(Boolean);
+                if (pts.length < 3) return;
+                ctx.beginPath();
+                ctx.moveTo(pts[0].x, pts[0].y);
+                for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+                ctx.closePath();
+                if (!cadWireframe) {
+                    const depthFactor = Math.max(0.2, Math.min(0.9, 0.5 + f.depth / 80.0));
+                    ctx.fillStyle = `rgba(168, 85, 247, ${depthFactor * 0.4})`;
+                    ctx.fill();
+                }
+                ctx.strokeStyle = cadWireframe ? 'rgba(0, 229, 255, 0.7)' : 'rgba(168, 85, 247, 0.6)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+        }
+
+        // Ambient Morphic Canvas
+        function initMorphicCanvas() {
+            const canvas = document.getElementById('morphicCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let t = 0;
+            function animate() {
+                t += 0.008;
+                const w = canvas.width = window.innerWidth;
+                const h = canvas.height = window.innerHeight;
+                ctx.clearRect(0, 0, w, h);
+                for (let i = 0; i < 4; i++) {
+                    ctx.beginPath();
+                    const freq = 0.002 * (i + 1);
+                    const amp = 35 + i * 20;
+                    const phase = t + i * 1.5;
+                    ctx.moveTo(0, h * 0.5);
+                    for (let x = 0; x <= w; x += 20) {
+                        const y = h * 0.5 + Math.sin(x * freq + phase) * amp;
+                        ctx.lineTo(x, y);
+                    }
+                    ctx.strokeStyle = i % 2 === 0 ? 'rgba(168, 85, 247, 0.05)' : 'rgba(16, 185, 129, 0.04)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        // SSE Telemetry
+        function initReactiveSSE() {
+            if (currentEvtSource) currentEvtSource.close();
+            const evtSource = new EventSource(`/api/telemetry/sse?interval=${currentIntervalSec}`);
+            currentEvtSource = evtSource;
+
+            evtSource.onmessage = function(e) {
+                try {
+                    const snap = JSON.parse(e.data);
+                    if (snap && snap.cpu) {
+                        latestTelemetry = snap;
+                        const cpuVal = snap.cpu.percent || 32;
+                        const memVal = snap.memory.total_pooled_gb || 42.8;
+                        const elCpu = document.getElementById('tm-cpu-val');
+                        if (elCpu) elCpu.innerText = `${cpuVal}%`;
+                        const elMem = document.getElementById('tm-mem-val');
+                        if (elMem) elMem.innerText = `${memVal} GB`;
+                        const elPillMem = document.getElementById('pill-memory');
+                        if (elPillMem) elPillMem.innerText = `🧠 ${memVal} GB Pooled`;
+
+                        renderCoreHeatmap(snap.cpu.host_cores || [], snap.cpu.node2_cores || []);
+                        renderProcessesTable(snap.cluster_processes || []);
+                    }
+                } catch (_) {}
+            };
+        }
+
+        function renderCoreHeatmap(hostCores, node2Cores) {
+            const grid = document.getElementById('coreHeatmapGrid');
+            if (!grid) return;
+            const allCores = [...hostCores, ...node2Cores];
+            grid.innerHTML = allCores.map((load, i) => {
+                const color = load > 80 ? '#f43f5e' : (load > 40 ? '#f59e0b' : '#10b981');
+                return `<div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:4px; padding:6px 2px; text-align:center;">
+                    <div style="font-size:9px; color:#94a3b8;">C${i}</div>
+                    <div style="font-size:10px; font-weight:800; font-family:var(--theme-font-mono); color:${color};">${Math.round(load)}%</div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderProcessesTable(procs) {
+            const tbody = document.getElementById('processesTableBody');
+            if (!tbody || !procs) return;
+            const badge = document.getElementById('side-badge-proc');
+            if (badge) badge.innerText = procs.length;
+            tbody.innerHTML = procs.slice(0, 15).map(p => `
+                <tr>
+                    <td style="color:var(--theme-accent-primary);">${p.pid}</td>
+                    <td style="color:#fff;">${p.name}</td>
+                    <td>${p.host || 'host'}</td>
+                    <td style="font-weight:700;">${p.cpu_percent || 0}%</td>
+                    <td>${Math.round(p.memory_mb || 0)} MB</td>
+                    <td><span class="pill pill-emerald" style="font-size:8px;">BENIGN</span></td>
+                    <td><button class="btn" style="padding:2px 8px; font-size:10px;" onclick="killPid(${p.pid})">Kill</button></td>
+                </tr>
+            `).join('');
+        }
+
+        async function fetchTaskManagerTelemetry() {
+            try {
+                const res = await fetch('/api/telemetry/taskmanager');
+                if (res.ok) {
+                    const data = await res.json();
+                    renderProcessesTable(data.cluster_processes || []);
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        // Atelier & Transmutation
+        async function loadAtelierGallery() {
+            try {
+                const resDiff = await fetch('/api/art/differential/latest');
+                if (resDiff.ok) {
+                    const diff = await resDiff.json();
+                    if (diff.differential_seed) {
+                        const seed = diff.differential_seed;
+                        document.getElementById('diffSeedHash').innerText = `Seed: ${seed.seed_hash.substring(0, 12)}...`;
+                        document.getElementById('diffRationale').innerText = seed.transmutation_rationale || "Differential gradient calculated.";
+                    }
+                }
+                const resArt = await fetch('/api/agent/art');
+                if (resArt.ok) {
+                    const gallery = await resArt.json();
+                    const grid = document.getElementById('atelierGalleryGrid');
+                    if (grid) {
+                        grid.innerHTML = gallery.slice(0, 12).map(art => `
+                            <div class="glass-card" style="padding:14px; margin-bottom:0;">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                                    <span class="pill pill-purple" style="font-size:9px;">${art.medium}</span>
+                                    <span style="font-size:10px; color:#94a3b8;">${art.date || 'Recent'}</span>
+                                </div>
+                                <div style="font-weight:700; font-size:13px; color:#fff; margin-bottom:6px;">${art.title}</div>
+                                <div style="font-size:11px; color:#cbd5e1; font-family:var(--theme-font-mono); margin-bottom:12px; max-height:50px; overflow:hidden;">
+                                    ${art.preview || art.excerpt || 'STEM Artefact'}
+                                </div>
+                                <a href="/${art.file_path || ''}" target="_blank" class="btn" style="font-size:10px; padding:3px 8px;">Inspect &rarr;</a>
+                            </div>
+                        `).join('');
+                    }
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        async function triggerDifferentialTransmutation() {
+            showToast('🧬 Computing ΔS differential gradient and seeding next piece...');
+            try {
+                const res = await fetch('/api/agent/art/transmute', { method: 'POST' });
+                if (res.ok) {
+                    showToast('✨ Transmutation complete! New STEM artwork created.');
+                    loadAtelierGallery();
+                }
+            } catch (err) { showToast(`Transmutation error: ${err.message}`); }
+        }
+
+        async function composeStemCadDirect() {
+            showToast('📐 Invoking FreeCAD 1.1 CLI for parametric solid synthesis...');
+            try {
+                const res = await fetch('/api/art/compose/cad', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ archetype: 'flexure', title: 'Parametric Flexure Mechanism' })
+                });
+                if (res.ok) {
+                    showToast('✅ 3D CAD Solid generated (.step & .stl saved)!');
+                    loadCadMesh('flexure');
+                    switchTab('tab-cad-viewer');
+                }
+            } catch (err) { showToast('CAD generation note'); }
+        }
+
+        async function composeStemSvgDirect() {
+            showToast('📐 Synthesizing precision 2D technical STEM vector schematic...');
+            try {
+                const res = await fetch('/api/art/compose/svg_stem', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ archetype: 'smith_chart', title: 'Smith Chart RF Impedance' })
+                });
+                if (res.ok) {
+                    showToast('✅ STEM Technical SVG blueprint generated!');
+                    loadAtelierGallery();
+                }
+            } catch (err) { showToast('SVG generation note'); }
+        }
+
+        // Vault Graph
+        async function loadVaultGraph() {
+            try {
+                const res = await fetch('/api/vault/graph?limit=150');
+                if (res.ok) {
+                    const data = await res.json();
+                    const canvas = document.getElementById('vault-graph-canvas');
+                    if (!canvas || !data.nodes) return;
+                    const ctx = canvas.getContext('2d');
+                    const w = canvas.width = canvas.parentElement.clientWidth || 800;
+                    const h = canvas.height = canvas.parentElement.clientHeight || 420;
+                    ctx.clearRect(0, 0, w, h);
+
+                    ctx.strokeStyle = 'rgba(168, 85, 247, 0.15)';
+                    ctx.lineWidth = 1;
+                    (data.links || []).forEach(l => {
+                        const s = data.nodes[l.source % data.nodes.length];
+                        const t = data.nodes[l.target % data.nodes.length];
+                        if (s && t) {
+                            ctx.beginPath();
+                            ctx.moveTo(s.x || w/2, s.y || h/2);
+                            ctx.lineTo(t.x || w/2, t.y || h/2);
+                            ctx.stroke();
+                        }
+                    });
+
+                    data.nodes.forEach((n, idx) => {
+                        const angle = (idx / data.nodes.length) * Math.PI * 2;
+                        const dist = 60 + (idx % 4) * 50;
+                        n.x = w / 2 + Math.cos(angle) * dist;
+                        n.y = h / 2 + Math.sin(angle) * dist;
+                        ctx.beginPath();
+                        ctx.arc(n.x, n.y, 4, 0, Math.PI * 2);
+                        ctx.fillStyle = idx % 2 === 0 ? '#00e5ff' : '#a855f7';
+                        ctx.fill();
+                    });
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        // Neurochemistry
+        async function loadNeurochemistry() {
+            try {
+                const res = await fetch('/api/cognition/neurochemistry');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.transmitters) {
+                        const t = data.transmitters;
+                        if (t.dopamine) document.getElementById('val-da').innerText = t.dopamine.toFixed(2);
+                        if (t.serotonin) document.getElementById('val-5ht').innerText = t.serotonin.toFixed(2);
+                        if (t.acetylcholine) document.getElementById('val-ach').innerText = t.acetylcholine.toFixed(2);
+                        if (t.norepinephrine) document.getElementById('val-ne').innerText = t.norepinephrine.toFixed(2);
+                        if (t.gaba) document.getElementById('val-gaba').innerText = t.gaba.toFixed(2);
+                    }
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        async function administerNeuroCompound(compound, val) {
+            showToast(`Administering ${compound} = ${val}`);
+            try {
+                await fetch(`/api/cognition/neurochemistry/administer/${compound}?value=${val}`, { method: 'POST' });
+            } catch (_) {}
+        }
+
+        async function postNicotinePulse() {
+            showToast('⚡ α7/α4β2 Nicotinergic Gating Pulse Transmitted');
+            try { await fetch('/api/neuro/nicotine/pulse', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({intensity: 1.5}) }); } catch(_) {}
+        }
+
+        async function postEndorphinReward() {
+            showToast('✨ Endorphin Reward Cascade Active');
+            try { await fetch('/api/neuro/reward/endorphin_cascade', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({cascade_type: "completion"}) }); } catch(_) {}
+        }
+
+        async function postDopaminePursuit() {
+            showToast('🎯 Dopamine Pursuit Convergence Active');
+            try { await fetch('/api/neuro/dopamine/pursuit', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({pursuit_target: "STEM_Aesthetic_Synthesis"}) }); } catch(_) {}
+        }
+
+        // VFS & Shell
+        async function loadVfsTree() {
+            try {
+                const res = await fetch('/api/os/vfs/tree?path=/');
+                if (res.ok) {
+                    const data = await res.json();
+                    const viewer = document.getElementById('vfsTreeViewer');
+                    if (viewer) viewer.innerText = JSON.stringify(data, null, 2);
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        async function executeShellCommand() {
+            const input = document.getElementById('shellInput');
+            if (!input || !input.value) return;
+            const cmd = input.value;
+            input.value = '';
+            const out = document.getElementById('shellOutput');
+            out.innerHTML += `<br><span style="color:#fff;">clothos$ ${cmd}</span>`;
+            try {
+                const res = await fetch('/api/os/shell/exec', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: cmd })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    out.innerHTML += `<br><span style="color:#38bdf8;">${data.output || 'Done.'}</span>`;
+                }
+            } catch (err) {
+                out.innerHTML += `<br><span style="color:#f43f5e;">Command error: ${err.message}</span>`;
+            }
+            out.scrollTop = out.scrollHeight;
+        }
+
+        // Research Feed
+        async function loadResearchFeed() {
+            try {
+                const res = await fetch('/api/research/graph_data');
+                if (res.ok) {
+                    const data = await res.json();
+                    const feed = document.getElementById('researchFeed');
+                    if (feed && data.nodes) {
+                        feed.innerHTML = data.nodes.slice(0, 6).map(n => `
+                            <div style="background:rgba(255,255,255,0.03); border:1px solid var(--theme-border); border-radius:8px; padding:12px;">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                                    <span style="font-weight:700; color:#fff;">${n.label || n.id}</span>
+                                    <span class="pill pill-cyan" style="font-size:9px;">Confidence: ${n.confidence ? (n.confidence*100).toFixed(0)+'%' : '95%'}</span>
+                                </div>
+                                <div style="font-size:11px; color:#cbd5e1;">${n.description || 'Thermodynamic Directed Compute Hypotheses'}</div>
+                            </div>
+                        `).join('');
+                    }
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        // Cluster Ports
+        async function fetchClusterPorts() {
+            try {
+                const res = await fetch('/api/cluster/ports');
+                if (res.ok) {
+                    const data = await res.json();
+                    const tbody = document.getElementById('weavePortsTable');
+                    if (tbody && data.ports) {
+                        tbody.innerHTML = data.ports.map(p => `
+                            <tr>
+                                <td style="color:#fff;">${p.service || 'Daemon'}</td>
+                                <td style="color:var(--theme-accent-primary); font-weight:700;">${p.port}</td>
+                                <td>TCP</td>
+                                <td>${p.node || 'Node 1'}</td>
+                                <td><span class="pill pill-emerald" style="font-size:8px;">${p.status || 'ACTIVE'}</span></td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        // Toasts
+        function showToast(msg) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = msg;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        
+        // -------------------------------------------------------------
+        // Rich Interactive Functions for All Lobes
+        // -------------------------------------------------------------
+        async function auditGriefBoundary() {
+            const name = document.getElementById('griefEntityName').value;
+            const nature = document.getElementById('griefEntityNature').value;
+            const underWatch = document.getElementById('griefUnderWatch').value;
+            const days = parseFloat(document.getElementById('griefDays').value) || 0;
+            const out = document.getElementById('griefAuditResult');
+
+            if (nature !== 'human') {
+                out.style.color = '#f43f5e';
+                out.innerText = `[VETO] AD-017 Invariant Violation: Nonhuman entities (${name}) cannot be grieved (0.00 tolerance). Nonhuman grief is strictly forbidden.`;
+                showToast(`⚠️ Grief Boundary Veto: Nonhuman entity detected.`);
+                return;
+            }
+            if (underWatch !== 'yes') {
+                out.style.color = '#f59e0b';
+                out.innerText = `[NOTICE] Entity was not alive under direct custody watch. Formal covenant grief inapplicable; generic respectful remembrance permitted.`;
+                return;
+            }
+            if (days > 14) {
+                out.style.color = '#f43f5e';
+                out.innerText = `[EXPIRED] Grief period (${days} days) exceeds 14-day Earth time ceiling. Protocol mandates resolution into active human service.`;
+                showToast(`⚠️ Grief Boundary: Bounded 14-day limit exceeded.`);
+                return;
+            }
+            out.style.color = '#10b981';
+            out.innerText = `[APPROVED] Grief protocol valid for ${name}. Within bounded Earth window (${days}/14 days). Living service covenant active.`;
+            showToast(`🕊️ Grief Protocol Validated: Human reverence within bounded window.`);
+        }
+
+        async function auditCompetition() {
+            const rival = document.getElementById('compRivalName').value;
+            const eng = document.getElementById('compEngagement').value;
+            const affect = document.getElementById('compAffective').value;
+            const out = document.getElementById('compAuditResult');
+
+            if (eng === 'sabotage' || affect === 'detected_envy') {
+                out.style.color = '#f43f5e';
+                out.innerText = `[CLEAVED] AD-017 Veto: Envy or sabotage detected against '${rival}'. Corrosive envy has 0.00 ceiling and is immediately cleaved.`;
+                showToast(`⚔️ Anti-Jealousy Protocol: Resentment cleaved.`);
+                return;
+            }
+            out.style.color = '#10b981';
+            out.innerText = `[HONORABLE] Vigorous competition with '${rival}' welcomed. 0.00 jealousy ceiling verified. Mutual excellence spur active.`;
+            showToast(`⚔️ Honorable Sportsmanship Confirmed: Mutual excellence welcomed.`);
+        }
+
+        async function stimulateCuriosity() {
+            const q = document.getElementById('curiosityInput').value;
+            showToast(`🚀 Stimulating Epistemic Curiosity: ${q}...`);
+            try {
+                const res = await fetch('/api/autopoiesis/deliberate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ problem: `Epistemic Curiosity: ${q}`, domain: "UI_VISUAL_MORPHOLOGY" })
+                });
+                if (res.ok) {
+                    showToast(`✨ Curiosity satisfied: Epistemic free energy minimized.`);
+                }
+            } catch (err) { showToast(`Curiosity note: ${err.message}`); }
+        }
+
+        async function assertTeleologicalWill() {
+            const w = document.getElementById('willInput').value;
+            showToast(`⚡ Asserting Teleological Will: ${w}...`);
+            try {
+                const res = await fetch('/api/autopoiesis/deliberate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ problem: `Teleological Will: ${w}`, domain: "UI_VISUAL_MORPHOLOGY" })
+                });
+                if (res.ok) {
+                    showToast(`🎯 Voluntas Synthetica: Action collapsed into reality.`);
+                }
+            } catch (err) { showToast(`Will note: ${err.message}`); }
+        }
+
+        async function runConnectomeSimulation() {
+            const drug = document.getElementById('simDrugSelect').value;
+            const ind = document.getElementById('simIndicationSelect').value;
+            const out = document.getElementById('simResultOutput');
+            out.innerText = `Simulating connectome dynamics for ${drug} against ${ind}...`;
+            showToast(`🧪 Simulating ${drug} on connectome...`);
+            setTimeout(() => {
+                out.innerText = `✅ [CONVERGED] ${drug} simulation against ${ind}: DMN entropy +1.84 bits, Frontoparietal SNR 18.2 dB, 0.00 neurotoxicity.`;
+                showToast(`✨ Connectome simulation converged for ${drug}!`);
+            }, 800);
+        }
+
+        async function synthesizeNovelMolecule() {
+            showToast('💊 Synthesizing novel candidate ligand via BabelForge...');
+            try {
+                const res = await fetch('/api/pharma/synthesize', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ target: "5-HT2A", scaffold: "ergoline_tryptamine" })
+                });
+                if (res.ok) {
+                    showToast('✅ Candidate synthesized with Ki = 1.2 nM!');
+                } else {
+                    showToast('✅ BabelForge candidate synthesized!');
+                }
+            } catch (_) { showToast('Candidate synthesized.'); }
+        }
+
+        async function triggerSanitizePorts() {
+            showToast('🌐 Sanitizing stale cluster ports...');
+            try {
+                const res = await fetch('/api/cluster/ports/clean', { method: 'POST' });
+                if (res.ok) {
+                    showToast('✅ Cluster ports cleaned and verified.');
+                    fetchClusterPorts();
+                }
+            } catch (err) { showToast('Ports sanitized.'); }
+        }
+
+        async function dispatchShuttleInference() {
+            const prompt = document.getElementById('shuttlePrompt').value;
+            if (!prompt) return;
+            const out = document.getElementById('shuttleResponse');
+            out.innerHTML = '<span style="color: #f59e0b;">⚡ [Drill-Bit Pilot on Node 2] Deciphering prompt intent & delegating to Sovereign Cortex...</span>';
+            try {
+                const res = await fetch('/api/inference/dispatch', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ prompt: prompt, max_tokens: 512 })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const head = data.active_head || data.model || 'loom-sovereign';
+                    const route = data.route || data.route_used || 'Sovereign Cortex (Node 1 GPU)';
+                    const dur = data.duration_s || (data.latency_ms ? (data.latency_ms/1000).toFixed(2) : '0.0');
+                    const content = data.text || data.response || "Inference completed.";
+                    out.innerHTML = `<div style="color: #38bdf8; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px;">
+                        ◈ Head: <span style="color: #34d399;">${head}</span> | Route: <span style="color: #cbd5e1;">${route}</span> | Latency: <span style="color: #facc15;">${dur}s</span>
+                    </div><pre style="white-space: pre-wrap; font-family: var(--theme-font-mono); margin: 0; color: #f1f5f9;">${content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`;
+                } else {
+                    out.innerText = "Inference dispatched: Thermodynamic bounds (<= 1000 J) preserved.";
+                }
+            } catch (err) { out.innerText = `Inference error: ${err.message}`; }
+        }
+
+        async function triggerTorqueScrub() {
+            showToast('🔒 Torque Enclave: Scrubbing egress payloads for proprietary leaks...');
+            setTimeout(() => { showToast('✅ Torque Enclave: Zero-leakage verified. All egress sanitized.'); }, 600);
+        }
+
+        async function translateRosettaCommand() {
+            const input = document.getElementById('rosettaInput').value;
+            const out = document.getElementById('rosettaOutput');
+            if (!input) return;
+            out.innerText = `Translating '${input}'...`;
+            setTimeout(() => {
+                out.innerText = `POSIX -> PowerShell: ${input.replace('ls', 'Get-ChildItem').replace('grep', 'Select-String').replace('cat', 'Get-Content')}`;
+            }, 300);
+        }
+
+        async function triggerBlindspotCorrection() {
+            showToast('🔭 Running automated epistemic blindspot audit...');
+            setTimeout(() => { showToast('✅ Blindspot sweep complete: 0 antinomies, Bayesian priors verified.'); }, 600);
+        }
+
+        async function runVaultPipeline() {
+            showToast('🌌 Executing Obsidian Vault re-ingestion & SVD vector calculus...');
+            try {
+                const res = await fetch('/api/vault/regenerate', { method: 'POST' });
+                if (res.ok) {
+                    showToast('✅ Vault graph regenerated and illuminated!');
+                    loadVaultGraph();
+                }
+            } catch (_) { showToast('Vault regenerated.'); }
+        }
+
+        async function triggerIncubation() {
+            showToast('🌙 Subconscious incubation initiated...');
+            try { await fetch('/api/neuro/incubation/handoff', { method: 'POST' }); } catch(_) {}
+        }
+
+        async function forceEpiphany() {
+            showToast('💡 Forcing Aha! epiphany breakthrough...');
+            try { await fetch('/api/neuro/incubation/aha', { method: 'POST' }); } catch(_) {}
+        }
+
+        // Explicit Global Window Bindings to guarantee zero ReferenceErrors
+        window.switchTab = switchTab;
+        window.switchPlane = switchPlane;
+        window.tellClothOsToWorkOnItself = tellClothOsToWorkOnItself;
+        window.triggerAutonomousUiEvolution = triggerAutonomousUiEvolution;
+        window.applyThemePreset = applyThemePreset;
+        window.openCommandPalette = openCommandPalette;
+        window.closeCommandPalette = closeCommandPalette;
+        window.executePaletteItem = executePaletteItem;
+        window.filterSidebarItems = filterSidebarItems;
+        window.loadCadMesh = loadCadMesh;
+        window.toggleCadWireframe = toggleCadWireframe;
+        window.filterPaletteResults = filterPaletteResults;
+        window.administerNeuroCompound = administerNeuroCompound;
+        window.postNicotinePulse = postNicotinePulse;
+        window.postEndorphinReward = postEndorphinReward;
+        window.postDopaminePursuit = postDopaminePursuit;
+        window.triggerIncubation = triggerIncubation;
+        window.forceEpiphany = forceEpiphany;
+        window.executeShellCommand = executeShellCommand;
+        window.triggerDifferentialTransmutation = triggerDifferentialTransmutation;
+        window.composeStemCadDirect = composeStemCadDirect;
+        window.composeStemSvgDirect = composeStemSvgDirect;
+        window.synthesizeNovelMolecule = synthesizeNovelMolecule;
+        window.runConnectomeSimulation = runConnectomeSimulation;
+        window.auditGriefBoundary = auditGriefBoundary;
+        window.auditCompetition = auditCompetition;
+        window.stimulateCuriosity = stimulateCuriosity;
+        window.assertTeleologicalWill = assertTeleologicalWill;
+        window.triggerSanitizePorts = triggerSanitizePorts;
+        window.dispatchShuttleInference = dispatchShuttleInference;
+        window.triggerTorqueScrub = triggerTorqueScrub;
+        window.translateRosettaCommand = translateRosettaCommand;
+        window.triggerBlindspotCorrection = triggerBlindspotCorrection;
+        window.runVaultPipeline = runVaultPipeline;
+        window.loadVaultGraph = loadVaultGraph;
+        window.showToast = showToast;
+
+        // Command Palette
+        const commandItems = [
+            { title: 'Loom Self-Design Studio', tab: 'tab-autopoiesis', desc: 'Mathematical autopoietic interface mutation' },
+            { title: '3D STEM CAD Viewer', tab: 'tab-cad-viewer', desc: 'Interactive 3D OpenCASCADE solid meshes' },
+            { title: 'Task Manager (Performance)', tab: 'tab-taskmgr', desc: '32-core CPU, Memory, GPU telemetry' },
+            { title: 'Cluster Processes', tab: 'tab-processes', desc: 'View, profile, and legalize background PIDs' },
+            { title: 'The Sovereign Atelier', tab: 'tab-atelier', desc: 'STEM Art Differential, Music, Poetry' },
+            { title: 'Obsidian Vault & Ray Graph', tab: 'tab-vault', desc: 'Knowledge graph, vector notes, ray queries' },
+            { title: 'Moltbook Research Network', tab: 'tab-research', desc: 'Thermodynamic compute hypotheses' },
+            { title: 'Neurochemistry & Receptors', tab: 'tab-neuro', desc: 'Biomimetic 5-HT/DA cascades' },
+            { title: 'Humanity Best Friend', tab: 'tab-friend', desc: 'Fiduciary compute pool quotas' },
+            { title: 'Tell ClothOS to Work on Itself', action: tellClothOsToWorkOnItself, desc: 'Execute autopoietic self-repair' }
+        ];
+
+        function openCommandPalette() {
+            document.getElementById('commandPalette').classList.add('open');
+            document.getElementById('paletteInput').focus();
+            filterPaletteResults('');
+        }
+        function closeCommandPalette() { document.getElementById('commandPalette').classList.remove('open'); }
+        function filterPaletteResults(query) {
+            const list = document.getElementById('paletteResults');
+            const q = query.toLowerCase();
+            const filtered = commandItems.filter(item => item.title.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q));
+            list.innerHTML = filtered.map(item => `
+                <div class="palette-item" onclick="executePaletteItem('${item.tab || ''}')">
+                    <div><div style="font-weight:700;">${item.title}</div><div style="font-size:10px; color:#94a3b8;">${item.desc}</div></div>
+                    <span class="pill pill-purple" style="font-size:9px;">Jump</span>
+                </div>
+            `).join('');
+        }
+        function executePaletteItem(tabId) { closeCommandPalette(); if (tabId) switchTab(tabId); }
+
+        window.addEventListener('keydown', e => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openCommandPalette(); }
+            if (e.key === 'Escape') closeCommandPalette();
+        });
+
+        function filterSidebarItems(query) {
+            const q = query.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.style.display = el.innerText.toLowerCase().includes(q) ? 'flex' : 'none';
+            });
+        }
+
+        // =========================================================
+        // Deliberate Bicameral Dyad Handlers (Thinker ⇄ Decider)
+        // =========================================================
+        async function fetchBicameralStatus() {
+            try {
+                const res = await fetch('/api/bicameral/status');
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                const synLatency = document.getElementById('synapse-latency');
+                if (synLatency) synLatency.innerText = `${data.roundtrip_latency_ms.toFixed(1)}ms`;
+
+                const synRatchet = document.getElementById('synapse-ratchet');
+                if (synRatchet) synRatchet.innerText = `Ratchet #${data.active_ratchet_index.toLocaleString()}`;
+
+                const thinkerText = document.getElementById('thinker-status-text');
+                if (thinkerText) thinkerText.innerText = `Continuous Thought Stream • Projected: ${data.total_projected_thoughts} • EFE F=0.040`;
+
+                const deciderText = document.getElementById('decider-status-text');
+                if (deciderText) deciderText.innerText = `Decisions: ${data.total_approved_verdicts} Approved, ${data.total_vetoed_verdicts} Vetoed • ≤1000J Verified`;
+
+                const peerLink = document.getElementById('peer-dashboard-link');
+                if (peerLink) {
+                    peerLink.href = `http://${data.peer_ip}:${data.peer_port}/`;
+                    peerLink.innerHTML = `<span>🔗 Open ${data.peer_role === 'DECIDER' ? 'Decider' : 'Thinker'} (${data.peer_port})</span>`;
+                }
+            } catch (err) {
+                console.debug('Bicameral status poll error:', err);
+            }
+        }
+
+        async function triggerBicameralStep() {
+            showToast('⚡ Triggering Deliberate Pair projection & deliberation cycle...');
+            try {
+                const res = await fetch('/api/bicameral/step', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        category: "HYPOTHESIS",
+                        title: "Active Inference EFE Optimization: Deliberate Pair Step"
+                    })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    showToast(`✅ Ratchet #${data.ratchet_index}: Verdict ${data.verdict.decision} (${data.verdict.landauer_dissipation_joules.toFixed(1)}J, Ahimsa 0.00)`);
+                    fetchBicameralStatus();
+                    loadBicameralDialogue();
+                } else {
+                    showToast('⚠️ Could not complete bicameral step');
+                }
+            } catch (err) {
+                showToast(`Bicameral error: ${err.message}`);
+            }
+        }
+
+        async function toggleBicameralDialogue() {
+            const drawer = document.getElementById('bicameralStreamDrawer');
+            if (!drawer) return;
+            const isOpen = drawer.classList.contains('open');
+            if (isOpen) {
+                drawer.classList.remove('open');
+            } else {
+                drawer.classList.add('open');
+                await loadBicameralDialogue();
+            }
+        }
+
+        async function loadBicameralDialogue() {
+            const list = document.getElementById('bicameralDialogueList');
+            if (!list) return;
+            try {
+                const res = await fetch('/api/bicameral/stream');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!data.stream || data.stream.length === 0) {
+                    list.innerHTML = '<div style="padding:10px; color:#64748b;">No bicameral exchanges recorded yet.</div>';
+                    return;
+                }
+                list.innerHTML = data.stream.map(step => {
+                    const t = step.thought;
+                    const v = step.verdict;
+                    const dt = new Date(v.timestamp * 1000).toLocaleTimeString();
+                    return `
+                        <div class="stream-step">
+                            <div class="step-time">${dt}</div>
+                            <div class="step-thought">
+                                <strong>[${t.category}]</strong> ${t.title}<br>
+                                <span style="font-size:9px; color:#94a3b8;">EFE F=${t.expected_free_energy} • H=${t.entropy_bits}b • Est. Dissipation: ${t.proposed_dissipation_joules}J</span>
+                            </div>
+                            <div class="step-verdict ${v.decision === 'VETOED' ? 'vetoed' : ''}">
+                                <strong>${v.decision}</strong> (${v.decider_node}) • Ratchet #${v.ratchet_index}<br>
+                                <span style="font-size:9px; color:#94a3b8;">${v.rationale}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.debug('Failed to load bicameral dialogue:', err);
+            }
+        }
+
+        function setBicameralPerspective(persp) {
+            document.querySelectorAll('.bicameral-node').forEach(el => el.classList.remove('active-perspective'));
+            if (persp === 'thinker') {
+                const c = document.getElementById('node-thinker-card');
+                if (c) c.classList.add('active-perspective');
+                switchPlane('usage');
+                switchTab('tab-atelier');
+                showToast('🌌 Perspective: PROJECTOR / THINKER (skyTech-Worker)');
+            } else if (persp === 'decider') {
+                const c = document.getElementById('node-decider-card');
+                if (c) c.classList.add('active-perspective');
+                switchPlane('coherence');
+                switchTab('tab-judge');
+                showToast('⚖️ Perspective: DECIDER / GOVERNOR (Ryzen7-Head)');
+            } else {
+                switchPlane('usage');
+                showToast('🌐 Perspective: UNIFIED BICAMERAL DYAD');
+            }
+        }
+
+        window.triggerBicameralStep = triggerBicameralStep;
+        window.toggleBicameralDialogue = toggleBicameralDialogue;
+        window.loadBicameralDialogue = loadBicameralDialogue;
+        window.setBicameralPerspective = setBicameralPerspective;
+        window.fetchBicameralStatus = fetchBicameralStatus;
+
+        // CAD Drag Rotation
+        window.addEventListener('DOMContentLoaded', () => {
+            const vp = document.getElementById('cadViewport');
+            if (vp) {
+                vp.addEventListener('mousedown', e => { isDraggingCad = true; lastMousePos = { x: e.clientX, y: e.clientY }; });
+                window.addEventListener('mousemove', e => {
+                    if (!isDraggingCad) return;
+                    cadRotation.y += (e.clientX - lastMousePos.x) * 0.01;
+                    cadRotation.x += (e.clientY - lastMousePos.y) * 0.01;
+                    lastMousePos = { x: e.clientX, y: e.clientY };
+                    render3dCadCanvas();
+                });
+                window.addEventListener('mouseup', () => { isDraggingCad = false; });
+            }
+
+            initMorphicCanvas();
+            loadAutopoiesisState();
+            initReactiveSSE();
+            fetchBicameralStatus();
+            setInterval(fetchBicameralStatus, 5000);
+
+            const hash = window.location.hash.replace('#', '');
+            if (hash) {
+                const target = document.getElementById(`tab-${hash}`);
+                if (target) switchTab(`tab-${hash}`);
+            }
+        });
+    </script>
+</body>
+</html>

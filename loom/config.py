@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
 
+LOOM_VERSION: str = "0.2.0"
+
 
 class NodeEndpointConfig(BaseModel):
     """Network coordinate and hardware capability profile for a cluster node."""

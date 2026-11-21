@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import platform
 import subprocess
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("loom.stitch.profiler")
@@ -60,6 +60,34 @@ class ClusterHardwareState(BaseModel):
     )
 
 
+class HardwareBenchmarkResults(BaseModel):
+    """Empirical micro-benchmark measurements."""
+
+    cpu_fp32_gflops: float = Field(..., description="Vectorized FP32 dense matrix multiply throughput in GFLOPS.")
+    memory_bandwidth_gbps: float = Field(..., description="Sequential memory copy bandwidth in GB/s.")
+    compute_tier: str = Field(..., description="Assessed compute tier: 'Frontier-Accelerated', 'High-Capability', 'Standard', 'Constrained'.")
+    benchmark_duration_ms: float = Field(..., description="Benchmark execution duration in milliseconds.")
+    timestamp: float = Field(default=0.0)
+
+
+class MachineCapabilities(BaseModel):
+    """Synthesized capability profile of the host machine."""
+
+    node_name: str
+    hostname: str
+    total_pooled_vram_gb: float
+    total_host_ram_gb: float
+    cpu_threads: int
+    cpu_model: str
+    gpu_count: int
+    gpus: List[Dict[str, Any]]
+    max_recommended_model_size: str
+    max_context_window: int
+    concurrency_capacity: int
+    recommended_execution_tier: str
+    benchmark: Optional[HardwareBenchmarkResults] = None
+
+
 class HardwareProfiler:
     """Discovers and profiles heterogeneous accelerator hardware on the local node.
 
@@ -99,7 +127,8 @@ class HardwareProfiler:
             else:
                 try:
                     cmd = ["powershell", "-NoProfile", "-Command", "(Get-CimInstance Win32_Processor).Name"]
-                    res = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
+                    extra_flags = 0x08000000 if sys.platform == "win32" else 0
+                    res = subprocess.run(cmd, capture_output=True, text=True, timeout=3, creationflags=extra_flags)
                     if res.returncode == 0 and res.stdout.strip():
                         cpu_model = res.stdout.strip().split("\n")[0].strip()
                         if is_real_subproc:
@@ -167,6 +196,16 @@ class HardwareProfiler:
         except Exception as e:
             logger.debug(f"NVML probing failed, attempting nvidia-smi fallback: {e}")
 
+        # Node 2 (Ryzen 7) has AMD Radeon 680M integrated GPU, never probe nvidia
+        node_name = platform.node().lower()
+        cpu_name = platform.processor().lower()
+        if "ryzen" in node_name or "head" in node_name or "win-7cmaqlvp8mv" in node_name or "ryzen" in cpu_name or "amd" in cpu_name:
+            return gpus
+
+        import shutil
+        if not shutil.which("nvidia-smi"):
+            return gpus
+
         # Attempt 2: nvidia-smi CLI fallback
         try:
             cmd = [
@@ -174,7 +213,8 @@ class HardwareProfiler:
                 "--query-gpu=index,name,memory.total,memory.free,memory.used,driver_version",
                 "--format=csv,noheader,nounits",
             ]
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            extra_flags = 0x08000000 if sys.platform == "win32" else 0
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=3, creationflags=extra_flags)
             if res.returncode == 0 and res.stdout.strip():
                 for line in res.stdout.strip().split("\n"):
                     parts = [p.strip() for p in line.split(",")]
@@ -325,7 +365,8 @@ class HardwareProfiler:
                     "ConvertTo-Json -Compress"
                 ),
             ]
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            extra_flags = 0x08000000 if sys.platform == "win32" else 0
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=5, creationflags=extra_flags)
             if res.returncode == 0 and res.stdout.strip():
                 import json
 
@@ -341,10 +382,21 @@ class HardwareProfiler:
                     total_mb = int(raw_ram // (1024 * 1024))
                     if "RX 580" in name or "580" in name:
                         total_mb = 8192  # RX 580 2048SP physical specification is 8GB GDDR5
+                        arch = "GCN 4.0 / gfx803"
+                        is_primary = False
+                    elif "680M" in name or "gfx90c" in name or "Radeon(TM)" in name:
+                        total_mb = 12390  # AMD Radeon 680M UMA memory allocation
+                        arch = "RDNA 2 / gfx90c"
+                        is_primary = True
                     elif total_mb < 512:
                         total_mb = 4096
+                        arch = "AMD Radeon Unified"
+                        is_primary = False
+                    else:
+                        arch = "AMD Radeon Unified"
+                        is_primary = False
 
-                    # Estimate ~85% available on secondary compute card
+                    # Estimate available memory
                     free_mb = int(total_mb * 0.85)
 
                     gpus.append(
@@ -356,9 +408,9 @@ class HardwareProfiler:
                             total_vram_mb=total_mb,
                             free_vram_mb=free_mb,
                             used_vram_mb=total_mb - free_mb,
-                            compute_capability="GCN 4.0 / gfx803",
+                            compute_capability=arch,
                             driver_version=driver_ver,
-                            is_primary_display=False,
+                            is_primary_display=is_primary,
                         )
                     )
                     starting_index += 1
@@ -513,6 +565,126 @@ class HardwareProfiler:
             host=host,
             gpus=all_gpus,
             ray_custom_resources=ray_resources,
+        )
+
+    def run_micro_benchmark(self, force: bool = False) -> HardwareBenchmarkResults:
+        """Runs a fast (sub-100ms) empirical micro-benchmark to assess real CPU and memory throughput."""
+        import json
+        import time
+        from pathlib import Path
+        import numpy as np
+
+        cache_path = Path.home() / ".loom" / "benchmark_cache.json"
+        if not force and cache_path.exists():
+            try:
+                data = json.loads(cache_path.read_text(encoding="utf-8"))
+                if time.time() - data.get("timestamp", 0) < 86400:
+                    return HardwareBenchmarkResults(**data)
+            except Exception:
+                pass
+
+        t_start = time.perf_counter()
+
+        # 1. FP32 Matrix Multiplication GFLOPS (2048 x 2048)
+        N = 2048
+        A = np.random.randn(N, N).astype(np.float32)
+        B = np.random.randn(N, N).astype(np.float32)
+        t0 = time.perf_counter()
+        _ = np.dot(A, B)
+        dt_matmul = max(0.001, time.perf_counter() - t0)
+        flops = (2.0 * (N ** 3)) / (dt_matmul * 1e9)
+
+        # 2. Sequential Memory Copy Bandwidth (128 MB buffer)
+        arr = np.ones(32 * 1024 * 1024, dtype=np.float32)
+        t0 = time.perf_counter()
+        _ = np.copy(arr)
+        dt_mem = max(0.001, time.perf_counter() - t0)
+        bandwidth_gbps = (128.0 / 1024.0) / dt_mem
+
+        t_total_ms = (time.perf_counter() - t_start) * 1000.0
+
+        if flops > 200 and bandwidth_gbps > 3.0:
+            tier = "Frontier-Accelerated"
+        elif flops > 100:
+            tier = "High-Capability"
+        else:
+            tier = "Standard"
+
+        results = HardwareBenchmarkResults(
+            cpu_fp32_gflops=round(flops, 2),
+            memory_bandwidth_gbps=round(bandwidth_gbps, 2),
+            compute_tier=tier,
+            benchmark_duration_ms=round(t_total_ms, 2),
+            timestamp=time.time(),
+        )
+
+        try:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(json.dumps(results.model_dump(), indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
+        return results
+
+    def get_machine_capabilities(self, run_bench: bool = True) -> MachineCapabilities:
+        """Synthesizes physical specs, discovered accelerators, and benchmark into actionable capabilities."""
+        state = self.probe_cluster_state()
+        bench = self.run_micro_benchmark() if run_bench else None
+
+        total_vram_mb = sum(g.total_vram_mb for g in state.gpus)
+        total_vram_gb = round(total_vram_mb / 1024.0, 1)
+        total_ram_gb = round(state.host.total_ram_mb / 1024.0, 1)
+        gpu_count = len(state.gpus)
+
+        if total_vram_gb >= 24.0:
+            max_model = "70B (High-VRAM Resident)"
+            max_ctx = 131072
+            tier = "Tier 1 Local / Tier 2 Cluster Mesh"
+        elif total_vram_gb >= 18.0:
+            max_model = "32B (100% VRAM Resident Across Dual-GPU Mesh)"
+            max_ctx = 131072
+            tier = "Tier 1 Local / Tier 2 Cluster Mesh"
+        elif total_vram_gb >= 10.0:
+            max_model = "14B / 32B Hybrid Sharded"
+            max_ctx = 65536
+            tier = "Tier 1 Local Rapid"
+        elif total_vram_gb >= 6.0:
+            max_model = "7B (100% VRAM Resident)"
+            max_ctx = 32768
+            tier = "Tier 1 Local Rapid"
+        else:
+            max_model = "3B / Quantized Small"
+            max_ctx = 8192
+            tier = "Tier 3 Sovereign Cloud Fallback"
+
+        concurrency = max(2, min(32, state.host.cpu_cores_logical // 2))
+
+        gpu_dicts = [
+            {
+                "index": g.index,
+                "name": g.name,
+                "vendor": g.vendor,
+                "backend": g.backend,
+                "vram_gb": round(g.total_vram_mb / 1024.0, 1),
+                "is_primary": g.is_primary_display,
+            }
+            for g in state.gpus
+        ]
+
+        return MachineCapabilities(
+            node_name=state.node_name,
+            hostname=state.host.hostname,
+            total_pooled_vram_gb=total_vram_gb,
+            total_host_ram_gb=total_ram_gb,
+            cpu_threads=state.host.cpu_cores_logical,
+            cpu_model=state.host.cpu_model,
+            gpu_count=gpu_count,
+            gpus=gpu_dicts,
+            max_recommended_model_size=max_model,
+            max_context_window=max_ctx,
+            concurrency_capacity=concurrency,
+            recommended_execution_tier=tier,
+            benchmark=bench,
         )
 
     def build_node_profile(self) -> ClusterHardwareState:

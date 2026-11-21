@@ -66,6 +66,14 @@ models/*.gguf
 clothos_root/browsers/
 clothos_root/models/
 clothos_root/voice/*.bin
+clothos_root/proc/
+clothos_root/dev/
+clothos_root/skills/
+clothos_root/crystallized_kb/
+clothos_root/embeddings/
+clothos_root/sys/
+clothos_root/bin/
+clothos_root/etc/
 *.gguf
 *.bin
 *.safetensors
@@ -75,8 +83,24 @@ node_modules/
 target/
 
 # Local cluster runtime state files
+deliverables/DELIVERABLE_*.md
 .loom_*.json
 .loom_*_ledger/
 .loom/
+.loom_dashboard_pid
+.loom_dashboard_port
+.loom_hypotheses.db*
+.clothos_task_queue.jsonl
+.loom_art_learning_ledger.jsonl
+.cluster_sync_test.txt
 node_modules
 .aider*
+scratch/
+traces/
+temp_script_*.js
+test_script_*.js
+val_script_*.js
+*.zip
+artifacts/
+sovereign_vault/
+vault/

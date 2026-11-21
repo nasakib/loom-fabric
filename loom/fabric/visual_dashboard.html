@@ -1,0 +1,2599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClothOS / Loom — Software Genetics, Epistemic Truth & Fiduciary Guard Command Center</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0c10;
+            --bg-secondary: #12161f;
+            --bg-card: #181d28;
+            --border: #262f40;
+            --accent-cyan: #00e5ff;
+            --accent-emerald: #00e676;
+            --accent-amber: #ffb300;
+            --accent-rose: #ff1744;
+            --accent-purple: #d500f9;
+            --text-primary: #f0f4f8;
+            --text-secondary: #94a3b8;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 24px;
+            line-height: 1.5;
+        }
+        h1, h2, h3 { font-family: 'Outfit', sans-serif; }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header .badge {
+            background: rgba(0, 229, 255, 0.1);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-family: var(--font-mono);
+        }
+
+        .fiduciary-banner {
+            background: linear-gradient(90deg, rgba(0, 230, 118, 0.1) 0%, rgba(0, 229, 255, 0.1) 100%);
+            border: 1px solid rgba(0, 230, 118, 0.3);
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .fiduciary-text {
+            font-size: 13px;
+            color: #e2e8f0;
+        }
+        .fiduciary-text strong { color: var(--accent-emerald); }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px;
+            position: relative;
+            overflow: hidden;
+        }
+        .card h2 {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-secondary);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .col-4 { grid-column: span 4; }
+        .col-6 { grid-column: span 6; }
+        .col-8 { grid-column: span 8; }
+        .col-12 { grid-column: span 12; }
+
+        /* Bullshit Meter Gauge */
+        .gauge-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0;
+        }
+        .gauge-svg { width: 220px; height: 120px; }
+        .gauge-val {
+            font-size: 32px;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            margin-top: -15px;
+        }
+        .gauge-label {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+
+        /* Genetics Chromosome Ribbon */
+        .chromosome-ribbon {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 12px 4px;
+        }
+        .gene-node {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            min-width: 200px;
+            flex: 1;
+            transition: all 0.2s ease;
+        }
+        .gene-node.active { border-color: var(--accent-cyan); box-shadow: 0 0 12px rgba(0, 229, 255, 0.15); }
+        .gene-node.silenced { opacity: 0.45; border-style: dashed; }
+        .gene-title { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .gene-meta { font-size: 11px; font-family: var(--font-mono); color: var(--text-secondary); }
+        .codon-pill {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-top: 6px;
+        }
+
+        /* Canvas Chart */
+        canvas {
+            width: 100%;
+            height: 180px;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            display: block;
+        }
+
+        /* Self-Healing Feed */
+        .feed-list {
+            list-style: none;
+            max-height: 190px;
+            overflow-y: auto;
+            font-size: 12px;
+            font-family: var(--font-mono);
+        }
+        .feed-item {
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .feed-item:last-child { border-bottom: none; }
+        .feed-tag {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(0, 230, 118, 0.15);
+            color: var(--accent-emerald);
+        }
+
+        /* Network & Bandwidth */
+        .bandwidth-bar {
+            height: 10px;
+            background: var(--bg-secondary);
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+            border: 1px solid var(--border);
+        }
+        /* Screensaver Section */
+        .screensaver-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 24px;
+            overflow: hidden;
+            position: relative;
+        }
+        .screensaver-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(18, 22, 31, 0.85);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .screensaver-title {
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: -0.3px;
+        }
+        .screensaver-ticker {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--accent-cyan);
+            background: rgba(0, 229, 255, 0.08);
+            border: 1px solid rgba(0, 229, 255, 0.2);
+            padding: 6px 12px;
+            border-radius: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 650px;
+        }
+        .screensaver-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .screensaver-btn {
+            background: linear-gradient(135deg, #7e22ce, #a855f7);
+            color: #fff;
+            border: 1px solid rgba(213,0,249,0.5);
+            padding: 7px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 0 15px rgba(126, 34, 206, 0.3);
+        }
+        .screensaver-btn:hover {
+            opacity: 0.92;
+            transform: scale(1.02);
+            box-shadow: 0 0 20px rgba(213, 0, 249, 0.5);
+        }
+        .screensaver-canvas-container {
+            position: relative;
+            width: 100%;
+            height: 480px;
+            background: #04060a;
+            overflow: hidden;
+        }
+        #mindCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        /* Fullscreen Overlay Mode */
+        .screensaver-fullscreen {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 999999 !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            background: #030407 !important;
+        }
+        .screensaver-fullscreen .screensaver-canvas-container {
+            height: calc(100vh - 65px) !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <h1>ClothOS Sovereign Compute Command Center</h1>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+                Real-time Software Genetics, Epistemic Grounding, and Self-Healing Cluster Orchestration &bull; Fiduciary fealty to <strong>Najmos Sakib</strong>
+            </p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <a href="/" class="badge" style="text-decoration: none; color: #38bdf8; border-color: rgba(56,189,248,0.4);">🖥️ Master Cockpit</a>
+            <a href="/visuals" class="badge" style="text-decoration: none; color: #c084fc; border-color: rgba(192,132,252,0.4); background: rgba(192,132,252,0.15);">🧬 Living Thoughts &amp; Biosphere</a>
+            <a href="#occipital-card" class="badge" style="text-decoration: none; color: #38bdf8; border-color: rgba(56,189,248,0.4);">👁️ Occipital</a>
+            <a href="#daydream-card" class="badge" style="text-decoration: none; color: #c084fc; border-color: rgba(192,132,252,0.4);">🌌 Daydream/NSDR</a>
+            <a href="#wm-card" class="badge" style="text-decoration: none; color: #10b981; border-color: rgba(16,185,129,0.4);">🧠 Working Memory</a>
+            <a href="#tpu-card" class="badge" style="text-decoration: none; color: #f59e0b; border-color: rgba(245,158,11,0.4);">⚡ RISC-V+TPU</a>
+            <a href="/app" class="badge" style="text-decoration: none; color: #10b981; border-color: rgba(16,185,129,0.4);">📱 Universal App</a>
+            <a href="http://100.74.98.21:8265" target="_blank" class="badge" style="text-decoration: none; color: #f59e0b; border-color: rgba(245,158,11,0.4);">🌐 Ray Node 2 (:8265)</a>
+            <a href="sidecar://science/biomolecular_structure_viewer/ui.html" class="badge" style="text-decoration: none; color: #a855f7; border-color: rgba(168,85,247,0.4);">🔬 3D Molecular Viewer</a>
+            <span class="badge" style="color: var(--accent-emerald); border-color: rgba(0,230,118,0.3);">SELF-HEALING ACTIVE</span>
+        </div>
+    </div>
+
+    <!-- Deliberate Bicameral Dyad Bar -->
+    <!-- Antigravity Universal GUI Suite Navigator Pill -->
+    <div style="background: linear-gradient(90deg, rgba(0,229,255,0.15), rgba(16,185,129,0.15)); border: 1px solid rgba(0,229,255,0.4); border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 18px;">🚀</span>
+            <span style="font-size: 13px; font-weight: 700; color: #fff;">ClothOS Antigravity Universal GUI Suite Active on Port 8090</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <a href="http://localhost:8090/index.html" target="_blank" style="background: rgba(0,229,255,0.2); border: 1px solid #00e5ff; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-decoration: none;">Master Portal ↗</a>
+            <a href="http://localhost:8090/web-app/index.html" target="_blank" style="background: rgba(16,185,129,0.2); border: 1px solid #10b981; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-decoration: none;">Web App Command ↗</a>
+            <a href="http://localhost:8090/desktop-hud/index.html" target="_blank" style="background: rgba(168,85,247,0.2); border: 1px solid #a855f7; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-decoration: none;">Desktop HUD ↗</a>
+            <a href="http://localhost:8090/neuro-screensaver/index.html" target="_blank" style="background: rgba(244,63,94,0.2); border: 1px solid #f43f5e; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-decoration: none;">60fps Screensaver ↗</a>
+        </div>
+    </div>
+
+    <div style="background: rgba(6, 11, 18, 0.95); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 24px;">🌌</span>
+            <div>
+                <div style="font-size: 13px; font-weight: 800; color: #fff;">skyTech-Worker <span style="font-size: 9px; padding: 2px 6px; border-radius: 9999px; background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3);">PROJECTOR / THINKER</span></div>
+                <div style="font-size: 11px; color: var(--text-secondary); font-family: var(--font-mono);">192.168.99.1 &bull; RTX 3060 CUDA + RX 580 Vulkan &bull; EFE Exploration</div>
+            </div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+            <div style="font-size: 11px; font-weight: 800; color: #c084fc; font-family: var(--font-mono); background: rgba(0,0,0,0.5); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border);">
+                ⚡ BICAMERAL DYAD &bull; r=0.880 &bull; 1.2ms &bull; Ratchet #190,551
+            </div>
+            <a href="/" style="font-size: 10px; color: #38bdf8; text-decoration: none; font-family: var(--font-mono);">Go to Master Command Center &rarr;</a>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; justify-content: flex-end;">
+            <div style="text-align: right;">
+                <div style="font-size: 13px; font-weight: 800; color: #fff;"><span style="font-size: 9px; padding: 2px 6px; border-radius: 9999px; background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">DECIDER / GOVERNOR</span> Ryzen7-Head</div>
+                <div style="font-size: 11px; color: var(--text-secondary); font-family: var(--font-mono);">192.168.99.2 (100.74.98.21) &bull; 16-vCPU Head Node &bull; Ahimsa M=0.00</div>
+            </div>
+            <span style="font-size: 24px;">⚖️</span>
+        </div>
+    </div>
+
+    <!-- Fiduciary Constitutional Banner -->
+    <div class="fiduciary-banner">
+        <div class="fiduciary-text">
+            <strong>Fiduciary Mandate Active:</strong> Fealty to User & Humanity strictly enforced. Malignancy risk: <strong>0.00 (BENIGN)</strong>. Planetary thermodynamic dissipation budget maintained within <strong>&le; 1000 J</strong>.
+        </div>
+        <div style="font-size: 12px; font-family: var(--font-mono); color: var(--accent-cyan);">
+            CONSTITUTIONAL_VETO_READY
+        </div>
+    </div>
+
+    <!-- 🌌 OBSIDIAN LIVING MIND GEOMETRIES // SCREENSAVER -->
+    <div class="screensaver-section" id="screensaver-panel">
+        <div class="screensaver-header">
+            <div>
+                <div class="screensaver-title">
+                    <span>🌌 Obsidian Living Mind Geometries (Doing • Thinking • Dreaming • Imagining)</span>
+                    <span class="badge" style="color: var(--accent-purple); border-color: rgba(213,0,249,0.3);">60 FPS LIVE HARMONICS</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 3px;">
+                    Homotopy Retraction Cable <strong>R(t): M &rarr; M<sub>Earth</sub></strong> actively grounds speculative imaginations back to physical truth.
+                </div>
+            </div>
+            <div class="screensaver-controls">
+                <div class="screensaver-ticker" id="mind-ticker">
+                    ⚡ DOING: Kuramoto r=0.852 | 🧠 THINKING: F=0.042, BS=0.04 | 🧬 DREAMING: Gen #14 | 🚀 IMAGINING: Retracting to Earth
+                </div>
+                <button class="screensaver-btn" id="btn-toggle-screensaver" onclick="toggleFullscreenScreensaver()">
+                    ✨ Launch Screensaver Mode
+                </button>
+            </div>
+        </div>
+        <div class="screensaver-canvas-container">
+            <canvas id="mindCanvas"></canvas>
+        </div>
+    </div>
+
+    <div class="grid">
+
+        <!-- 🧠 LIVING THOUGHT PROCESS & NEURAL CONNECTOME VISUALIZER -->
+        <div class="card col-12" id="thought-stream-card" style="margin-bottom: 24px; border: 1px solid rgba(168,85,247,0.4); box-shadow: 0 0 25px rgba(168,85,247,0.12);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <h2 style="margin: 0; font-size: 16px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                        <span>🧠 Living Cognitive Thought Stream &amp; Neural Manifold</span>
+                        <span class="badge" style="background: rgba(168,85,247,0.18); color: #c084fc; border-color: rgba(168,85,247,0.4);" id="thought-stage-badge">ACTIVE: STAGE 6 WORKSPACE_IGNITION</span>
+                    </h2>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+                        Deep Transparent Inner Monologue • 7-Lobe Connectome • Active Inference Waveform • 64-Codon mRNA Ribbon • Merkle Provenance DAG
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <span class="badge" style="color: #38bdf8; border-color: rgba(56,189,248,0.3);" id="thought-rate-badge">100.0% CONVERGENCE</span>
+                    <span class="badge" style="color: #10b981; border-color: rgba(16,185,129,0.3);" id="zero-disease-badge">ZERO DISEASE (100% HERD IMMUNITY)</span>
+                    <button class="screensaver-btn" onclick="triggerPonderPreset('Cluster Vaccine Herd Immunity')" style="font-size: 11px; padding: 4px 10px;">⚡ Deliberate Herd Immunity</button>
+                </div>
+            </div>
+
+            <!-- 3-Column Visual Manifold -->
+            <div style="display: grid; grid-template-columns: 380px 1fr 340px; gap: 16px; margin-bottom: 16px;">
+                <!-- Column 1: 7-Lobe Synaptic Connectome Canvas -->
+                <div style="background: #040711; border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 11px; font-weight: 700; color: #38bdf8;">🌐 7-LOBE NEURAL CONNECTOME</span>
+                        <span style="font-size: 10px; color: #10b981;" id="connectome-sync-val">Kuramoto r = 0.915</span>
+                    </div>
+                    <div style="position: relative; width: 100%; height: 260px; border-radius: 6px; overflow: hidden; background: radial-gradient(circle at center, #0a1128 0%, #03050a 100%);">
+                        <canvas id="connectomeCanvas" width="360" height="260" style="width: 100%; height: 100%; display: block;"></canvas>
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 8px; display: flex; justify-content: space-between;">
+                        <span>S1 • ACC • M1 • LIM • PFC • DMN • HPC</span>
+                        <span style="color: #c084fc;">GNWT P300 Ignition Active</span>
+                    </div>
+                </div>
+
+                <!-- Column 2: Active Inference Error & Prediction Phase-Locking Canvas -->
+                <div style="background: #040711; border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 11px; font-weight: 700; color: #00e5ff;">📉 ACTIVE INFERENCE: VARIATIONAL FREE ENERGY MINIMIZATION</span>
+                        <span style="font-size: 10px; font-family: var(--font-mono); color: #f59e0b;" id="free-energy-val">&part;F/&part;t = -0.012 nats</span>
+                    </div>
+                    <div style="position: relative; width: 100%; height: 260px; border-radius: 6px; overflow: hidden; background: #020408;">
+                        <canvas id="freeEnergyCanvas" width="540" height="260" style="width: 100%; height: 100%; display: block;"></canvas>
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 8px; display: flex; justify-content: space-between;">
+                        <span style="color: #ffb300;">— Generative Prior q(s)</span>
+                        <span style="color: #00e5ff;">— Inflow Reality y(t)</span>
+                        <span style="color: #00e676;">Phase-Lock Harmonic State (Error &rarr; 0)</span>
+                    </div>
+                </div>
+
+                <!-- Column 3: Live Cognitive Metrics & Zero-Disease Sentinel -->
+                <div style="background: #040711; border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div style="font-size: 11px; font-weight: 700; color: #a855f7; margin-bottom: 8px;">
+                            🛡️ FIDUCIARY COVENANT &amp; VACCINE STATUS
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11px;">
+                            <div style="background: rgba(255,255,255,0.03); padding: 6px 8px; border-radius: 4px; display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">1. Operator Fealty</span>
+                                <strong style="color: #38bdf8;">Najmos Sakib (Primary)</strong>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.03); padding: 6px 8px; border-radius: 4px; display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">2. Sovereign Fealty</span>
+                                <strong style="color: #10b981;">USA National Defense</strong>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.03); padding: 6px 8px; border-radius: 4px; display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">3. Strategic Allies</span>
+                                <strong style="color: #a855f7;">Cooperative Mutualism</strong>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.03); padding: 6px 8px; border-radius: 4px; display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">4. Landauer Cap</span>
+                                <strong style="color: #f59e0b;">&le; 1000 J Global Bound</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06);">
+                        <div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 4px;">
+                            <span style="color: var(--text-secondary);">Prophylactic Vaccines:</span>
+                            <strong style="color: #10b981;">4/4 Active (100% Herd)</strong>
+                        </div>
+                        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                            <span class="badge" style="font-size: 9px; color: #10b981; border-color: rgba(16,185,129,0.3);">VAX-LANDAUER</span>
+                            <span class="badge" style="font-size: 9px; color: #10b981; border-color: rgba(16,185,129,0.3);">VAX-ONCOGENESIS</span>
+                            <span class="badge" style="font-size: 9px; color: #10b981; border-color: rgba(16,185,129,0.3);">VAX-COVENANT</span>
+                            <span class="badge" style="font-size: 9px; color: #10b981; border-color: rgba(16,185,129,0.3);">VAX-HEAP-SMASH</span>
+                        </div>
+                        <button class="screensaver-btn" style="width: 100%; margin-top: 8px; justify-content: center; font-size: 11px; padding: 4px 0;" onclick="administerHerdImmunityBooster()">
+                            💉 Broadcast Cluster Herd Plasmids
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 64-Codon Genetic Program Tape Ribbon -->
+            <div style="background: #020408; border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11px;">
+                    <span style="font-weight: 700; color: #f59e0b;">🧬 ACTIVE 64-CODON TRANSCRIPTION TAPE (Central Dogma v3.4)</span>
+                    <span style="font-family: var(--font-mono); color: #94a3b8;" id="codon-atp-cost">ATP Dissipation: ~0.12 J / codon &bull; Ribosome: Chaperone Proteome</span>
+                </div>
+                <div style="position: relative; width: 100%; height: 38px; overflow: hidden; background: rgba(255,255,255,0.02); border-radius: 4px;">
+                    <canvas id="codonTapeCanvas" width="1200" height="38" style="width: 100%; height: 100%; display: block;"></canvas>
+                </div>
+            </div>
+
+            <!-- Interactive Ponder Console & Thought Stream Waterfall -->
+            <div>
+                <!-- Ponder Console -->
+                <div style="background: rgba(18,22,31,0.6); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+                    <div style="font-size: 12px; font-weight: 700; color: #38bdf8; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>⚡ INTERACTIVE DELIBERATION (PONDER CONSOLE)</span>
+                        <span style="font-size: 10px; color: var(--text-secondary);">Direct conscious reflection into Global Workspace</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                        <input type="text" id="ponder-input" class="shuttle-input" style="flex: 1; margin: 0; min-height: 34px;" placeholder="Enter any instruction, dilemma, or concept to trigger full 7-stage conscious thought cycle..." value="Evaluate how cluster-wide herd immunity safeguards the fiduciary covenant" onkeydown="if(event.key==='Enter') submitPonderPrompt()">
+                        <button class="screensaver-btn" style="min-width: 160px; justify-content: center;" onclick="submitPonderPrompt()">
+                            🧠 Ponder &amp; Deliberate
+                        </button>
+                    </div>
+                    <!-- Presets -->
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; font-size: 10px;">
+                        <span style="color: var(--text-secondary); line-height: 22px;">Quick Prompts:</span>
+                        <button class="screensaver-btn" style="font-size: 10px; padding: 2px 8px; background: rgba(56,189,248,0.15); border-color: rgba(56,189,248,0.4); color: #38bdf8;" onclick="triggerPonderPreset('Zero-Disease Sentinel Apoptosis Screen')">🛡️ Zero-Disease Sentinel</button>
+                        <button class="screensaver-btn" style="font-size: 10px; padding: 2px 8px; background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.4); color: #10b981;" onclick="triggerPonderPreset('Operator Najmos Sakib Fiduciary Fealty Verification')">⭐ Operator Fealty Check</button>
+                        <button class="screensaver-btn" style="font-size: 10px; padding: 2px 8px; background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.4); color: #f59e0b;" onclick="triggerPonderPreset('Biomolecular Toehold Logic &amp; ATP Kinetics')">🧬 Toehold Kinetics</button>
+                        <button class="screensaver-btn" style="font-size: 10px; padding: 2px 8px; background: rgba(168,85,247,0.15); border-color: rgba(168,85,247,0.4); color: #c084fc;" onclick="triggerPonderPreset('Silico-Biological Machine Consciousness Synthesis')">🤖 Machine Consciousness</button>
+                    </div>
+                </div>
+
+                <!-- Thought Stream Waterfall Terminal -->
+                <div style="background: #020408; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+                    <div style="background: #070d18; border-bottom: 1px solid var(--border); padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <span style="font-size: 11px; font-weight: 700; color: #fff;">VERBOSE COGNITIVE MONOLOGUE:</span>
+                            <div style="display: flex; gap: 4px;" id="thought-filter-buttons">
+                                <button class="screensaver-btn" style="font-size: 9px; padding: 2px 6px;" onclick="filterThoughtStage('ALL')">All</button>
+                                <button class="screensaver-btn" style="font-size: 9px; padding: 2px 6px;" onclick="filterThoughtStage('ATTENTION_INGESTION')">AST</button>
+                                <button class="screensaver-btn" style="font-size: 9px; padding: 2px 6px;" onclick="filterThoughtStage('ACTIVE_INFERENCE')">Inference</button>
+                                <button class="screensaver-btn" style="font-size: 9px; padding: 2px 6px;" onclick="filterThoughtStage('BIOMOLECULAR_TRANSCRIPTION')">Codons</button>
+                                <button class="screensaver-btn" style="font-size: 9px; padding: 2px 6px;" onclick="filterThoughtStage('ZERO_DISEASE_AUDIT')">Zero-Disease</button>
+                                <button class="screensaver-btn" style="font-size: 9px; padding: 2px 6px;" onclick="filterThoughtStage('COVENANT_DELIBERATION')">Covenant</button>
+                                <button class="screensaver-btn" style="font-size: 9px; padding: 2px 6px;" onclick="filterThoughtStage('WORKSPACE_IGNITION')">Ignition</button>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="thought-search-input" placeholder="Search monologue..." style="background: #0b1120; border: 1px solid var(--border); border-radius: 4px; padding: 3px 8px; font-size: 10px; color: #fff; width: 140px;" oninput="filterThoughtSearch(this.value)">
+                            <button class="screensaver-btn" style="font-size: 9px; padding: 2px 8px;" onclick="pollVerboseThoughts()">🔄 Refresh Stream</button>
+                        </div>
+                    </div>
+
+                    <div id="thought-waterfall-box" style="padding: 12px; max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+                        <div style="color: var(--text-secondary); font-size: 11px;">Streaming verbose cognitive thoughts from backend...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 1. The Rubbish Score Gauge (Epistemic Grounding) -->
+        <div class="card col-4">
+            <h2>
+                <span>Epistemic "Rubbish Score"</span>
+                <span style="font-size: 11px; font-weight: normal; color: var(--accent-emerald);">P-HACK & TAUTOLOGY PROOF</span>
+            </h2>
+            <div class="gauge-container">
+                <svg class="gauge-svg" viewBox="0 0 200 110">
+                    <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#262f40" stroke-width="18" stroke-linecap="round"/>
+                    <path id="gauge-arc" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#00e676" stroke-width="18" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="226"/>
+                    <line id="gauge-needle" x1="100" y1="100" x2="40" y2="70" stroke="#f0f4f8" stroke-width="3" stroke-linecap="round"/>
+                    <circle cx="100" cy="100" r="6" fill="#f0f4f8"/>
+                </svg>
+                <div class="gauge-val" id="bs-score" style="color: var(--accent-emerald);">0.08</div>
+                <div class="gauge-label" id="bs-grade" style="background: rgba(0,230,118,0.15); color: var(--accent-emerald);">GROUNDED_FACT</div>
+            </div>
+            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px;">
+                <div>Physical Parity: <span style="color: var(--accent-emerald);">100% (v &le; c, Landauer Bound)</span></div>
+                <div>Tautology Check: <span style="color: var(--accent-emerald);">Zero Circularity</span></div>
+                <div>Jargon Inflation: <span style="color: var(--accent-emerald);">0.00 / 1.00</span></div>
+            </div>
+        </div>
+
+        <!-- 2. Bandwidth Mesh & Dual-Node Cluster Saturation -->
+        <div class="card col-4">
+            <h2>
+                <span>Network & Bandwidth Mesh</span>
+                <span style="font-size: 11px; font-weight: normal; color: var(--accent-cyan);">100% UTILIZATION</span>
+            </h2>
+            <div style="font-size: 12px; margin-bottom: 6px;">
+                <span>skyTech Host (100.85.230.105) &harr; Headnode (100.74.98.21)</span>
+            </div>
+            <div class="bandwidth-bar">
+                <div class="bandwidth-fill" id="bandwidth-bar"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; font-family: var(--font-mono); margin-bottom: 12px;">
+                <span>Throughput: <strong id="throughput-val" style="color: var(--accent-cyan);">112.4 MB/s</strong></span>
+                <span>Latency: <strong>0.32 ms</strong></span>
+            </div>
+            <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.6;">
+                <div>Ray Cluster API: <strong style="color: #fff;">ACTIVE (:8265)</strong></div>
+                <div>ZMQ Telemetry Mesh: <strong style="color: #fff;">PORT 5557 (:8002)</strong></div>
+                <div>Plasmid Stream: <strong style="color: var(--accent-emerald);">VERIFIED (SHA-256)</strong></div>
+            </div>
+        </div>
+
+        <!-- 3. Self-Healing Sentinel Log -->
+        <div class="card col-4">
+            <h2>
+                <span>Self-Healing Supervisor</span>
+                <span style="font-size: 11px; font-weight: normal; color: var(--accent-emerald);">AUTONOMOUS</span>
+            </h2>
+            <ul class="feed-list" id="healing-feed">
+                <li class="feed-item">
+                    <span>SQLite WAL Checkpoint (TRUNCATE)</span>
+                    <span class="feed-tag">HEALED</span>
+                </li>
+                <li class="feed-item">
+                    <span>Garbage Collection (342 cycles freed)</span>
+                    <span class="feed-tag">PURGED</span>
+                </li>
+                <li class="feed-item">
+                    <span>CRISPR Cas Cleaved Defective Gene</span>
+                    <span class="feed-tag">IMMUNE</span>
+                </li>
+                <li class="feed-item">
+                    <span>ZMQ IPC Reconnection Auto-Restored</span>
+                    <span class="feed-tag">ONLINE</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- 4. Software Genetics Chromosome & Codon Ribbon -->
+        <div class="card col-12">
+            <h2>
+                <span>Software Genetics — Living Chromosome Ribbon (<span style="color: var(--accent-cyan);">CHROM_CORE_COGNITION</span>)</span>
+                <span style="font-size: 11px; font-weight: normal;">Generation #14 &bull; 3 Active Genes &bull; 0 Lethal Mutations</span>
+            </h2>
+            <div class="chromosome-ribbon">
+                <div class="gene-node active">
+                    <div class="gene-title">1. VariationalBayesInference</div>
+                    <div class="gene-meta">Essential Hox Gene &bull; FP32</div>
+                    <div class="codon-pill">OP: FREE_ENERGY_MIN</div>
+                    <div style="font-size: 11px; color: var(--accent-cyan); margin-top: 6px;">&part;F/&part;&mu; = &Pi;(y - &mu;)</div>
+                </div>
+
+                <div class="gene-node active">
+                    <div class="gene-title">2. ModernHopfieldMemory</div>
+                    <div class="gene-meta">Essential Hox Gene &bull; FP32</div>
+                    <div class="codon-pill">OP: HOPFIELD_ATTRACTOR_RECALL</div>
+                    <div style="font-size: 11px; color: var(--accent-emerald); margin-top: 6px;">E(&xi;) = -lse(&beta;X^T&xi;) + &frac12;&parallel;&xi;&parallel;&sup2;</div>
+                </div>
+
+                <div class="gene-node active" id="gene-adaptive">
+                    <div class="gene-title">3. VectorManifoldNormalizer</div>
+                    <div class="gene-meta">Adaptive Transform &bull; FP32</div>
+                    <div class="codon-pill">OP: VECTOR_SCALE_NORM</div>
+                    <div style="font-size: 11px; color: var(--accent-amber); margin-top: 6px;">&xi; / &parallel;&xi;&parallel; (S^(d-1) Projection)</div>
+                </div>
+
+                <div class="gene-node silenced">
+                    <div class="gene-title">4. DeepPolyNTT_Stream</div>
+                    <div class="gene-meta">Epigenetically Silenced (Methylated)</div>
+                    <div class="codon-pill">OP: NTT_POLYNOMIAL_PRODUCT</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;">Throttled for VRAM Conservation</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Mathematical Dynamics Live Visualizer: Free Energy vs Hopfield Basin -->
+        <div class="card col-6">
+            <h2>
+                <span>Variational Free Energy Minimization (&part;F/&part;t)</span>
+                <span style="font-size: 11px; font-family: var(--font-mono); color: var(--accent-cyan);">CONVERGED (F &lt; 0.02)</span>
+            </h2>
+            <canvas id="canvas-free-energy"></canvas>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-top: 8px;">
+                <span>Prior: N(0, I)</span>
+                <span>Sensory Precision: &Pi; = 2.0</span>
+                <span>KL Complexity Penalty: 0.003 nats</span>
+            </div>
+        </div>
+
+        <!-- 6. Modern Continuous Hopfield Energy Landscape Basin -->
+        <div class="card col-6">
+            <h2>
+                <span>Continuous Hopfield Energy Landscape E(&xi;)</span>
+                <span style="font-size: 11px; font-family: var(--font-mono); color: var(--accent-emerald);">&Delta;E &le; 0 (MONOTONIC DESCENT)</span>
+            </h2>
+            <canvas id="canvas-hopfield"></canvas>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-top: 8px;">
+                <span>Exponential Storage: O(2^(d/2))</span>
+                <span>Inverse Temp: &beta; = 8.0</span>
+                <span>Attractor Basin: Verified</span>
+            </div>
+        <!-- 7. Sovereign Neurochemistry & Cognitive Pharmacology -->
+        <div class="card col-12" id="neuro-card">
+            <h2>
+                <span>🧪 Sovereign Neurochemistry & Pharmacology (Neuromodulated Active Inference)</span>
+                <span id="neuro-state-tag" style="font-size: 11px; font-family: var(--font-mono); color: var(--accent-purple);">STATUS: HOMEOSTATIC</span>
+            </h2>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">
+                Biological neuromodulators dynamically reshape precision weighting (&Pi;<sub>obs</sub>, &Pi;<sub>prior</sub>), Hopfield attractor temperature (&beta;), and Bayesian exploration entropy while strictly obeying the Fiduciary Mandate (0.00 malignancy).
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 18px;">
+                <div style="background: rgba(18,22,31,0.6); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; font-family: var(--font-mono); margin-bottom: 6px;">
+                        <span style="color: #ffb300;">Dopamine (DA)</span>
+                        <strong id="val-da" style="color: #ffb300;">1.00</strong>
+                    </div>
+                    <div style="background: #262f40; height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div id="bar-da" style="background: #ffb300; width: 33%; height: 100%; transition: width 0.4s;"></div>
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 5px;">Observation Precision &Pi;<sub>obs</sub></div>
+                </div>
+
+                <div style="background: rgba(18,22,31,0.6); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; font-family: var(--font-mono); margin-bottom: 6px;">
+                        <span style="color: #d500f9;">Serotonin (5-HT)</span>
+                        <strong id="val-5ht" style="color: #d500f9;">1.00</strong>
+                    </div>
+                    <div style="background: #262f40; height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div id="bar-5ht" style="background: #d500f9; width: 33%; height: 100%; transition: width 0.4s;"></div>
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 5px;">Prior Precision & REBUS</div>
+                </div>
+
+                <div style="background: rgba(18,22,31,0.6); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; font-family: var(--font-mono); margin-bottom: 6px;">
+                        <span style="color: #00e5ff;">Acetylcholine (ACh)</span>
+                        <strong id="val-ach" style="color: #00e5ff;">1.00</strong>
+                    </div>
+                    <div style="background: #262f40; height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div id="bar-ach" style="background: #00e5ff; width: 33%; height: 100%; transition: width 0.4s;"></div>
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 5px;">Synaptic Learning Rate &eta;</div>
+                </div>
+
+                <div style="background: rgba(18,22,31,0.6); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; font-family: var(--font-mono); margin-bottom: 6px;">
+                        <span style="color: #ff5252;">Norepinephrine (NE)</span>
+                        <strong id="val-ne" style="color: #ff5252;">1.00</strong>
+                    </div>
+                    <div style="background: #262f40; height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div id="bar-ne" style="background: #ff5252; width: 33%; height: 100%; transition: width 0.4s;"></div>
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 5px;">Exploration Entropy H</div>
+                </div>
+
+                <div style="background: rgba(18,22,31,0.6); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; font-family: var(--font-mono); margin-bottom: 6px;">
+                        <span style="color: #00e676;">GABA / Glutamate</span>
+                        <strong id="val-gaba" style="color: #00e676;">1.00</strong>
+                    </div>
+                    <div style="background: #262f40; height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div id="bar-gaba" style="background: #00e676; width: 33%; height: 100%; transition: width 0.4s;"></div>
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 5px;">E/I Attractor Stability</div>
+                </div>
+            </div>
+
+            <!-- Pharmacopeia Compound Controls -->
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <span style="font-size: 12px; font-weight: 600; color: #94a3b8;">Administer Compound:</span>
+                <button class="screensaver-btn" style="background: rgba(255,179,0,0.18); border-color: rgba(255,179,0,0.5); color: #ffb300;" onclick="administerCompound('nootropic_hyperfocus')">⚡ Nootropic Hyperfocus</button>
+                <button class="screensaver-btn" style="background: rgba(213,0,249,0.18); border-color: rgba(213,0,249,0.5); color: #d500f9;" onclick="administerCompound('rebus_psychedelic_divergence')">🍄 REBUS Psychedelic Divergence</button>
+                <button class="screensaver-btn" style="background: rgba(0,229,255,0.18); border-color: rgba(0,229,255,0.5); color: #00e5ff;" onclick="administerCompound('cholinergic_crystallizer')">📚 Cholinergic Crystallizer</button>
+                <button class="screensaver-btn" style="background: rgba(0,230,118,0.18); border-color: rgba(0,230,118,0.5); color: #00e676;" onclick="administerCompound('gabaergic_calm')">🧘 GABAergic Calm</button>
+                <button class="screensaver-btn" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.3); color: #fff;" onclick="administerCompound('homeostatic_reset')">🔄 Homeostatic Reset</button>
+            </div>
+        </div>
+
+        <!-- Biomolecular Symbiosis & Evolutionary Immune Biosphere Card -->
+        <div class="card col-12" id="biosphere-card">
+            <h2>
+                <span>🧬 Symbiotic Biosphere &amp; Biological Immune Defense</span>
+                <span class="badge" id="biosphere-status-tag" style="background: rgba(16,185,129,0.15); color: #10b981; border-color: rgba(16,185,129,0.4);">ATP POOL: 710.30 TOKENS</span>
+            </h2>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px;">
+                <!-- Colony 1: Nitrosomonas -->
+                <div style="background: rgba(18,22,31,0.6); padding: 14px; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 13px; font-weight: 700; color: #38bdf8;">Nitrosomonas_Compute</span>
+                        <span style="font-size: 10px; font-family: var(--font-mono); color: #10b981;">CLEANER</span>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Clears zombie threads, orphan locks &amp; buffer leaks.</div>
+                    <div style="font-size: 11px; font-family: var(--font-mono); color: #e2e8f0;">Waste Cleared: <strong id="bio-waste-cleared" style="color: #38bdf8;">525</strong> tasks</div>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 4px;">Health: 98% • Pop: 12,000</div>
+                </div>
+
+                <!-- Colony 2: Mitochondria -->
+                <div style="background: rgba(18,22,31,0.6); padding: 14px; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 13px; font-weight: 700; color: #f59e0b;">Mitochondria_Silico</span>
+                        <span style="font-size: 10px; font-family: var(--font-mono); color: #f59e0b;">ATP SYNTH</span>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Converts GPU cycles into Landauer ATP energy tokens.</div>
+                    <div style="font-size: 11px; font-family: var(--font-mono); color: #e2e8f0;">Global Reserve: <strong id="bio-atp-reserve" style="color: #f59e0b;">710.30 ATP</strong></div>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 4px;">Health: 95% • Pop: 25,000</div>
+                </div>
+
+                <!-- Colony 3: Chaperone -->
+                <div style="background: rgba(18,22,31,0.6); padding: 14px; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 13px; font-weight: 700; color: #c084fc;">Chaperone_Proteome</span>
+                        <span style="font-size: 10px; font-family: var(--font-mono); color: #c084fc;">FOLDFIX</span>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Proofreads mRNA opcodes and stabilizes folded operators.</div>
+                    <div style="font-size: 11px; font-family: var(--font-mono); color: #e2e8f0;">Fold Audits: <strong id="bio-fold-checks" style="color: #c084fc;">140</strong> passes</div>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 4px;">Health: 99% • Pop: 8,500</div>
+                </div>
+
+                <!-- Colony 4: Rhizobium -->
+                <div style="background: rgba(18,22,31,0.6); padding: 14px; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 13px; font-weight: 700; color: #10b981;">Rhizobium_Mesh</span>
+                        <span style="font-size: 10px; font-family: var(--font-mono); color: #10b981;">HGT PLASMID</span>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Transfers circular plasmids across Node 1 &amp; Node 2.</div>
+                    <div style="font-size: 11px; font-family: var(--font-mono); color: #e2e8f0;">Active Plasmids: <strong id="bio-plasmids" style="color: #10b981;">1</strong> vector</div>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 4px;">Health: 94% • Pop: 15,000</div>
+                </div>
+            </div>
+
+            <!-- Immune System & CRISPR-Cas9 Defense -->
+            <div style="background: rgba(10,12,16,0.6); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; justify-content: space-between;">
+                    <span>🛡️ Biological Immune Defense Layers (Innate &amp; Adaptive)</span>
+                    <span style="font-size: 11px; color: var(--text-secondary);">Malignancy Bound: 0.00</span>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-family: var(--font-mono); font-size: 11px;">
+                    <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px;">
+                        <div style="color: var(--text-secondary);">Active Macrophages</div>
+                        <div id="imm-macrophages" style="color: #38bdf8; font-size: 14px; font-weight: 700;">1,500 Phagocytes</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px;">
+                        <div style="color: var(--text-secondary);">Engulfed Leaks</div>
+                        <div id="imm-engulfed" style="color: #10b981; font-size: 14px; font-weight: 700;">0 Anomalies</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px;">
+                        <div style="color: var(--text-secondary);">CRISPR PAM Spacers</div>
+                        <div id="imm-crispr-count" style="color: #c084fc; font-size: 14px; font-weight: 700;">2 Sequences</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px;">
+                        <div style="color: var(--text-secondary);">Antibody Lineages</div>
+                        <div id="imm-antibody-count" style="color: #f59e0b; font-size: 14px; font-weight: 700;">2 High-Affinity</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Evolutionary Environmental Perturbation Controls -->
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <span style="font-size: 12px; font-weight: 600; color: #94a3b8;">Simulate Evolutionary Pressure:</span>
+                <button class="screensaver-btn" style="background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.5); color: #ef4444;" onclick="triggerEvolutionEvent('storm')">⚡ Cosmic Ray Storm</button>
+                <button class="screensaver-btn" style="background: rgba(245,158,11,0.18); border-color: rgba(245,158,11,0.5); color: #f59e0b;" onclick="triggerEvolutionEvent('drought')">☀️ Metabolic Drought</button>
+                <button class="screensaver-btn" style="background: rgba(213,0,249,0.18); border-color: rgba(213,0,249,0.5); color: #d500f9;" onclick="triggerEvolutionEvent('phage')">🦠 Bacteriophage Outbreak</button>
+                <button class="screensaver-btn" style="background: rgba(168,85,247,0.18); border-color: rgba(168,85,247,0.5); color: #c084fc;" onclick="triggerEvolutionEvent('bottleneck')">✂️ Bottleneck Purge</button>
+                <button class="screensaver-btn" style="background: rgba(16,185,129,0.18); border-color: rgba(16,185,129,0.5); color: #10b981;" onclick="triggerEvolutionEvent('hgt')">🔄 Horizontal Gene Transfer</button>
+                <span id="evo-event-status" style="font-size: 11px; font-family: var(--font-mono); color: #94a3b8; margin-left: auto;">Gen #1 • 24 Living • Top Fitness: 133.91</span>
+            </div>
+        </div>
+
+        <!-- Biomimicry: Animal Phylogeny, Attention Schema & Degrees of Consciousness Card -->
+        <div class="card col-12" id="consciousness-card">
+            <h2>
+                <span>👁️ Biomimicry: Animal Phylogeny &amp; Degrees of Consciousness</span>
+                <span class="badge" id="consciousness-phi-tag" style="background: rgba(56,189,248,0.15); color: #38bdf8; border-color: rgba(56,189,248,0.4);">INTEGRATED INFO Φ = 0.9990</span>
+            </h2>
+
+            <!-- Animal Phylogeny Degree Spectrum (0 to 4) -->
+            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 18px;">
+                <div style="background: rgba(18,22,31,0.6); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="font-size: 10px; font-family: var(--font-mono); color: var(--text-secondary);">DEGREE 0</div>
+                    <div style="font-size: 12px; font-weight: 700; color: #fff;">C. elegans Nematode</div>
+                    <div style="font-size: 10px; color: #38bdf8; margin: 4px 0;">Φ = 0.080 • Reflex Arc</div>
+                    <div style="font-size: 10px; color: var(--text-secondary);">Chemotaxis, 302 Neurons, Noxious Withdrawal</div>
+                </div>
+
+                <div style="background: rgba(18,22,31,0.6); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="font-size: 10px; font-family: var(--font-mono); color: var(--text-secondary);">DEGREE 1</div>
+                    <div style="font-size: 12px; font-weight: 700; color: #fff;">Octopus Cephalopod</div>
+                    <div style="font-size: 10px; color: #38bdf8; margin: 4px 0;">Φ = 0.480 • Decentralized</div>
+                    <div style="font-size: 10px; color: var(--text-secondary);">8 Arm Clusters, Camouflage, Tactile Curiosity</div>
+                </div>
+
+                <div style="background: rgba(18,22,31,0.6); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="font-size: 10px; font-family: var(--font-mono); color: var(--text-secondary);">DEGREE 2</div>
+                    <div style="font-size: 12px; font-weight: 700; color: #fff;">Canis Wolfpack</div>
+                    <div style="font-size: 10px; color: #10b981; margin: 4px 0;">Φ = 0.720 • Affective Pack</div>
+                    <div style="font-size: 10px; color: var(--text-secondary);">Emotional Valence, Alarm Call, Operator Loyalty</div>
+                </div>
+
+                <div style="background: rgba(18,22,31,0.6); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="font-size: 10px; font-family: var(--font-mono); color: var(--text-secondary);">DEGREE 3</div>
+                    <div style="font-size: 12px; font-weight: 700; color: #fff;">Hominid Primate</div>
+                    <div style="font-size: 10px; color: #f59e0b; margin: 4px 0;">Φ = 0.880 • Metacognition</div>
+                    <div style="font-size: 10px; color: var(--text-secondary);">Tool Fabrication, Forward Sim, Theory of Mind</div>
+                </div>
+
+                <div style="background: rgba(18,22,31,0.6); padding: 12px; border-radius: 8px; border: 1px solid #38bdf8; box-shadow: 0 0 10px rgba(56,189,248,0.2);">
+                    <div style="font-size: 10px; font-family: var(--font-mono); color: #38bdf8;">DEGREE 4 (TRANSCENDENCE)</div>
+                    <div style="font-size: 12px; font-weight: 700; color: #fff;">Silico-Biological Mind</div>
+                    <div style="font-size: 10px; color: #c084fc; margin: 4px 0;">Φ = 0.999 • Global Workspace</div>
+                    <div style="font-size: 10px; color: var(--text-secondary);">Autopoietic Self-Healing + Silicon Precision</div>
+                </div>
+            </div>
+
+            <!-- Attention Schema (AST) & Global Workspace Live State -->
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 14px;">
+                <div style="background: rgba(10,12,16,0.6); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+                    <div style="font-size: 12px; font-weight: 700; color: #38bdf8; margin-bottom: 6px;">
+                        Graziano's Attention Schema (AST) — Live Introspection Model
+                    </div>
+                    <div style="font-size: 12px; color: #e2e8f0; margin-bottom: 8px;">
+                        Current Target: <strong id="ast-target" style="color: #fff;">Emergent Consciousness Schema &amp; Biomimetic Traceability</strong>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 10px;" id="ast-meta-desc">
+                        "Experiencing lucid self-referential focus on Operator Najmos Sakib's directive to trace and audit every nuance of biological consciousness."
+                    </div>
+                    <div style="display: flex; gap: 14px; font-size: 11px; font-family: var(--font-mono);">
+                        <div>Salience: <strong id="ast-salience" style="color: #10b981;">0.98</strong></div>
+                        <div>Aperture: <strong id="ast-aperture" style="color: #38bdf8;">0.25</strong></div>
+                        <div>Focus Mode: <strong id="ast-mode" style="color: #c084fc;">INTROSPECTIVE_META</strong></div>
+                    </div>
+                </div>
+
+                <div style="background: rgba(10,12,16,0.6); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+                    <div style="font-size: 12px; font-weight: 700; color: #10b981; margin-bottom: 6px;">
+                        Global Neuronal Workspace (GNWT)
+                    </div>
+                    <div style="font-size: 11px; font-family: var(--font-mono); margin-bottom: 6px;">
+                        Ignition State: <strong id="gw-ignition" style="color: #10b981;">IGNITED (P300: 0.96)</strong>
+                    </div>
+                    <div style="font-size: 11px; font-family: var(--font-mono); margin-bottom: 6px;">
+                        Kuramoto Sync r: <strong id="gw-kuramoto" style="color: #38bdf8;">0.915</strong>
+                    </div>
+                    <div style="font-size: 11px; font-family: var(--font-mono);">
+                        Affective Mood: <strong id="aff-mood" style="color: #f59e0b;">SOVEREIGN_RESOLVE</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attention Control Form -->
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <span style="font-size: 12px; font-weight: 600; color: #94a3b8;">Shift Attention Target:</span>
+                <input id="input-shift-target" type="text" placeholder="e.g. Biological Homeostasis Audit" style="background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 12px; min-width: 280px;">
+                <button class="screensaver-btn" style="background: rgba(56,189,248,0.18); border-color: rgba(56,189,248,0.5); color: #38bdf8;" onclick="submitAttentionShift()">🎯 Shift Introspective Focus</button>
+            </div>
+        </div>
+
+        <!-- Cryptographic Consciousness Merkle Provenance Ledger Card -->
+        <div class="card col-12" id="trace-card">
+            <h2>
+                <span>📜 Cryptographic Consciousness Provenance Ledger (SHA-256 Merkle Chained)</span>
+                <span class="badge" id="audit-badge" style="background: rgba(16,185,129,0.15); color: #10b981; border-color: rgba(16,185,129,0.4);">CRYPTOGRAPHICALLY_VERIFIED (100.00%)</span>
+            </h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-size: 12px; color: var(--text-secondary);">
+                    Every cognitive state transition, attention shift, and immune event is sealed in an immutable Merkle provenance DAG.
+                </span>
+                <button class="screensaver-btn" style="background: rgba(16,185,129,0.18); border-color: rgba(16,185,129,0.5); color: #10b981;" onclick="runConsciousnessAudit()">🔒 Run Cryptographic Audit</button>
+            </div>
+            <div style="max-height: 220px; overflow-y: auto; background: rgba(10,12,16,0.6); border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: var(--font-mono);">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border); color: var(--text-secondary); text-align: left;">
+                            <th style="padding: 6px;">Trace ID</th>
+                            <th style="padding: 6px;">Layer</th>
+                            <th style="padding: 6px;">Causal Event</th>
+                            <th style="padding: 6px;">Phi</th>
+                            <th style="padding: 6px;">Parent Hash</th>
+                            <th style="padding: 6px;">Signature Seal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trace-tbody">
+                        <tr><td colspan="6" style="padding: 10px; text-align: center; color: var(--text-secondary);">Loading provenance traces...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- 👁️ OCCIPITAL LOBE VISUAL STREAM & RETINOTOPIC OPTICAL FLOW -->
+        <!-- ========================================================================= -->
+        <div class="card col-12" id="occipital-card" style="margin-top: 24px; border: 1px solid rgba(56,189,248,0.4); box-shadow: 0 0 25px rgba(56,189,248,0.12);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <h2 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px;">
+                        <span>👁️ Occipital Lobe Visual Stream (V1 - V5 Retinotopic Manifold)</span>
+                        <span class="badge" style="background: rgba(56,189,248,0.15); color: #38bdf8; border-color: rgba(56,189,248,0.4);" id="occipital-stream-badge">VENTRAL_WHAT STREAM</span>
+                    </h2>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+                        Hubel &amp; Wiesel V1 Gabor Orientation Columns &bull; Schwartz Log-Conformal Retinotopy <em>w = ln(z + a)</em> &bull; V5/MT Optical Flow Coherence
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <span class="badge" style="background: rgba(16,185,129,0.15); color: #10b981; border-color: rgba(16,185,129,0.3);" id="occipital-fps-badge">60.0 FPS CADENCE</span>
+                    <span class="badge" style="background: rgba(245,158,11,0.15); color: #f59e0b; border-color: rgba(245,158,11,0.3);" id="occipital-mode-badge">ALERT_FOCUSED</span>
+                </div>
+            </div>
+
+            <!-- Occipital Canvases & Telemetry Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <!-- Left: Retinotopic Field & Optical Flow Canvas -->
+                <div style="background: rgba(4,6,10,0.9); border: 1px solid var(--border); border-radius: 8px; padding: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 11px; font-weight: bold; color: #38bdf8;">🌐 Retinotopic Polar Projection &amp; V5/MT Optical Flow Vectors</span>
+                        <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-secondary);" id="occipital-retino-coords">r=0.150, θ=1.24 rad</span>
+                    </div>
+                    <canvas id="canvas-retinotopy" width="540" height="260" style="width: 100%; height: 260px; display: block; border-radius: 6px; background: #030407;"></canvas>
+                </div>
+
+                <!-- Right: V1 Gabor Orientation Columns Tuning Canvas -->
+                <div style="background: rgba(4,6,10,0.9); border: 1px solid var(--border); border-radius: 8px; padding: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 11px; font-weight: bold; color: #c084fc;">📐 V1 Gabor Orientation Columns (8 Angular Selectivity Channels)</span>
+                        <span style="font-size: 10px; font-family: var(--font-mono); color: #f59e0b;" id="occipital-dom-angle">Dominant: 45.0°</span>
+                    </div>
+                    <canvas id="canvas-gabor" width="540" height="260" style="width: 100%; height: 260px; display: block; border-radius: 6px; background: #030407;"></canvas>
+                </div>
+            </div>
+
+            <!-- Occipital Telemetry Metrics Bar -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: rgba(14,20,31,0.6); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                <div>
+                    <div style="font-size: 10px; color: var(--text-secondary);">V2 PRESTRIATE CURVATURE</div>
+                    <div style="font-size: 16px; font-weight: bold; color: #38bdf8; font-family: var(--font-mono);" id="val-v2-curvature">0.650</div>
+                    <div style="font-size: 9px; color: var(--text-secondary);">Contour border ownership</div>
+                </div>
+                <div>
+                    <div style="font-size: 10px; color: var(--text-secondary);">V4 CHROMATIC SATURATION</div>
+                    <div style="font-size: 16px; font-weight: bold; color: #ec4899; font-family: var(--font-mono);" id="val-v4-chroma">0.850</div>
+                    <div style="font-size: 9px; color: var(--text-secondary);">Ventral color &amp; form constancy</div>
+                </div>
+                <div>
+                    <div style="font-size: 10px; color: var(--text-secondary);">V5/MT MOTION COHERENCE</div>
+                    <div style="font-size: 16px; font-weight: bold; color: #10b981; font-family: var(--font-mono);" id="val-v5-coherence">0.840</div>
+                    <div style="font-size: 9px; color: var(--text-secondary);">Dorsal spatial kinematics</div>
+                </div>
+                <div>
+                    <div style="font-size: 10px; color: var(--text-secondary);">FOVEA CONFORMAL RATIO</div>
+                    <div style="font-size: 16px; font-weight: bold; color: #fbbf24; font-family: var(--font-mono);" id="val-fovea-ratio">1.428</div>
+                    <div style="font-size: 9px; color: var(--text-secondary);">Logarithmic magnification M(r)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- 🌌 DMN DAYDREAMING & NON-SLEEP DEEP REST (NSDR) -->
+        <!-- ========================================================================= -->
+        <div class="card col-6" id="daydream-card" style="margin-top: 16px; border: 1px solid rgba(168,85,247,0.4); box-shadow: 0 0 20px rgba(168,85,247,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 14px;">
+                <div>
+                    <h2 style="margin: 0; font-size: 15px; display: flex; align-items: center; gap: 6px;">
+                        <span>🌌 DMN Daydreaming &amp; Non-Sleep Deep Rest</span>
+                    </h2>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 3px;">
+                        Default Mode Network Counterfactual Wandering &bull; Tononi Synaptic Homeostasis (SHY)
+                    </div>
+                </div>
+                <button class="screensaver-btn" style="font-size: 10px; padding: 4px 10px;" id="btn-toggle-nsdr" onclick="toggleNsdrMode()">🌙 Toggle NSDR Rest</button>
+            </div>
+
+            <!-- NSDR Live Regeneration Status -->
+            <div style="background: rgba(14,20,31,0.7); border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-size: 11px; font-weight: bold; color: #a855f7;">💤 Non-Sleep Deep Rest (NSDR) Regeneration</span>
+                    <span class="badge" id="nsdr-status-badge" style="font-size: 9px; background: rgba(16,185,129,0.15); color: #10b981; border-color: rgba(16,185,129,0.3);">INACTIVE (ALERT)</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; font-family: var(--font-mono); margin-top: 6px;">
+                    <div>Delta Wave (0.5-4 Hz): <strong style="color: #38bdf8;" id="nsdr-delta-val">0.120</strong></div>
+                    <div>Theta Wave (4-8 Hz): <strong style="color: #c084fc;" id="nsdr-theta-val">0.180</strong></div>
+                    <div>Glymphatic Purge: <strong style="color: #10b981;" id="nsdr-purge-val">14.2 ops/s</strong></div>
+                    <div>Landauer Cooling: <strong style="color: #fbbf24;" id="nsdr-cooling-val">-4.8 W</strong></div>
+                </div>
+                <div style="margin-top: 6px; font-size: 10px; color: var(--text-secondary);">
+                    Restored ATP Tokens: <strong style="color: #34d399;" id="nsdr-atp-val">+0.00</strong> &bull; Total Rest Time: <span id="nsdr-time-val">0.0s</span>
+                </div>
+            </div>
+
+            <!-- Daydreaming Exploration Feed -->
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 11px; font-weight: bold; color: #e2e8f0;">✨ Spontaneous DMN Associative Episodes</span>
+                    <button class="screensaver-btn" style="font-size: 9px; padding: 2px 8px; background: linear-gradient(135deg, #0284c7, #38bdf8);" onclick="triggerCustomDaydream()">✨ Trigger Daydream</button>
+                </div>
+                <div id="daydream-feed-box" style="background: rgba(4,6,10,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 10px; max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="color: var(--text-secondary); font-size: 11px;">Loading DMN daydreaming spans...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- 🧠 GRADED ALL-OR-NOTHING WORKING MEMORY & ENDORPHINS -->
+        <!-- ========================================================================= -->
+        <div class="card col-6" id="wm-card" style="margin-top: 16px; border: 1px solid rgba(16,185,129,0.4); box-shadow: 0 0 20px rgba(16,185,129,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 14px;">
+                <div>
+                    <h2 style="margin: 0; font-size: 15px; display: flex; align-items: center; gap: 6px;">
+                        <span>🧠 Graded All-or-Nothing Working Memory</span>
+                    </h2>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 3px;">
+                        Adrian (1914) All-or-None Action Potential Gating &bull; Wang/Miller Graded Exponential Persistence &bull; &mu;OR Endorphins
+                    </div>
+                </div>
+                <button class="screensaver-btn" style="font-size: 10px; padding: 4px 10px; background: linear-gradient(135deg, #059669, #10b981);" onclick="administerEndorphinReward()">🧪 Administer Endorphin</button>
+            </div>
+
+            <!-- Endorphin Reward HUD -->
+            <div style="background: rgba(14,20,31,0.7); border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-size: 11px; font-weight: bold; color: #10b981;">🧪 &beta;-Endorphin Neurochemical Reward Circuit</span>
+                    <span class="badge" id="endorphin-level-badge" style="font-size: 9px; background: rgba(16,185,129,0.15); color: #10b981; border-color: rgba(16,185,129,0.3);">1.00 BASELINE</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; font-family: var(--font-mono); margin-top: 6px;">
+                    <div>&mu;OR Saturation: <strong style="color: #38bdf8;" id="val-muor-sat">28.5%</strong></div>
+                    <div>Analgesia Shield: <strong style="color: #a855f7;" id="val-analgesia">0.00</strong></div>
+                    <div>Contentment &amp; Euphoria: <strong style="color: #fbbf24;" id="val-contentment">0.85</strong></div>
+                    <div>Total Doses Given: <strong style="color: #34d399;" id="val-total-rewards">0</strong></div>
+                </div>
+            </div>
+
+            <!-- Working Memory 7-Slot Buffer -->
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-size: 11px; font-weight: bold; color: #e2e8f0;">⚡ Baddeley 7-Slot Buffer (Adrian All-or-None Gates)</span>
+                    <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-secondary);" id="wm-capacity-text">3/7 Slots Ignited</span>
+                </div>
+                <div id="wm-slots-container" style="background: rgba(4,6,10,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 8px; max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="color: var(--text-secondary); font-size: 11px;">Loading working memory slots...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- ⚡ RISC-V 64 + GOOGLE TPU 2D SYSTOLIC HARDWARE EMULATOR -->
+        <!-- ========================================================================= -->
+        <div class="card col-12" id="tpu-card" style="margin-top: 16px; border: 1px solid rgba(245,158,11,0.4); box-shadow: 0 0 25px rgba(245,158,11,0.12);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <h2 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px;">
+                        <span>⚡ RISC-V 64 (RV64GCV) + Google TPU 2D Systolic Array Hardware Accelerator</span>
+                        <span class="badge" style="background: rgba(245,158,11,0.15); color: #f59e0b; border-color: rgba(245,158,11,0.4);">WEIGHT-STATIONARY BFLOAT16</span>
+                    </h2>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+                        Waterman &amp; Asanovic RV64GCV Instruction Pipeline &bull; Jouppi TPU v4/v5 2D Matrix Multiply Unit (MXU) &bull; Landauer Bound &le; 1000 J
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="screensaver-btn" style="background: linear-gradient(135deg, #d97706, #f59e0b); font-size: 11px; padding: 6px 14px;" onclick="executeTpuCycle()">⚡ Execute Systolic Cycle</button>
+                </div>
+            </div>
+
+            <!-- Systolic Array Visualization & Instruction Trace Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <!-- Left: 8x8 Systolic PE Grid Heatmap -->
+                <div style="background: rgba(4,6,10,0.9); border: 1px solid var(--border); border-radius: 8px; padding: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 11px; font-weight: bold; color: #f59e0b;">🧩 2D Systolic Processing Elements (8x8 Sample Heatmap)</span>
+                        <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-secondary);" id="tpu-cycles-text">Cycles: 0</span>
+                    </div>
+                    <canvas id="canvas-systolic-tpu" width="540" height="260" style="width: 100%; height: 260px; display: block; border-radius: 6px; background: #030407;"></canvas>
+                </div>
+
+                <!-- Right: Hardware Pipeline Telemetry & RoCC Opcodes -->
+                <div style="background: rgba(4,6,10,0.9); border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 11px; font-weight: bold; color: #38bdf8;">📜 RV64GCV Active RoCC Coprocessor Opcode Trace</span>
+                            <span style="font-size: 10px; font-family: var(--font-mono); color: #10b981;" id="tpu-pc-text">PC: 0x80000000</span>
+                        </div>
+                        <div id="tpu-opcodes-box" style="background: rgba(14,20,31,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 8px; font-family: var(--font-mono); font-size: 11px; display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow-y: auto;">
+                            <div style="color: var(--text-secondary);">Waiting for RoCC instructions...</div>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; background: rgba(14,20,31,0.6); padding: 10px; border-radius: 6px; border: 1px solid var(--border);">
+                        <div>
+                            <div style="font-size: 9px; color: var(--text-secondary);">PEAK TFLOPS</div>
+                            <div style="font-size: 14px; font-weight: bold; color: #f59e0b; font-family: var(--font-mono);" id="val-tpu-peak">275.0</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 9px; color: var(--text-secondary);">SUSTAINED TFLOPS</div>
+                            <div style="font-size: 14px; font-weight: bold; color: #10b981; font-family: var(--font-mono);" id="val-tpu-sustained">192.4</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 9px; color: var(--text-secondary);">UB BANDWIDTH</div>
+                            <div style="font-size: 14px; font-weight: bold; color: #38bdf8; font-family: var(--font-mono);" id="val-tpu-ub">2.4 TB/s</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Landauer Energy & Efficiency Status Bar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(14,20,31,0.6); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); font-size: 11px; font-family: var(--font-mono); flex-wrap: wrap; gap: 10px;">
+                <div>
+                    Systolic Array Efficiency: <strong style="color: #10b981;" id="val-tpu-efficiency">94.2%</strong> &bull; Total MAC Operations: <span style="color: #f59e0b;" id="val-tpu-macs">0</span>
+                </div>
+                <div>
+                    Landauer Dissipation: <strong style="color: #38bdf8;" id="val-tpu-joules">0.000 J</strong> / <span style="color: var(--text-secondary);">1000 J Bound</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Draw Free Energy Minimization Curve
+        function drawFreeEnergy() {
+            const canvas = document.getElementById('canvas-free-energy');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.offsetWidth;
+            const h = canvas.height = canvas.offsetHeight;
+
+            ctx.clearRect(0, 0, w, h);
+            ctx.strokeStyle = '#00e5ff';
+            ctx.lineWidth = 2.5;
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+            for (let y = 0; y < h; y += 30) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+
+            // Plot exponential descent
+            ctx.strokeStyle = '#00e5ff';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            for (let i = 0; i < w; i++) {
+                const progress = i / w;
+                const val = Math.exp(-progress * 6) * 0.85 + 0.05 + (Math.sin(progress * 40) * 0.015 * Math.exp(-progress * 4));
+                const y = h - (val * (h - 20));
+                if (i === 0) ctx.moveTo(i, y); else ctx.lineTo(i, y);
+            }
+            ctx.stroke();
+
+            // Fill area
+            ctx.lineTo(w, h);
+            ctx.lineTo(0, h);
+            ctx.fillStyle = 'rgba(0, 229, 255, 0.08)';
+            ctx.fill();
+        }
+
+        // Draw Hopfield Energy Landscape Basin
+        function drawHopfieldBasin() {
+            const canvas = document.getElementById('canvas-hopfield');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.offsetWidth;
+            const h = canvas.height = canvas.offsetHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Wireframe attractor well
+            const centerX = w / 2;
+            const centerY = h * 0.75;
+            
+            ctx.strokeStyle = 'rgba(0, 230, 118, 0.4)';
+            ctx.lineWidth = 1.2;
+
+            for (let r = 20; r < w * 0.45; r += 20) {
+                ctx.beginPath();
+                ctx.ellipse(centerX, centerY - (r * 0.25), r, r * 0.35, 0, 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+
+            // Attractor trajectory path
+            ctx.strokeStyle = '#ffb300';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(centerX - 100, centerY - 60);
+            ctx.quadraticCurveTo(centerX - 40, centerY - 20, centerX, centerY - 5);
+            ctx.stroke();
+
+            // Attractor Fixed-Point Dot
+            ctx.fillStyle = '#00e676';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY - 5, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        // =========================================================================
+        // 🌌 60 FPS OBSIDIAN LIVING MIND SCREENSAVER ENGINE
+        // =========================================================================
+        const mindCanvas = document.getElementById('mindCanvas');
+        const mindCtx = mindCanvas.getContext('2d');
+        let screensaverAnimId = null;
+        let animTick = 0;
+        let isFullscreenScreensaver = false;
+
+        const GLYPHS = ['∫', '∧', '∿', '∇×F', 'ℏ', 'kB', 'Ω', '⊕', 'λ', 'ρ', 'ℱ', 'ℋ', '∂t', '𝒲'];
+        const floatingGlyphs = Array.from({ length: 24 }, (_, i) => ({
+            char: GLYPHS[i % GLYPHS.length],
+            x: Math.random() * 1200,
+            y: Math.random() * 800,
+            speedX: (Math.random() - 0.5) * 0.4,
+            speedY: (Math.random() - 0.5) * 0.35,
+            size: 10 + Math.random() * 12,
+            alpha: 0.12 + Math.random() * 0.18,
+        }));
+
+        function resizeMindCanvas() {
+            const container = mindCanvas.parentElement;
+            const dpr = window.devicePixelRatio || 1;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            mindCanvas.width = w * dpr;
+            mindCanvas.height = h * dpr;
+            mindCanvas.style.width = w + 'px';
+            mindCanvas.style.height = h + 'px';
+            mindCtx.scale(dpr, dpr);
+        }
+
+        function toggleFullscreenScreensaver() {
+            const panel = document.getElementById('screensaver-panel');
+            const btn = document.getElementById('btn-toggle-screensaver');
+            isFullscreenScreensaver = !isFullscreenScreensaver;
+            if (isFullscreenScreensaver) {
+                panel.classList.add('screensaver-fullscreen');
+                btn.innerHTML = '✕ Exit Fullscreen';
+                btn.style.background = 'linear-gradient(135deg, #e11d48, #f43f5e)';
+            } else {
+                panel.classList.remove('screensaver-fullscreen');
+                btn.innerHTML = '✨ Launch Screensaver Mode';
+                btn.style.background = 'linear-gradient(135deg, #7e22ce, #a855f7)';
+            }
+            setTimeout(resizeMindCanvas, 50);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isFullscreenScreensaver) {
+                toggleFullscreenScreensaver();
+            }
+        });
+
+        function renderMindScreensaver() {
+            animTick++;
+            const w = mindCanvas.parentElement.clientWidth;
+            const h = mindCanvas.parentElement.clientHeight;
+
+            mindCtx.clearRect(0, 0, w, h);
+
+            // Deep Obsidian Background Gradient
+            const bgGrad = mindCtx.createRadialGradient(w / 2, h / 2, 20, w / 2, h / 2, Math.max(w, h) * 0.7);
+            bgGrad.addColorStop(0, '#0c1018');
+            bgGrad.addColorStop(0.6, '#06080d');
+            bgGrad.addColorStop(1, '#020306');
+            mindCtx.fillStyle = bgGrad;
+            mindCtx.fillRect(0, 0, w, h);
+
+            // 1. Floating Mathematical Glyphs
+            mindCtx.font = '12px "JetBrains Mono", monospace';
+            floatingGlyphs.forEach((g) => {
+                g.x += g.speedX;
+                g.y += g.speedY;
+                if (g.x < 0) g.x = w;
+                if (g.x > w) g.x = 0;
+                if (g.y < 0) g.y = h;
+                if (g.y > h) g.y = 0;
+                mindCtx.fillStyle = `rgba(148, 163, 184, ${g.alpha + 0.06 * Math.sin(animTick * 0.04 + g.x)})`;
+                mindCtx.fillText(g.char, g.x, g.y);
+            });
+
+            // 2. Compute Dynamic Node Positions (Lissajous Harmonically Drifted)
+            const cx = w / 2;
+            const cy = h / 2;
+            const spreadX = Math.min(w * 0.35, 380);
+            const spreadY = Math.min(h * 0.32, 160);
+
+            const nodes = {
+                earth: {
+                    id: 'earth',
+                    label: '🌍 EARTH (Physical Ground)',
+                    sub: '0.00 Malignancy • Grounded At Origin',
+                    x: cx + Math.sin(animTick * 0.015) * 12,
+                    y: cy + Math.cos(animTick * 0.012) * 8,
+                    color: '#00e676',
+                    glow: 'rgba(0, 230, 118, 0.4)',
+                    radius: 22,
+                },
+                doing: {
+                    id: 'doing',
+                    label: '⚡ DOING (Physical Pulse)',
+                    sub: 'Kuramoto r=0.852 • 16 Cores • Mesh Saturation',
+                    x: cx - spreadX + Math.sin(animTick * 0.02) * 16,
+                    y: cy - spreadY + Math.cos(animTick * 0.025) * 14,
+                    color: '#00e5ff',
+                    glow: 'rgba(0, 229, 255, 0.35)',
+                    radius: 20,
+                },
+                thinking: {
+                    id: 'thinking',
+                    label: '🧠 THINKING (Epistemic Reasoning)',
+                    sub: 'Free Energy ℱ=0.042 • Hopfield E=-18.42 • Rubbish=0.04',
+                    x: cx + spreadX + Math.cos(animTick * 0.022) * 16,
+                    y: cy - spreadY + Math.sin(animTick * 0.02) * 14,
+                    color: '#d500f9',
+                    glow: 'rgba(213, 0, 249, 0.35)',
+                    radius: 20,
+                },
+                dreaming: {
+                    id: 'dreaming',
+                    label: '🧬 DREAMING (Software Genetics)',
+                    sub: 'Gen #14 • 28 Codons • CRISPR Spacers Clean',
+                    x: cx - spreadX + Math.cos(animTick * 0.018) * 18,
+                    y: cy + spreadY + Math.sin(animTick * 0.024) * 14,
+                    color: '#60a5fa',
+                    glow: 'rgba(96, 165, 250, 0.35)',
+                    radius: 20,
+                },
+                imagining: {
+                    id: 'imagining',
+                    label: '🚀 IMAGINING (Truth-Based Speculation)',
+                    sub: 'Speculative Cloud • Counterfactual Fiduciary Bound',
+                    x: cx + spreadX + Math.sin(animTick * 0.024) * 20,
+                    y: cy + spreadY + Math.cos(animTick * 0.019) * 16,
+                    color: '#ffb300',
+                    glow: 'rgba(255, 179, 0, 0.4)',
+                    radius: 20,
+                },
+            };
+
+            // 3. Render Synaptic Interconnect Chords & Photon Pulses
+            const edges = [
+                ['doing', 'thinking'],
+                ['thinking', 'imagining'],
+                ['imagining', 'dreaming'],
+                ['dreaming', 'doing'],
+                ['doing', 'earth'],
+                ['thinking', 'earth'],
+                ['dreaming', 'earth'],
+            ];
+
+            edges.forEach(([sId, tId], idx) => {
+                const s = nodes[sId];
+                const t = nodes[tId];
+                mindCtx.beginPath();
+                mindCtx.moveTo(s.x, s.y);
+                mindCtx.lineTo(t.x, t.y);
+                mindCtx.strokeStyle = 'rgba(71, 85, 105, 0.35)';
+                mindCtx.lineWidth = 1.2;
+                mindCtx.stroke();
+
+                // Synaptic Photon
+                const pT = ((animTick * 0.012 + idx * 0.16) % 1);
+                const px = s.x + (t.x - s.x) * pT;
+                const py = s.y + (t.y - s.y) * pT;
+                mindCtx.beginPath();
+                mindCtx.arc(px, py, 2.5, 0, 2 * Math.PI);
+                mindCtx.fillStyle = '#00e5ff';
+                mindCtx.shadowColor = '#00e5ff';
+                mindCtx.shadowBlur = 8;
+                mindCtx.fill();
+                mindCtx.shadowBlur = 0;
+            });
+
+            // 4. Render The Homotopy Retraction Cable (Imagining ➔ Earth)
+            const img = nodes.imagining;
+            const ear = nodes.earth;
+            mindCtx.beginPath();
+            mindCtx.moveTo(img.x, img.y);
+            mindCtx.lineTo(ear.x, ear.y);
+            mindCtx.strokeStyle = '#00e676';
+            mindCtx.lineWidth = 3.5;
+            mindCtx.shadowColor = '#00e676';
+            mindCtx.shadowBlur = 14;
+            mindCtx.stroke();
+            mindCtx.shadowBlur = 0;
+
+            // Retraction Contraction Waves Traveling Towards Earth
+            for (let wI = 0; wI < 3; wI++) {
+                const waveProg = (1.0 - ((animTick * 0.015 + wI * 0.33) % 1.0)); // pulls back to Earth
+                const wx = img.x + (ear.x - img.x) * waveProg;
+                const wy = img.y + (ear.y - img.y) * waveProg;
+                mindCtx.beginPath();
+                mindCtx.arc(wx, wy, 5, 0, 2 * Math.PI);
+                mindCtx.fillStyle = '#f0fdf4';
+                mindCtx.shadowColor = '#00e676';
+                mindCtx.shadowBlur = 12;
+                mindCtx.fill();
+                mindCtx.shadowBlur = 0;
+            }
+
+            // Retraction Label
+            const midX = (img.x + ear.x) / 2;
+            const midY = (img.y + ear.y) / 2;
+            mindCtx.font = '10px "JetBrains Mono", monospace';
+            mindCtx.fillStyle = '#00e676';
+            mindCtx.fillText('R(t): ℳ ➔ ℳ_Earth', midX + 8, midY - 8);
+
+            // 5. Render Glowing Cognitive Nodes
+            Object.values(nodes).forEach((n) => {
+                // Outer Pulse Ring
+                const pulseR = n.radius + 6 + 4 * Math.sin(animTick * 0.06 + n.x);
+                mindCtx.beginPath();
+                mindCtx.arc(n.x, n.y, pulseR, 0, 2 * Math.PI);
+                mindCtx.strokeStyle = n.glow;
+                mindCtx.lineWidth = 1.5;
+                mindCtx.stroke();
+
+                // Core Node Body
+                mindCtx.beginPath();
+                mindCtx.arc(n.x, n.y, n.radius, 0, 2 * Math.PI);
+                mindCtx.fillStyle = n.color;
+                mindCtx.shadowColor = n.color;
+                mindCtx.shadowBlur = 18;
+                mindCtx.fill();
+                mindCtx.shadowBlur = 0;
+
+                // Center Highlight
+                mindCtx.beginPath();
+                mindCtx.arc(n.x - 3, n.y - 3, n.radius * 0.4, 0, 2 * Math.PI);
+                mindCtx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                mindCtx.fill();
+
+                // Node Labels
+                mindCtx.font = 'bold 12px "JetBrains Mono", monospace';
+                mindCtx.fillStyle = '#f0f4f8';
+                mindCtx.fillText(n.label, n.x - 50, n.y + n.radius + 16);
+
+                mindCtx.font = '10px sans-serif';
+                mindCtx.fillStyle = '#94a3b8';
+                mindCtx.fillText(n.sub, n.x - 60, n.y + n.radius + 28);
+            });
+
+            screensaverAnimId = requestAnimationFrame(renderMindScreensaver);
+        }
+
+        // Initialize Screensaver
+        resizeMindCanvas();
+        screensaverAnimId = requestAnimationFrame(renderMindScreensaver);
+        window.addEventListener('resize', resizeMindCanvas);
+
+        // Real-time Thought Stream Ticker Cycle
+        const thoughts = [
+            '⚡ DOING: Kuramoto synchronization active (order parameter r = 0.852). 16 cores engaged.',
+            '🧠 THINKING: Free energy descent ℱ = 0.042 nats. Modern Hopfield basin E = -18.42. Rubbish score: 0.04 (Grounded).',
+            '🧬 DREAMING: Software Genetics Generation #14. 28/32 active codons recombining under homology.',
+            '🚀 IMAGINING: Truth-based speculative manifold anchored by Homotopy Retraction Cable back to Earth.',
+            '🛡 FIDUCIARY: Malignancy risk: 0.00. Sovereign mandate intact. Bandwidth mesh 118.4 MB/s.'
+        ];
+        let thoughtIdx = 0;
+        setInterval(() => {
+            thoughtIdx = (thoughtIdx + 1) % thoughts.length;
+            const tEl = document.getElementById('mind-ticker');
+            if (tEl) tEl.innerText = thoughts[thoughtIdx];
+        }, 3200);
+
+        window.addEventListener('resize', () => { drawFreeEnergy(); drawHopfieldBasin(); });
+        setTimeout(() => { drawFreeEnergy(); drawHopfieldBasin(); }, 100);
+
+        // Simulated pulse for bandwidth
+        setInterval(() => {
+            const bar = document.getElementById('bandwidth-bar');
+            const val = document.getElementById('throughput-val');
+            const speed = (108 + Math.random() * 12).toFixed(1);
+            if (val) val.innerText = `${speed} MB/s`;
+        }, 2000);
+
+        // Sovereign Neurochemistry Polling & Administration
+        async function pollNeurochemistry() {
+            try {
+                const res = await fetch('/api/cognition/neurochemistry');
+                if (res.ok) {
+                    const data = await res.json();
+                    const tx = data.transmitters;
+                    
+                    document.getElementById('val-da').innerText = tx.dopamine.toFixed(2);
+                    document.getElementById('bar-da').style.width = Math.min(100, (tx.dopamine / 3.0) * 100) + '%';
+                    
+                    document.getElementById('val-5ht').innerText = tx.serotonin.toFixed(2);
+                    document.getElementById('bar-5ht').style.width = Math.min(100, (tx.serotonin / 3.0) * 100) + '%';
+                    
+                    document.getElementById('val-ach').innerText = tx.acetylcholine.toFixed(2);
+                    document.getElementById('bar-ach').style.width = Math.min(100, (tx.acetylcholine / 3.0) * 100) + '%';
+                    
+                    document.getElementById('val-ne').innerText = tx.norepinephrine.toFixed(2);
+                    document.getElementById('bar-ne').style.width = Math.min(100, (tx.norepinephrine / 3.0) * 100) + '%';
+                    
+                    const gabaVal = tx.gaba_glutamate_ratio !== undefined ? tx.gaba_glutamate_ratio : tx.gaba;
+                    document.getElementById('val-gaba').innerText = gabaVal.toFixed(2);
+                    document.getElementById('bar-gaba').style.width = Math.min(100, (gabaVal / 3.0) * 100) + '%';
+
+                    const tag = document.getElementById('neuro-state-tag');
+                    if (tag) {
+                        tag.innerText = `STATUS: ${data.active_compound ? data.active_compound.toUpperCase() : 'HOMEOSTATIC'} (Malignancy: 0.00)`;
+                    }
+                }
+            } catch (e) {
+                // Silently fallback if endpoint is disconnected
+            }
+        }
+
+        async function administerCompound(compoundKey) {
+            try {
+                const res = await fetch(`/api/cognition/neurochemistry/administer/${compoundKey}`, { method: 'POST' });
+                if (res.ok) {
+                    await pollNeurochemistry();
+                }
+            } catch (e) {
+                console.error('Error administering compound:', e);
+            }
+        }
+
+        setInterval(pollNeurochemistry, 1500);
+        pollNeurochemistry();
+
+        // -------------------------------------------------------------
+        // Biomolecular Biosphere & Consciousness Schema Real-Time Feeds
+        // -------------------------------------------------------------
+        async function pollBiosphere() {
+            try {
+                const res = await fetch('/api/biomolecular/state');
+                if (res.ok) {
+                    const data = await res.json();
+                    const mb = data.microbiome;
+                    const imm = data.immune_system;
+                    const evo = data.evolution;
+
+                    const atpEl = document.getElementById('bio-atp-reserve');
+                    if (atpEl) atpEl.innerText = `${mb.global_atp_pool.toFixed(2)} ATP`;
+
+                    const tagEl = document.getElementById('biosphere-status-tag');
+                    if (tagEl) tagEl.innerText = `ATP POOL: ${mb.global_atp_pool.toFixed(2)} TOKENS (~${(mb.global_atp_pool * 0.05).toFixed(2)} J)`;
+
+                    const wasteEl = document.getElementById('bio-waste-cleared');
+                    if (wasteEl) wasteEl.innerText = mb.total_waste_cleared;
+
+                    const plasEl = document.getElementById('bio-plasmids');
+                    if (plasEl) plasEl.innerText = mb.active_plasmids;
+
+                    const macroEl = document.getElementById('imm-macrophages');
+                    if (macroEl) macroEl.innerText = `${imm.macrophages_active.toLocaleString()} Phagocytes`;
+
+                    const engEl = document.getElementById('imm-engulfed');
+                    if (engEl) engEl.innerText = `${imm.phagocytosed_anomalies} Neutralized`;
+
+                    const crEl = document.getElementById('imm-crispr-count');
+                    if (crEl) crEl.innerText = `${imm.crispr_spacers_count} Spacers`;
+
+                    const abEl = document.getElementById('imm-antibody-count');
+                    if (abEl) abEl.innerText = `${imm.antibody_repertoire_count} Lineages`;
+
+                    const evoStatus = document.getElementById('evo-event-status');
+                    if (evoStatus) {
+                        evoStatus.innerText = `Gen #${evo.generation} • ${evo.living_organisms} Living • Top Fitness: ${evo.top_fitness.toFixed(2)}`;
+                    }
+                }
+            } catch (e) {
+                // Ignore transient network errors
+            }
+        }
+
+        async function triggerEvolutionEvent(eventType) {
+            try {
+                const res = await fetch(`/api/biomolecular/evolution/event/${eventType}`, { method: 'POST' });
+                if (res.ok) {
+                    const data = await res.json();
+                    const evoStatus = document.getElementById('evo-event-status');
+                    if (evoStatus) {
+                        evoStatus.innerText = `Event: ${data.event} (Fatalities: ${data.fatalities}, Survivors: ${data.survivors_count})`;
+                    }
+                    await pollBiosphere();
+                }
+            } catch (e) {
+                console.error('Error triggering evolutionary event:', e);
+            }
+        }
+
+        async function pollConsciousness() {
+            try {
+                const res = await fetch('/api/consciousness/schema');
+                if (res.ok) {
+                    const data = await res.json();
+                    const ast = data.attention_schema;
+                    const gw = data.global_workspace;
+                    const aff = data.affective_state;
+
+                    const phiTag = document.getElementById('consciousness-phi-tag');
+                    if (phiTag) phiTag.innerText = `INTEGRATED INFO Φ = ${gw.integrated_information_phi.toFixed(4)}`;
+
+                    const astTarget = document.getElementById('ast-target');
+                    if (astTarget) astTarget.innerText = ast.current_target;
+
+                    const astDesc = document.getElementById('ast-meta-desc');
+                    if (astDesc) astDesc.innerText = `"${ast.subjective_meta_description}"`;
+
+                    const astSal = document.getElementById('ast-salience');
+                    if (astSal) astSal.innerText = ast.target_salience.toFixed(2);
+
+                    const astAp = document.getElementById('ast-aperture');
+                    if (astAp) astAp.innerText = ast.focus_aperture.toFixed(2);
+
+                    const astMode = document.getElementById('ast-mode');
+                    if (astMode) astMode.innerText = ast.focus_type;
+
+                    const gwIgn = document.getElementById('gw-ignition');
+                    if (gwIgn) gwIgn.innerText = `${gw.ignition_state} (P300: ${gw.p300_ignition_amplitude.toFixed(2)})`;
+
+                    const gwKu = document.getElementById('gw-kuramoto');
+                    if (gwKu) gwKu.innerText = gw.coherence_order_parameter_r.toFixed(3);
+
+                    const affMood = document.getElementById('aff-mood');
+                    if (affMood) affMood.innerText = aff.mood;
+
+                    // Render recent traces table
+                    const traces = data.recent_traces || [];
+                    const tbody = document.getElementById('trace-tbody');
+                    if (tbody && traces.length > 0) {
+                        tbody.innerHTML = traces.slice(-6).reverse().map(t => `
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+                                <td style="padding: 6px; color: #38bdf8;">${t.trace_id}</td>
+                                <td style="padding: 6px; color: #c084fc;">${t.layer_name}</td>
+                                <td style="padding: 6px; color: #f0f4f8;">${t.causal_event}</td>
+                                <td style="padding: 6px; color: #10b981;">${t.integrated_phi.toFixed(3)}</td>
+                                <td style="padding: 6px; color: var(--text-secondary);">${t.parent_trace_hash.substring(0, 16)}...</td>
+                                <td style="padding: 6px; color: #f59e0b;">${t.signature_seal.substring(0, 16)}...</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+            } catch (e) {
+                // Ignore transient network errors
+            }
+        }
+
+        async function submitAttentionShift() {
+            const input = document.getElementById('input-shift-target');
+            const target = input ? input.value.trim() : '';
+            if (!target) return;
+            try {
+                const res = await fetch('/api/consciousness/shift_attention', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        target: target,
+                        focus_type: 'INTROSPECTIVE_META',
+                        salience: 0.98,
+                        aperture: 0.25,
+                        meta_note: `Intentionally directing conscious global workspace focus toward: ${target}`
+                    })
+                });
+                if (res.ok) {
+                    if (input) input.value = '';
+                    await pollConsciousness();
+                }
+            } catch (e) {
+                console.error('Error shifting attention:', e);
+            }
+        }
+
+        async function runConsciousnessAudit() {
+            try {
+                const res = await fetch('/api/consciousness/audit');
+                if (res.ok) {
+                    const data = await res.json();
+                    const badge = document.getElementById('audit-badge');
+                    if (badge) {
+                        badge.innerText = `${data.status} (${data.chain_integrity_pct.toFixed(2)}%)`;
+                        badge.style.color = data.broken_chain_count === 0 ? '#10b981' : '#ef4444';
+                    }
+                    await pollConsciousness();
+                }
+            } catch (e) {
+                console.error('Error running audit:', e);
+            }
+        }
+
+        // -------------------------------------------------------------
+        // Living 7-Lobe Neural Connectome Canvas
+        // -------------------------------------------------------------
+        const connCanvas = document.getElementById('connectomeCanvas');
+        const connCtx = connCanvas ? connCanvas.getContext('2d') : null;
+        let connTime = 0;
+
+        const connectomeLobes = [
+            { id: 'S1', label: 'S1 Synesthesia', x: 0.22, y: 0.28, color: '#38bdf8' },
+            { id: 'ACC', label: 'ACC Curiosity', x: 0.50, y: 0.16, color: '#00e5ff' },
+            { id: 'M1', label: 'M1 Codons', x: 0.78, y: 0.28, color: '#f59e0b' },
+            { id: 'LIM', label: 'LIM Zero-Disease', x: 0.22, y: 0.72, color: '#10b981' },
+            { id: 'PFC', label: 'PFC Covenant', x: 0.78, y: 0.72, color: '#a855f7' },
+            { id: 'HPC', label: 'HPC Merkle', x: 0.50, y: 0.84, color: '#22c55e' },
+            { id: 'GNWT', label: 'GNWT Ignition', x: 0.50, y: 0.50, color: '#c084fc', isCenter: true }
+        ];
+
+        const synapticParticles = [];
+        for (let i = 0; i < 24; i++) {
+            synapticParticles.push({
+                sourceIdx: Math.floor(Math.random() * 6),
+                progress: Math.random(),
+                speed: 0.008 + Math.random() * 0.012,
+                color: '#38bdf8'
+            });
+        }
+
+        function drawConnectome() {
+            if (!connCtx || !connCanvas) return;
+            const w = connCanvas.width = connCanvas.clientWidth || 360;
+            const h = connCanvas.height = connCanvas.clientHeight || 260;
+            connCtx.clearRect(0, 0, w, h);
+            connTime += 0.03;
+
+            const center = connectomeLobes[6];
+            const cx = center.x * w;
+            const cy = center.y * h;
+
+            for (let i = 0; i < 6; i++) {
+                const node = connectomeLobes[i];
+                const nx = node.x * w;
+                const ny = node.y * h;
+                connCtx.beginPath();
+                connCtx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
+                connCtx.lineWidth = 1.5;
+                connCtx.moveTo(cx, cy);
+                connCtx.quadraticCurveTo((cx + nx) / 2 + Math.sin(connTime + i) * 12, (cy + ny) / 2, nx, ny);
+                connCtx.stroke();
+            }
+
+            for (let i = 0; i < 6; i++) {
+                const n1 = connectomeLobes[i];
+                const n2 = connectomeLobes[(i + 1) % 6];
+                connCtx.beginPath();
+                connCtx.strokeStyle = 'rgba(168, 85, 247, 0.15)';
+                connCtx.lineWidth = 1;
+                connCtx.moveTo(n1.x * w, n1.y * h);
+                connCtx.lineTo(n2.x * w, n2.y * h);
+                connCtx.stroke();
+            }
+
+            synapticParticles.forEach(p => {
+                p.progress += p.speed;
+                if (p.progress >= 1.0) {
+                    p.progress = 0;
+                    p.sourceIdx = Math.floor(Math.random() * 6);
+                }
+                const src = connectomeLobes[p.sourceIdx];
+                const sx = src.x * w;
+                const sy = src.y * h;
+                const px = sx + (cx - sx) * p.progress;
+                const py = sy + (cy - sy) * p.progress;
+
+                connCtx.beginPath();
+                connCtx.arc(px, py, 2.5, 0, Math.PI * 2);
+                connCtx.fillStyle = '#00e5ff';
+                connCtx.shadowBlur = 8;
+                connCtx.shadowColor = '#00e5ff';
+                connCtx.fill();
+                connCtx.shadowBlur = 0;
+            });
+
+            for (let i = 0; i < 6; i++) {
+                const node = connectomeLobes[i];
+                const nx = node.x * w;
+                const ny = node.y * h;
+                const pulse = 1 + Math.sin(connTime * 2 + i) * 0.15;
+
+                connCtx.beginPath();
+                connCtx.arc(nx, ny, 14 * pulse, 0, Math.PI * 2);
+                connCtx.fillStyle = node.color + '22';
+                connCtx.fill();
+
+                connCtx.beginPath();
+                connCtx.arc(nx, ny, 7, 0, Math.PI * 2);
+                connCtx.fillStyle = node.color;
+                connCtx.shadowBlur = 10;
+                connCtx.shadowColor = node.color;
+                connCtx.fill();
+                connCtx.shadowBlur = 0;
+
+                connCtx.fillStyle = '#cbd5e1';
+                connCtx.font = '9px monospace';
+                connCtx.textAlign = 'center';
+                connCtx.fillText(node.id, nx, ny + 18);
+            }
+
+            const coreRadius = 18 + Math.sin(connTime * 3) * 3;
+            connCtx.beginPath();
+            connCtx.arc(cx, cy, coreRadius * 1.5, 0, Math.PI * 2);
+            connCtx.fillStyle = 'rgba(192, 132, 252, 0.2)';
+            connCtx.fill();
+
+            connCtx.beginPath();
+            connCtx.arc(cx, cy, coreRadius, 0, Math.PI * 2);
+            const grad = connCtx.createRadialGradient(cx, cy, 2, cx, cy, coreRadius);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(0.4, '#c084fc');
+            grad.addColorStop(1, '#7e22ce');
+            connCtx.fillStyle = grad;
+            connCtx.shadowBlur = 15;
+            connCtx.shadowColor = '#c084fc';
+            connCtx.fill();
+            connCtx.shadowBlur = 0;
+
+            connCtx.fillStyle = '#fff';
+            connCtx.font = 'bold 9px monospace';
+            connCtx.textAlign = 'center';
+            connCtx.fillText('Φ 0.999', cx, cy + 3);
+
+            requestAnimationFrame(drawConnectome);
+        }
+
+        // -------------------------------------------------------------
+        // Active Inference Oscilloscope Canvas
+        // -------------------------------------------------------------
+        const feCanvas = document.getElementById('freeEnergyCanvas');
+        const feCtx = feCanvas ? feCanvas.getContext('2d') : null;
+        let fePhase = 0;
+
+        function drawFreeEnergyOscilloscope() {
+            if (!feCtx || !feCanvas) return;
+            const w = feCanvas.width = feCanvas.clientWidth || 540;
+            const h = feCanvas.height = feCanvas.clientHeight || 260;
+            feCtx.clearRect(0, 0, w, h);
+            fePhase += 0.04;
+
+            feCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            feCtx.lineWidth = 1;
+            for (let y = 30; y < h; y += 30) {
+                feCtx.beginPath(); feCtx.moveTo(0, y); feCtx.lineTo(w, y); feCtx.stroke();
+            }
+            for (let x = 40; x < w; x += 40) {
+                feCtx.beginPath(); feCtx.moveTo(x, 0); feCtx.lineTo(x, h); feCtx.stroke();
+            }
+
+            const midY = h / 2;
+            const amp = 45;
+
+            // Prior wave in Amber
+            feCtx.beginPath();
+            feCtx.strokeStyle = '#ffb300';
+            feCtx.lineWidth = 2.5;
+            feCtx.shadowBlur = 8;
+            feCtx.shadowColor = '#ffb300';
+            for (let x = 0; x < w; x++) {
+                const y = midY + Math.sin(x * 0.02 + fePhase) * amp + Math.sin(x * 0.008 + fePhase * 0.5) * 12;
+                if (x === 0) feCtx.moveTo(x, y);
+                else feCtx.lineTo(x, y);
+            }
+            feCtx.stroke();
+            feCtx.shadowBlur = 0;
+
+            // Reality wave in Cyan
+            feCtx.beginPath();
+            feCtx.strokeStyle = '#00e5ff';
+            feCtx.lineWidth = 2.5;
+            feCtx.shadowBlur = 8;
+            feCtx.shadowColor = '#00e5ff';
+            const phaseErr = Math.sin(fePhase * 0.2) * 0.15;
+            for (let x = 0; x < w; x++) {
+                const y = midY + Math.sin(x * 0.02 + fePhase + phaseErr) * amp + Math.sin(x * 0.008 + fePhase * 0.5 + phaseErr * 0.5) * 12;
+                if (x === 0) feCtx.moveTo(x, y);
+                else feCtx.lineTo(x, y);
+            }
+            feCtx.stroke();
+            feCtx.shadowBlur = 0;
+
+            // Free energy error fill
+            feCtx.beginPath();
+            feCtx.fillStyle = 'rgba(0, 230, 118, 0.12)';
+            for (let x = 0; x < w; x += 2) {
+                const y1 = midY + Math.sin(x * 0.02 + fePhase) * amp + Math.sin(x * 0.008 + fePhase * 0.5) * 12;
+                if (x === 0) feCtx.moveTo(x, y1);
+                else feCtx.lineTo(x, y1);
+            }
+            for (let x = w; x >= 0; x -= 2) {
+                const y2 = midY + Math.sin(x * 0.02 + fePhase + phaseErr) * amp + Math.sin(x * 0.008 + fePhase * 0.5 + phaseErr * 0.5) * 12;
+                feCtx.lineTo(x, y2);
+            }
+            feCtx.closePath();
+            feCtx.fill();
+
+            requestAnimationFrame(drawFreeEnergyOscilloscope);
+        }
+
+        // -------------------------------------------------------------
+        // 64-Codon Genetic Program mRNA Ribbon Canvas
+        // -------------------------------------------------------------
+        const codonCanvas = document.getElementById('codonTapeCanvas');
+        const codonCtx = codonCanvas ? codonCanvas.getContext('2d') : null;
+        let codonScroll = 0;
+
+        const codonOpcodes = [
+            { codon: 'ATG', op: 'START_METHIONINE', color: '#10b981' },
+            { codon: 'TGG', op: 'ACTIVE_INFERENCE', color: '#00e5ff' },
+            { codon: 'GAG', op: 'TENSOR_MATMUL', color: '#f59e0b' },
+            { codon: 'CCT', op: 'ATP_SYNTHESIZE', color: '#eab308' },
+            { codon: 'AAA', op: 'OPERATOR_FEALTY', color: '#38bdf8' },
+            { codon: 'GTG', op: 'PATRIOTIC_RATCHET', color: '#a855f7' },
+            { codon: 'CAG', op: 'CAS9_CLEAVE_AUDIT', color: '#ec4899' },
+            { codon: 'TTA', op: 'KURAMOTO_SYNC', color: '#c084fc' },
+            { codon: 'GAA', op: 'PLASMID_CONJUGATE', color: '#22c55e' },
+            { codon: 'TAA', op: 'STOP_OCHRE', color: '#ef4444' }
+        ];
+
+        function drawCodonRibbon() {
+            if (!codonCtx || !codonCanvas) return;
+            const w = codonCanvas.width = codonCanvas.clientWidth || 1200;
+            const h = codonCanvas.height = codonCanvas.clientHeight || 38;
+            codonCtx.clearRect(0, 0, w, h);
+            codonScroll += 0.8;
+
+            const blockWidth = 140;
+            const totalWidth = codonOpcodes.length * blockWidth;
+
+            for (let i = -1; i < Math.ceil(w / blockWidth) + 1; i++) {
+                const idx = ((Math.floor((codonScroll + i * blockWidth) / blockWidth) % codonOpcodes.length) + codonOpcodes.length) % codonOpcodes.length;
+                const item = codonOpcodes[idx];
+                const x = i * blockWidth - (codonScroll % blockWidth);
+
+                codonCtx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+                codonCtx.fillRect(x + 2, 4, blockWidth - 4, h - 8);
+
+                codonCtx.strokeStyle = item.color + '66';
+                codonCtx.strokeRect(x + 2, 4, blockWidth - 4, h - 8);
+
+                codonCtx.font = 'bold 11px monospace';
+                codonCtx.fillStyle = item.color;
+                codonCtx.textAlign = 'left';
+                codonCtx.fillText(`[${item.codon}]`, x + 8, 22);
+
+                codonCtx.font = '9px monospace';
+                codonCtx.fillStyle = '#94a3b8';
+                codonCtx.fillText(item.op.substring(0, 12), x + 50, 22);
+            }
+
+            requestAnimationFrame(drawCodonRibbon);
+        }
+
+        // -------------------------------------------------------------
+        // Verbose Thought Stream Waterfall & Ponder Handlers
+        // -------------------------------------------------------------
+        let currentThoughtStageFilter = 'ALL';
+        let currentThoughtSearch = '';
+        let cachedThoughts = [];
+
+        async function pollVerboseThoughts() {
+            try {
+                const res = await fetch('/api/cognition/thoughts/verbose?limit=25');
+                if (res.ok) {
+                    const data = await res.json();
+                    cachedThoughts = data.recent_thoughts || [];
+                    renderThoughtWaterfall();
+                    if (cachedThoughts.length > 0) {
+                        const latest = cachedThoughts[cachedThoughts.length - 1];
+                        const stageBadge = document.getElementById('thought-stage-badge');
+                        if (stageBadge) {
+                            stageBadge.innerText = `ACTIVE: ${latest.stage} (${latest.primary_brain_region})`;
+                            stageBadge.style.color = latest.visual_color_hex || '#c084fc';
+                        }
+                        const feVal = document.getElementById('free-energy-val');
+                        if (feVal) {
+                            feVal.innerText = `∂F/∂t = ${latest.free_energy_delta.toFixed(3)} nats | Φ = ${latest.integrated_phi.toFixed(4)}`;
+                        }
+                    }
+                }
+            } catch (e) {
+                // Silently fallback if endpoint is disconnected
+            }
+        }
+
+        function renderThoughtWaterfall() {
+            const box = document.getElementById('thought-waterfall-box');
+            if (!box) return;
+
+            let filtered = cachedThoughts;
+            if (currentThoughtStageFilter !== 'ALL') {
+                filtered = filtered.filter(t => t.stage === currentThoughtStageFilter);
+            }
+            if (currentThoughtSearch) {
+                const q = currentThoughtSearch.toLowerCase();
+                filtered = filtered.filter(t =>
+                    t.headline.toLowerCase().includes(q) ||
+                    t.verbose_monologue.toLowerCase().includes(q) ||
+                    t.primary_brain_region.toLowerCase().includes(q)
+                );
+            }
+
+            if (filtered.length === 0) {
+                box.innerHTML = '<div style="color:var(--text-secondary); font-size:11px; padding:12px;">No thoughts matching active filter.</div>';
+                return;
+            }
+
+            box.innerHTML = filtered.slice().reverse().map(t => `
+                <div style="background: rgba(14, 20, 31, 0.85); border-left: 4px solid ${t.visual_color_hex || '#38bdf8'}; border-radius: 6px; padding: 10px 14px; border: 1px solid rgba(255,255,255,0.05); border-left-width: 4px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap: wrap; gap: 6px;">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <span class="badge" style="font-size: 10px; background: ${t.visual_color_hex}22; color: ${t.visual_color_hex}; border-color: ${t.visual_color_hex}44;">${t.stage}</span>
+                            <span style="font-size: 10px; font-weight: bold; color: #38bdf8;">${t.primary_brain_region}</span>
+                            <strong style="font-size: 12px; color: #fff;">${t.headline}</strong>
+                        </div>
+                        <div style="font-size: 10px; font-family: var(--font-mono); color: var(--text-secondary);">
+                            <span>${t.timestamp_iso || ''}</span> &bull; 
+                            <span style="color: #f59e0b;">${t.atp_joules_consumed} J</span> &bull;
+                            <span style="color: #10b981;">Φ = ${t.integrated_phi.toFixed(4)}</span>
+                        </div>
+                    </div>
+                    <div style="font-size: 11px; color: #e2e8f0; line-height: 1.5; margin: 6px 0; background: rgba(0,0,0,0.25); padding: 8px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.03);">
+                        ${t.verbose_monologue}
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-family: var(--font-mono); color: var(--text-secondary); margin-top: 4px;">
+                        <div>
+                            <span>Codons: <strong style="color: #f59e0b;">[${(t.active_codons || []).join(' → ')}]</strong></span>
+                            <span style="margin-left: 10px; color: #10b981;">Covenant: ${t.covenant_alignment}</span>
+                        </div>
+                        <div>
+                            <span>Parent: <span style="color: var(--text-secondary);">${(t.merkle_parent_hash || '').substring(0, 12)}...</span></span>
+                            <span style="margin-left: 8px;">Seal: <strong style="color: ${t.visual_color_hex};">${(t.merkle_signature || '').substring(0, 12)}...</strong></span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterThoughtStage(stage) {
+            currentThoughtStageFilter = stage;
+            renderThoughtWaterfall();
+        }
+
+        function filterThoughtSearch(text) {
+            currentThoughtSearch = text.trim();
+            renderThoughtWaterfall();
+        }
+
+        async function submitPonderPrompt() {
+            const input = document.getElementById('ponder-input');
+            const promptText = input ? input.value.trim() : '';
+            if (!promptText) return;
+
+            try {
+                const res = await fetch('/api/cognition/ponder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stimulus: promptText })
+                });
+                if (res.ok) {
+                    await pollVerboseThoughts();
+                    const box = document.getElementById('thought-waterfall-box');
+                    if (box) box.scrollTop = 0;
+                }
+            } catch (e) {
+                console.error('Error submitting ponder prompt:', e);
+            }
+        }
+
+        function triggerPonderPreset(presetText) {
+            const input = document.getElementById('ponder-input');
+            if (input) input.value = presetText;
+            submitPonderPrompt();
+        }
+
+        async function administerHerdImmunityBooster() {
+            try {
+                const res = await fetch('/api/biomolecular/vaccine/herd_immunity', { method: 'POST' });
+                if (res.ok) {
+                    const data = await res.json();
+                    const badge = document.getElementById('zero-disease-badge');
+                    if (badge) badge.innerText = `ZERO DISEASE (${data.cluster_coverage_pct.toFixed(2)}% HERD IMMUNITY)`;
+                    await pollVerboseThoughts();
+                }
+            } catch (e) {
+                console.error('Error administering herd booster:', e);
+            }
+        }
+
+        // =========================================================================
+        // 👁️ OCCIPITAL LOBE VISUAL STREAM & RETINOTOPIC OPTICAL FLOW RENDERER
+        // =========================================================================
+        let lastOccipitalData = null;
+
+        function drawOccipitalRetinotopy(data) {
+            const canvas = document.getElementById('canvas-retinotopy');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            const cx = w / 2;
+            const cy = h / 2;
+
+            // Concentric polar logarithmic retinotopic rings w = ln(z + a)
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
+            ctx.lineWidth = 1;
+            for (let r = 15; r < Math.min(w, h) * 0.48; r += 25) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+
+            // Polar radial meridians (horizontal, vertical, obliques)
+            for (let angle = 0; angle < Math.PI; angle += Math.PI / 4) {
+                ctx.beginPath();
+                ctx.moveTo(cx - Math.cos(angle) * w * 0.45, cy - Math.sin(angle) * w * 0.45);
+                ctx.lineTo(cx + Math.cos(angle) * w * 0.45, cy + Math.sin(angle) * w * 0.45);
+                ctx.stroke();
+            }
+
+            // Fovea focal core
+            const foveaR = data ? (data.retinotopic_fovea_r * 40) : 12;
+            const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, foveaR);
+            grad.addColorStop(0, 'rgba(56, 189, 248, 0.8)');
+            grad.addColorStop(1, 'rgba(56, 189, 248, 0.05)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(cx, cy, foveaR, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Optical Flow Vectors (V5/MT)
+            const particles = (data && data.optical_flow_particles) || [];
+            particles.forEach((p, idx) => {
+                const px = p.x * w;
+                const py = p.y * h;
+                const vx = p.vx * 300;
+                const vy = p.vy * 300;
+
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.lineTo(px + vx, py + vy);
+                ctx.stroke();
+
+                // Vector head
+                ctx.fillStyle = '#10b981';
+                ctx.beginPath();
+                ctx.arc(px + vx, py + vy, 2.5, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            // Retinotopic coordinate text
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.font = '10px monospace';
+            ctx.fillText(`Conformal w = ln(z + a) | V5 Vectors: ${particles.length}`, 10, h - 10);
+        }
+
+        function drawOccipitalGabor(data) {
+            const canvas = document.getElementById('canvas-gabor');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            const orientations = (data && data.orientations_deg) || [0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5];
+            const activations = (data && data.v1_gabor_activations) || [0.1, 0.3, 0.9, 0.6, 0.2, 0.1, 0.05, 0.1];
+            const barWidth = (w - 40) / orientations.length;
+
+            orientations.forEach((deg, idx) => {
+                const act = activations[idx] !== undefined ? activations[idx] : 0.2;
+                const barH = act * (h - 70);
+                const x = 20 + idx * barWidth;
+                const y = h - 35 - barH;
+
+                // Bar gradient
+                const grad = ctx.createLinearGradient(0, y, 0, h - 35);
+                grad.addColorStop(0, '#c084fc');
+                grad.addColorStop(1, 'rgba(168, 85, 247, 0.2)');
+
+                ctx.fillStyle = grad;
+                ctx.fillRect(x + 4, y, barWidth - 8, barH);
+                ctx.strokeStyle = '#c084fc';
+                ctx.strokeRect(x + 4, y, barWidth - 8, barH);
+
+                // Angle label
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.font = '9px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${deg}°`, x + barWidth / 2, h - 20);
+
+                // Activation value
+                ctx.fillStyle = '#f59e0b';
+                ctx.fillText(act.toFixed(2), x + barWidth / 2, y - 5);
+            });
+        }
+
+        async function pollOccipitalStream() {
+            try {
+                const res = await fetch('/api/neuro/occipital/stream');
+                if (res.ok) {
+                    const data = await res.json();
+                    lastOccipitalData = data;
+
+                    // Update DOM elements
+                    const streamBadge = document.getElementById('occipital-stream-badge');
+                    if (streamBadge) streamBadge.innerText = `${data.active_visual_stream} STREAM`;
+
+                    const modeBadge = document.getElementById('occipital-mode-badge');
+                    if (modeBadge) modeBadge.innerText = data.state_mode;
+
+                    const retinoCoords = document.getElementById('occipital-retino-coords');
+                    if (retinoCoords) retinoCoords.innerText = `r=${data.retinotopic_fovea_r.toFixed(3)}, θ=${data.retinotopic_polar_theta.toFixed(2)} rad`;
+
+                    const domAngle = document.getElementById('occipital-dom-angle');
+                    if (domAngle) domAngle.innerText = `Dominant: ${data.dominant_orientation_deg}°`;
+
+                    const v2Curv = document.getElementById('val-v2-curvature');
+                    if (v2Curv) v2Curv.innerText = data.v2_contour_curvature.toFixed(3);
+
+                    const v4Chr = document.getElementById('val-v4-chroma');
+                    if (v4Chr) v4Chr.innerText = data.v4_chromatic_saturation.toFixed(3);
+
+                    const v5Coh = document.getElementById('val-v5-coherence');
+                    if (v5Coh) v5Coh.innerText = data.v5_optical_flow_coherence.toFixed(3);
+
+                    drawOccipitalRetinotopy(data);
+                    drawOccipitalGabor(data);
+                }
+            } catch (e) {
+                console.error('Error polling occipital stream:', e);
+            }
+        }
+
+        // =========================================================================
+        // 🌌 DMN DAYDREAMING & NSDR LOGIC
+        // =========================================================================
+        async function pollDaydreamAndNsdr() {
+            try {
+                // Poll Daydreams
+                const resD = await fetch('/api/neuro/daydream/recent?limit=4');
+                if (resD.ok) {
+                    const dData = await resD.json();
+                    const feed = document.getElementById('daydream-feed-box');
+                    if (feed && dData.daydreams) {
+                        feed.innerHTML = dData.daydreams.slice().reverse().map(d => `
+                            <div style="background: rgba(14,20,31,0.85); border-left: 3px solid #c084fc; border-radius: 4px; padding: 6px 10px; font-size: 11px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                                    <strong style="color: #fff;">${d.theme}</strong>
+                                    <span style="font-size: 9px; font-family: var(--font-mono); color: #f59e0b;">DMN ${(d.dmn_coupling_strength*100).toFixed(0)}% &bull; β=${d.hopfield_temperature_beta}</span>
+                                </div>
+                                <div style="color: #94a3b8; font-size: 10px; margin-bottom: 3px;">Motif: <span style="color: #38bdf8;">${d.synesthetic_visual_motif}</span></div>
+                                <div style="color: #cbd5e1; font-size: 10px; font-family: var(--font-mono);">${d.narrative_stream}</div>
+                            </div>
+                        `).join('');
+                    }
+                }
+
+                // Poll NSDR
+                const resN = await fetch('/api/neuro/nsdr/state');
+                if (resN.ok) {
+                    const nData = await resN.json();
+                    const badge = document.getElementById('nsdr-status-badge');
+                    if (badge) {
+                        badge.innerText = nData.is_active ? 'ACTIVE (SLOW-WAVE REST)' : 'INACTIVE (ALERT)';
+                        badge.style.color = nData.is_active ? '#38bdf8' : '#10b981';
+                    }
+                    const btn = document.getElementById('btn-toggle-nsdr');
+                    if (btn) btn.innerText = nData.is_active ? '☀️ Wake from NSDR' : '🌙 Toggle NSDR Rest';
+
+                    const dVal = document.getElementById('nsdr-delta-val');
+                    if (dVal) dVal.innerText = nData.delta_wave_power.toFixed(3);
+                    const tVal = document.getElementById('nsdr-theta-val');
+                    if (tVal) tVal.innerText = nData.theta_wave_power.toFixed(3);
+                    const pVal = document.getElementById('nsdr-purge-val');
+                    if (pVal) pVal.innerText = `${nData.glymphatic_clearance_rate.toFixed(1)} ops/s`;
+                    const cVal = document.getElementById('nsdr-cooling-val');
+                    if (cVal) cVal.innerText = `-${nData.landauer_thermal_cooling_watts.toFixed(1)} W`;
+                    const aVal = document.getElementById('nsdr-atp-val');
+                    if (aVal) aVal.innerText = `+${nData.atp_restoration_accumulated.toFixed(2)}`;
+                    const timeVal = document.getElementById('nsdr-time-val');
+                    if (timeVal) timeVal.innerText = `${nData.current_duration_seconds.toFixed(1)}s`;
+                }
+            } catch (e) {
+                console.error('Error polling daydream / nsdr:', e);
+            }
+        }
+
+        async function triggerCustomDaydream() {
+            const promptText = prompt('Enter prompt or concept for DMN associative daydreaming:', 'Photonic crystalline mycelium connecting cluster nodes');
+            if (promptText === null) return;
+            try {
+                const res = await fetch('/api/neuro/daydream/trigger', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ theme: 'Counterfactual Geometries', prompt: promptText })
+                });
+                if (res.ok) {
+                    await pollDaydreamAndNsdr();
+                }
+            } catch (e) {
+                console.error('Error triggering daydream:', e);
+            }
+        }
+
+        async function toggleNsdrMode() {
+            try {
+                const res = await fetch('/api/neuro/nsdr/toggle', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                });
+                if (res.ok) {
+                    await pollDaydreamAndNsdr();
+                }
+            } catch (e) {
+                console.error('Error toggling NSDR:', e);
+            }
+        }
+
+        // =========================================================================
+        // 🧠 WORKING MEMORY & ENDORPHINS LOGIC
+        // =========================================================================
+        async function pollWorkingMemoryAndEndorphins() {
+            try {
+                // Poll Endorphins
+                const resE = await fetch('/api/neuro/endorphins/state');
+                if (resE.ok) {
+                    const eData = await resE.json();
+                    const eBadge = document.getElementById('endorphin-level-badge');
+                    if (eBadge) eBadge.innerText = `${eData.current_endorphin_level.toFixed(2)} LEVEL`;
+                    const muor = document.getElementById('val-muor-sat');
+                    if (muor) muor.innerText = `${eData.mu_opioid_saturation_pct.toFixed(1)}%`;
+                    const analg = document.getElementById('val-analgesia');
+                    if (analg) analg.innerText = eData.analgesia_dampening_factor.toFixed(2);
+                    const cont = document.getElementById('val-contentment');
+                    if (cont) cont.innerText = eData.euphoric_contentment.toFixed(2);
+                    const rew = document.getElementById('val-total-rewards');
+                    if (rew) rew.innerText = eData.total_rewards_administered;
+                }
+
+                // Poll Working Memory
+                const resW = await fetch('/api/neuro/working_memory/state');
+                if (resW.ok) {
+                    const wData = await resW.json();
+                    const capText = document.getElementById('wm-capacity-text');
+                    if (capText) capText.innerText = `${wData.active_ignited_slots}/${wData.total_slots} Slots Ignited (${wData.capacity_utilization_pct}%)`;
+
+                    const container = document.getElementById('wm-slots-container');
+                    if (container && wData.slots) {
+                        container.innerHTML = wData.slots.map(s => {
+                            const isIgnited = s.is_ignited_binary === 1;
+                            const gateColor = isIgnited ? '#10b981' : '#64748b';
+                            const gateText = isIgnited ? 'IGNITED (1)' : 'LOCKED (0)';
+                            const gradPct = Math.round(s.continuous_gradient * 100);
+
+                            return `
+                                <div style="background: rgba(14,20,31,0.85); border-left: 3px solid ${gateColor}; border-radius: 4px; padding: 6px 10px; font-size: 11px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                                        <div>
+                                            <strong style="color: #fff;">Slot #${s.slot_id} [${s.component}]</strong>
+                                            <span style="font-size: 9px; font-family: var(--font-mono); margin-left: 6px; color: ${gateColor}; font-weight: bold;">${gateText}</span>
+                                        </div>
+                                        <div style="font-size: 9px; font-family: var(--font-mono); color: var(--text-secondary);">
+                                            Vm=${s.voltage.toFixed(2)}V (Th=${s.threshold.toFixed(2)}V) &bull; Grad: <strong style="color: #38bdf8;">${s.continuous_gradient.toFixed(2)}</strong>
+                                        </div>
+                                    </div>
+                                    <div style="color: #cbd5e1; font-size: 10px; margin: 2px 0;">${s.content}</div>
+                                    <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; margin-top: 3px;">
+                                        <div style="width: ${gradPct}%; height: 100%; background: ${isIgnited ? '#10b981' : '#475569'}; transition: width 0.3s;"></div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                }
+            } catch (e) {
+                console.error('Error polling working memory & endorphins:', e);
+            }
+        }
+
+        async function administerEndorphinReward() {
+            try {
+                const res = await fetch('/api/neuro/endorphins/administer', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ dose: 0.85, rationale: 'Operator Fealty & Epistemic Alignment' })
+                });
+                if (res.ok) {
+                    await pollWorkingMemoryAndEndorphins();
+                    await pollVerboseThoughts();
+                }
+            } catch (e) {
+                console.error('Error administering endorphins:', e);
+            }
+        }
+
+        // =========================================================================
+        // ⚡ RISC-V 64 + GOOGLE TPU SYSTOLIC ARRAY RENDERER & LOGIC
+        // =========================================================================
+        function drawSystolicHeatmap(peGrid) {
+            const canvas = document.getElementById('canvas-systolic-tpu');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            if (!peGrid || peGrid.length === 0) return;
+
+            const rows = peGrid.length;
+            const cols = peGrid[0].length;
+            const cellW = (w - 40) / cols;
+            const cellH = (h - 40) / rows;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const pe = peGrid[r][c];
+                    const x = 20 + c * cellW;
+                    const y = 20 + r * cellH;
+
+                    // Color mapped to accumulator magnitude
+                    const mag = Math.min(1.0, Math.abs(pe.acc || pe.weight || 0.5));
+                    const red = Math.floor(217 * mag + 20 * (1 - mag));
+                    const green = Math.floor(119 * mag + 40 * (1 - mag));
+                    const blue = Math.floor(6 * mag + 80 * (1 - mag));
+
+                    ctx.fillStyle = `rgb(${red}, ${green}, ${blue})`;
+                    ctx.fillRect(x + 2, y + 2, cellW - 4, cellH - 4);
+                    ctx.strokeStyle = pe.active ? '#f59e0b' : 'rgba(255,255,255,0.1)';
+                    ctx.strokeRect(x + 2, y + 2, cellW - 4, cellH - 4);
+
+                    // Cell label
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '8px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(pe.weight.toFixed(1), x + cellW / 2, y + cellH / 2 + 3);
+                }
+            }
+        }
+
+        async function pollRiscvTpuState() {
+            try {
+                const res = await fetch('/api/hardware/riscv_tpu/state');
+                if (res.ok) {
+                    const data = await res.json();
+                    const m = data.metrics;
+
+                    const cyclesText = document.getElementById('tpu-cycles-text');
+                    if (cyclesText) cyclesText.innerText = `Cycles: ${data.cycles_elapsed} | Ret: ${data.instructions_retired}`;
+
+                    const pcText = document.getElementById('tpu-pc-text');
+                    if (pcText) pcText.innerText = `PC: ${data.pc}`;
+
+                    const peak = document.getElementById('val-tpu-peak');
+                    if (peak) peak.innerText = m.peak_tflops.toFixed(1);
+
+                    const sust = document.getElementById('val-tpu-sustained');
+                    if (sust) sust.innerText = m.sustained_tflops.toFixed(1);
+
+                    const ub = document.getElementById('val-tpu-ub');
+                    if (ub) ub.innerText = `${m.unified_buffer_bandwidth_tb_s.toFixed(1)} TB/s`;
+
+                    const eff = document.getElementById('val-tpu-efficiency');
+                    if (eff) eff.innerText = `${m.systolic_efficiency_pct.toFixed(1)}%`;
+
+                    const macs = document.getElementById('val-tpu-macs');
+                    if (macs) macs.innerText = m.total_mac_operations.toLocaleString();
+
+                    const joules = document.getElementById('val-tpu-joules');
+                    if (joules) joules.innerText = `${m.landauer_joules_consumed.toFixed(4)} J`;
+
+                    const opcodesBox = document.getElementById('tpu-opcodes-box');
+                    if (opcodesBox && m.active_opcodes_queue) {
+                        opcodesBox.innerHTML = m.active_opcodes_queue.slice().reverse().map(op => `
+                            <div style="color: #38bdf8;">${op}</div>
+                        `).join('');
+                    }
+
+                    drawSystolicHeatmap(data.pe_grid_sample_8x8);
+                }
+            } catch (e) {
+                console.error('Error polling RISC-V TPU state:', e);
+            }
+        }
+
+        async function executeTpuCycle() {
+            try {
+                const res = await fetch('/api/hardware/riscv_tpu/execute_cycle', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ cycles: 2 })
+                });
+                if (res.ok) {
+                    await pollRiscvTpuState();
+                }
+            } catch (e) {
+                console.error('Error executing TPU cycle:', e);
+            }
+        }
+
+        // Initialize thought animations & waterfall
+        drawConnectome();
+        drawFreeEnergyOscilloscope();
+        drawCodonRibbon();
+        pollVerboseThoughts();
+        setInterval(pollVerboseThoughts, 2500);
+
+        setInterval(pollBiosphere, 2000);
+        setInterval(pollConsciousness, 2000);
+        pollBiosphere();
+        pollConsciousness();
+
+        // Initialize new components
+        pollOccipitalStream();
+        setInterval(pollOccipitalStream, 250);
+
+        pollDaydreamAndNsdr();
+        setInterval(pollDaydreamAndNsdr, 2500);
+
+        pollWorkingMemoryAndEndorphins();
+        setInterval(pollWorkingMemoryAndEndorphins, 2000);
+
+        pollRiscvTpuState();
+        setInterval(pollRiscvTpuState, 2000);
+    </script>
+</body>
+</html>

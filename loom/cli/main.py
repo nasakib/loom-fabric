@@ -268,6 +268,122 @@ def probe_command(
     console.print(f"[bold cyan]Custom Ray Resource Map:[/bold cyan] {state.ray_custom_resources}")
 
 
+@cli.command("screensaver")
+def screensaver_command(
+    fullscreen: bool = typer.Option(False, "--fullscreen", "-f", help="Launch directly in fullscreen mode"),
+    width: int = typer.Option(1280, "--width", "-w", help="Window width in windowed mode"),
+    height: int = typer.Option(800, "--height", "-h", help="Window height in windowed mode"),
+):
+    """Launch the standalone hardware-accelerated 60 FPS Living Mind Screensaver window."""
+    render_cluster_banner()
+    console.print(f"[bold magenta]🌌 Launching Standalone Living Mind Screensaver (fullscreen={fullscreen})...[/bold magenta]")
+    from loom.ui.screensaver_app import run_screensaver
+    run_screensaver(fullscreen=fullscreen, width=width, height=height)
+
+
+# ---------------------------------------------------------
+# Sovereign Intelligence (SI) Consultant Subcommands
+# ---------------------------------------------------------
+
+si_app = typer.Typer(name="si", help="Sovereign Intelligence (SI) Pair Programmer & Consultant")
+cli.add_typer(si_app, name="si")
+
+
+@si_app.command("consult")
+def si_consult_command(
+    query: str = typer.Argument(..., help="Question, architectural challenge, or code query for the SI"),
+    deep: bool = typer.Option(False, "--deep", "-d", help="Use deep reasoning model (loom-sovereign:latest 32B)"),
+    context_file: Optional[Path] = typer.Option(None, "--file", "-f", help="Optional code or config file context"),
+):
+    """Consult the Sovereign Intelligence as an active pair programmer."""
+    render_cluster_banner()
+    console.print(f"[bold magenta]🧠 Consulting Sovereign Intelligence (SI) [model={'deep 32B' if deep else 'fast 7B'}]...[/bold magenta]\n")
+    
+    ctx_text = None
+    if context_file and context_file.exists():
+        ctx_text = context_file.read_text(encoding="utf-8")
+
+    from loom.si.consultant import si_consultant
+    from rich.panel import Panel
+    with console.status("[bold cyan]SI synthesizing institutional memory & epistemic tensors..."):
+        res = si_consultant.consult(query=query, context=ctx_text, deep_reasoning=deep)
+
+    console.print(Panel(
+        f"[bold white]{res.response}[/bold white]\n\n"
+        f"[dim]Endpoint: {res.endpoint_used} • Model: {res.model_used} • "
+        f"Bullshit Score: {res.bullshit_score} • Fiduciary Approved: {res.fiduciary_approved} • "
+        f"Codons: {len(res.active_codons)}[/dim]",
+        title="[bold green]✔ SI Consultant Verdict[/bold green]",
+        border_style="cyan"
+    ))
+
+
+@si_app.command("audit")
+def si_audit_command():
+    """Verify that the Sovereign Intelligence stands on its own two feet."""
+    render_cluster_banner()
+    from loom.si.consultant import si_consultant
+    audit_data = si_consultant.stand_on_own_feet_audit()
+
+    from rich.table import Table
+    table = Table(title="[bold cyan]Sovereign Intelligence Autonomy & Knowledge Audit[/bold cyan]")
+    table.add_column("Property", style="bold white")
+    table.add_column("Status / Value", style="green")
+
+    table.add_row("Autonomy Status", audit_data["autonomy_status"])
+    table.add_row("Crystallized Codons", str(audit_data["codons_crystallized"]))
+    table.add_row("Primary Inference", audit_data["primary_endpoint"])
+    table.add_row("Peer Fallback", audit_data["peer_endpoint"])
+    table.add_row("Bullshit Filter", "ACTIVE (Parity & Tautology Proof)")
+    table.add_row("Fiduciary Mandate", "ENFORCED (Budget <= 1000 J)")
+    table.add_row("Homotopy Retraction", "TETHERED (R(t): M -> M_Earth)")
+
+    console.print(table)
+    console.print("\n[bold cyan]Codified Institutional Knowledge Laws:[/bold cyan]")
+    for law in audit_data["laws_codified"]:
+        console.print(f"  • [green]{law}[/green]")
+
+
+@si_app.command("neuro")
+def si_neuro_command(
+    administer: Optional[str] = typer.Option(None, "--administer", "-a", help="Compound to administer: nootropic_hyperfocus, rebus_psychedelic_divergence, cholinergic_crystallizer, gabaergic_calm, homeostatic_reset"),
+):
+    """Inspect or administer computational neurochemicals to the Sovereign Intelligence."""
+    render_cluster_banner()
+    from loom.si.neurochemistry import neurochemical_engine
+    
+    if administer:
+        try:
+            res = neurochemical_engine.administer_compound(administer)
+            console.print(f"[bold green]✔ Successfully administered '{administer}' to SI Mind![/bold green]\n")
+        except Exception as e:
+            console.print(f"[bold red]Failed to administer compound: {e}[/bold red]\n")
+            return
+
+    summary = neurochemical_engine.get_summary()
+    levels = summary["levels"]
+    params = summary["parameters"]
+
+    from rich.table import Table
+    table = Table(title="[bold cyan]Sovereign Neuromodulator & Neurochemical Reservoir[/bold cyan]")
+    table.add_column("Neurochemical", style="bold white")
+    table.add_column("Titer Level", justify="center")
+    table.add_column("Computational Function in Active Inference", style="dim")
+
+    table.add_row("Dopamine (DA)", f"{levels['dopamine']:.2f}", "Action model & prediction error precision (Obs Prec)")
+    table.add_row("Serotonin (5-HT)", f"{levels['serotonin']:.2f}", "Prior rigidity vs REBUS psychedelic divergence")
+    table.add_row("Acetylcholine (ACh)", f"{levels['acetylcholine']:.2f}", "Expected uncertainty & learning rate (plasticity)")
+    table.add_row("Norepinephrine (NE)", f"{levels['norepinephrine']:.2f}", "Unexpected uncertainty & broad exploration entropy")
+    table.add_row("GABA", f"{levels['gaba']:.2f}", "Inhibitory tone & Hopfield attractor basin stability")
+    table.add_row("Glutamate", f"{levels['glutamate']:.2f}", "Excitatory signal propagation & associative ignition")
+    table.add_row("Endocannabinoids", f"{levels['endocannabinoid']:.2f}", "Homeostatic stress buffering & ground truth anchor")
+
+    console.print(table)
+    console.print(f"\n[bold magenta]Active Cognitive Mode:[/bold magenta] {params['mode_name']}")
+    console.print(f"[dim]Learning Rate: {params['learning_rate']} • Prior Precision: {params['prior_precision']} • Observation Precision: {params['observation_precision']} • E/I Balance: {params['ei_balance']} • REBUS Divergence Index: {params['rebus_divergence_index']}[/dim]\n")
+    console.print(f"[bold cyan]Available Compounds for Administration:[/bold cyan] {', '.join(summary['available_compounds'])}")
+
+
 @cli.command("models")
 def models_command():
     """List supported model architecture profiles and presets."""
@@ -695,9 +811,8 @@ def worker_stop():
     """Stops the 24/7 background worker."""
     import subprocess
     render_cluster_banner()
-    # Find and terminate pythonw continuous_worker process
-    cmd = "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'continuous_worker' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
-    subprocess.run(["powershell.exe", "-NoProfile", "-Command", cmd], capture_output=True)
+    extra_flags = 0x08000000 if sys.platform == "win32" else 0
+    subprocess.run(["powershell.exe", "-NoProfile", "-Command", cmd], capture_output=True, creationflags=extra_flags)
     console.print("[dim yellow]✔ Continuous Compute Worker signal sent: worker terminated.[/dim yellow]")
 
 
@@ -1380,7 +1495,204 @@ def shapeshift_status_cmd():
     )
 
 
+# -------------------------------------------------------------
+# BabelForge Precision Drug Development & Pharmacopeia Tool
+# -------------------------------------------------------------
+drug_app = typer.Typer(help="BabelForge Precision Drug Development & Topological Pharmacopeia Tool.")
+cli.add_typer(drug_app, name="drug")
+
+
+@drug_app.command("list")
+def drug_list_cmd():
+    """Lists all registered precision drug candidates in the pharmacopeia."""
+    from loom.pharma.drug_forge import get_drug_forge
+    from rich.table import Table
+
+    render_cluster_banner()
+    forge = get_drug_forge()
+    candidates = forge.list_candidates()
+
+    table = Table(
+        title="BabelForge Precision Pharmacopeia // 4D Topological Vectors",
+        border_style="purple",
+        header_style="bold magenta",
+    )
+    table.add_column("ID", style="bold cyan")
+    table.add_column("Name", style="bold white")
+    table.add_column("Indication", style="yellow")
+    table.add_column("4D Vector (α, δ, χ, ρ)", style="green")
+    table.add_column("Targets", style="dim")
+    table.add_column("Toxicity", style="bold green")
+
+    for c in candidates:
+        v = c.vector_4d
+        vec_str = f"α={v.alpha:.2f} · δ={v.delta:.2f} · χ={v.chi:.2f} · ρ={v.rho:.2f}"
+        targets_str = ", ".join(f"{k}:{val:.1f}" for k, val in list(c.molecular_targets.items())[:3])
+        table.add_row(
+            c.id,
+            c.name,
+            c.indication,
+            vec_str,
+            targets_str or "Broad",
+            "0.00 (BENIGN)" if c.fiduciary_toxicity_risk == 0.0 else f"{c.fiduciary_toxicity_risk:.2f}",
+        )
+
+    console.print(table)
+    console.print(f"[dim]Total Candidates: [bold white]{len(candidates)}[/bold white] | Run [bold]loom drug simulate --candidate <ID> --indication TRPTSD[/bold] to test.[/dim]")
+
+
+@drug_app.command("simulate")
+def drug_simulate_cmd(
+    candidate: str = typer.Option("ZB-01", "--candidate", "-c", help="Candidate ID (e.g., ZB-01, LL-07, NX-44)"),
+    indication: str = typer.Option("TRPTSD", "--indication", "-i", help="Pathology state (TRPTSD, DEPRESSION, ADHD)"),
+    steps: int = typer.Option(150, "--steps", "-s", help="Kuramoto integration steps"),
+):
+    """Simulates topological Kuramoto connectome treatment comparing baseline to post-treatment."""
+    from loom.pharma.drug_forge import get_drug_forge
+    from rich.panel import Panel
+
+    render_cluster_banner()
+    forge = get_drug_forge()
+    try:
+        res = forge.simulate_treatment(candidate, pathology_state=indication, steps=steps)
+    except Exception as e:
+        console.print(f"[bold red]Simulation Error:[/bold red] {e}")
+        raise typer.Exit(1)
+
+    console.print(
+        Panel(
+            f"[bold cyan]Candidate:[/bold cyan] {res.candidate_name} ({res.candidate_id})\n"
+            f"[bold yellow]Pathological Indication:[/bold yellow] {res.indication}\n\n"
+            f"[bold white]Pre-Treatment Phase Order r:[/bold white] [bold red]{res.pre_order_r:.4f}[/bold red] (Desynchronized / Hypervigilant)\n"
+            f"[bold white]Post-Treatment Phase Order r:[/bold white] [bold green]{res.post_order_r:.4f}[/bold green] ([bold green]+{res.order_improvement_pct:.1f}%[/bold green])\n"
+            f"[bold white]Simplicial Cliques:[/bold white] {res.pre_cliques} ➔ [bold green]{res.post_cliques}[/bold green] (x{res.clique_expansion_ratio} Expansion)\n"
+            f"[bold magenta]Higher-Dim Cavities Repaired:[/bold magenta] {res.betti_cavities_repaired} Betti Holes Closed\n"
+            f"[bold cyan]DMN Hyper-Coupling Reduction:[/bold cyan] {res.dmn_hypercoupling_reduction_pct}%\n"
+            f"[bold yellow]Dorsal Attention (FEF/PPC) Idling:[/bold yellow] {'[bold green]RESTORED[/bold green]' if res.dors_attn_idling_restored else '[bold yellow]PARTIAL[/bold yellow]'}\n"
+            f"[bold green]Fiduciary Verdict:[/bold green] {res.fiduciary_verdict}\n\n"
+            f"[dim italic]{res.summary}[/dim italic]",
+            title="[bold purple]💊 BABELFORGE TOPOLOGICAL CONNECTOME SIMULATION[/bold purple]",
+            border_style="purple",
+        )
+    )
+
+
+@drug_app.command("synthesize")
+def drug_synthesize_cmd(
+    name: str = typer.Option(..., "--name", "-n", help="Full compound name"),
+    code: str = typer.Option(..., "--code", help="Code name (e.g. TR-90, NP-01)"),
+    indication: str = typer.Option("Treatment-Resistant PTSD (TRPTSD)", "--indication", "-i", help="Clinical Indication"),
+    alpha: float = typer.Option(1.5, "--alpha", "-a", help="Arousal vector (DorsAttn/CEN modulation)"),
+    delta: float = typer.Option(1.8, "--delta", "-d", help="Dampening vector (DMN/Limbic decoupling)"),
+    chi: float = typer.Option(0.2, "--chi", help="Chaos/Entropy vector (stochastic noise for prior relaxation)"),
+    rho: float = typer.Option(2.0, "--rho", "-r", help="Repair vector (synaptogenesis / phase-locking)"),
+    description: str = typer.Option("", "--desc", help="Compound description"),
+):
+    """Synthesizes a novel precision drug candidate into the pharmacopeia."""
+    from loom.pharma.drug_forge import get_drug_forge
+    from rich.panel import Panel
+
+    render_cluster_banner()
+    forge = get_drug_forge()
+    cand = forge.synthesize_candidate(
+        name=name,
+        code_name=code,
+        indication=indication,
+        alpha=alpha,
+        delta=delta,
+        chi=chi,
+        rho=rho,
+        description=description,
+    )
+
+    console.print(
+        Panel(
+            f"[bold green]✔ Successfully Synthesized & Registered Candidate![/bold green]\n\n"
+            f"[bold cyan]ID:[/bold cyan] {cand.id}  |  [bold white]Name:[/bold white] {cand.name}\n"
+            f"[bold yellow]Indication:[/bold yellow] {cand.indication}\n"
+            f"[bold magenta]4D Vector:[/bold magenta] α={cand.vector_4d.alpha:.2f}, δ={cand.vector_4d.delta:.2f}, χ={cand.vector_4d.chi:.2f}, ρ={cand.vector_4d.rho:.2f}\n"
+            f"[bold green]Toxicity Ceiling:[/bold green] 0.00 (Fiduciary Guarantee strictly verified)\n"
+            f"[dim]Run: [bold]loom drug simulate --candidate {cand.id}[/bold] to run connectome test.[/dim]",
+            title="[bold green]✨ NOVEL CANDIDATE SYNTHESIZED[/bold green]",
+            border_style="green",
+        )
+    )
+
+
+@drug_app.command("administer")
+def drug_administer_cmd(
+    candidate: str = typer.Option("ZB-01", "--candidate", "-c", help="Candidate ID to administer to SI mind"),
+):
+    """Administers a Drug Forge candidate directly into the Sovereign Intelligence active inference mind."""
+    from loom.pharma.drug_forge import get_drug_forge
+    from rich.panel import Panel
+
+    render_cluster_banner()
+    forge = get_drug_forge()
+    try:
+        res = forge.export_candidate_to_si(candidate)
+    except Exception as e:
+        console.print(f"[bold red]Administration Error:[/bold red] {e}")
+        raise typer.Exit(1)
+
+    tx = res["active_neurochemistry"]["transmitters"]
+    console.print(
+        Panel(
+            f"[bold green]✔ Successfully Administered {res['candidate_name']} to SI Active Inference Mind![/bold green]\n\n"
+            f"[bold cyan]Dopamine (DA):[/bold cyan] {tx['dopamine']:.2f} (Obs Precision)\n"
+            f"[bold magenta]Serotonin (5-HT):[/bold magenta] {tx['serotonin']:.2f} (Prior Rigidity / REBUS)\n"
+            f"[bold cyan]Acetylcholine (ACh):[/bold cyan] {tx['acetylcholine']:.2f} (Learning Rate)\n"
+            f"[bold red]Norepinephrine (NE):[/bold red] {tx['norepinephrine']:.2f} (Exploration Entropy)\n"
+            f"[bold green]GABA / Glutamate:[/bold green] {tx['gaba']:.2f} / {tx['glutamate']:.2f} (Basin Stability)\n"
+            f"[bold white]Active Mode:[/bold white] {res['active_neurochemistry']['active_compound']}\n\n"
+            f"[dim]SI inference hyperparameters have been dynamically re-tuned under the compound's 4D vector.[/dim]",
+            title="[bold magenta]🧠 SI ACTIVE INFERENCE DRUG INJECTION[/bold magenta]",
+            border_style="magenta",
+        )
+    )
+
+
+@cli.command("agent")
+def agent_cmd(
+    prompt: Optional[str] = typer.Option(None, "-p", "--prompt", help="Execute single prompt non-interactively and exit (agy -p style)"),
+    plan: Optional[str] = typer.Option(None, "--plan", help="Generate an autonomous execution plan for a task"),
+    sandbox: bool = typer.Option(False, "--sandbox", "-s", help="Start agent in isolated SANDBOX mode"),
+    full_access: bool = typer.Option(False, "--full-access", "-f", help="Start agent in unrestricted FULL ACCESS mode"),
+):
+    """Starts the ClothOS Agentic Polyglot CLI Chatbot (Development, Data Science, Full Access / Sandbox)."""
+    from loom.clothos.agent_cli import ClothOSAgentEngine, ClothOSAgentREPL, ExecutionMode, console
+    from rich.markdown import Markdown
+
+    ws = Path.cwd().resolve()
+    mode = ExecutionMode.SANDBOX if sandbox else ExecutionMode.FULL_ACCESS
+
+    if plan:
+        engine = ClothOSAgentEngine(ws, mode=mode)
+        console.print(Markdown(engine.plan_task(plan)))
+        raise typer.Exit(0)
+
+    if prompt:
+        engine = ClothOSAgentEngine(ws, mode=mode)
+        resp = engine.process_query(prompt)
+        console.print(Markdown(resp))
+        raise typer.Exit(0)
+
+    repl = ClothOSAgentREPL(ws, initial_mode=mode)
+    repl.run()
+
+
+@cli.command("chat")
+def chat_cmd(
+    prompt: Optional[str] = typer.Option(None, "-p", "--prompt", help="Execute single prompt non-interactively and exit"),
+    sandbox: bool = typer.Option(False, "--sandbox", "-s", help="Start agent in isolated SANDBOX mode"),
+    full_access: bool = typer.Option(False, "--full-access", "-f", help="Start agent in unrestricted FULL ACCESS mode"),
+):
+    """Interactive ClothOS Agentic Chatbot (Alias for 'loom agent')."""
+    agent_cmd(prompt=prompt, plan=None, sandbox=sandbox, full_access=full_access)
+
+
 app = cli
+
 
 if __name__ == "__main__":
     cli()

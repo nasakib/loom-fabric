@@ -47,6 +47,8 @@ class OpenClawDispatchResponse(BaseModel):
     task_id: str
     status: str = "QUEUED"
     scrubbed: bool
+    hardware_plan: Optional[Dict[str, Any]] = None
+    generation: Optional[int] = None
 
 
 class OpenClawTelemetryResponse(BaseModel):
@@ -116,7 +118,13 @@ async def dispatch_task(
     sanitized = scrubber.sanitize(req.raw_prompt)
     is_scrubbed = sanitized.is_scrubbed or sanitized.contains_protected_ip or (sanitized.replacements_count > 0)
 
-    # 2. Dispatch sanitized payload via QCTRouter
+    # 2. Compute evolutionary hardware allocation plan via ProgeneticAgent
+    from dataclasses import asdict
+    from loom.clothos.progenetic_agent import get_progenetic_agent
+    progenetic_agent = get_progenetic_agent()
+    hw_plan = progenetic_agent.plan_hardware_offload(sanitized.sanitized_text, task_type=req.task_type)
+
+    # 3. Dispatch sanitized payload via QCTRouter
     decision = qct_router.route_task(
         raw_prompt=sanitized.sanitized_text,
         task_type=req.task_type,
@@ -124,7 +132,7 @@ async def dispatch_task(
         session_id=req.session_id,
     )
 
-    # 3. Schedule async callback worker in background
+    # 4. Schedule async callback worker in background
     webhook_target = req.webhook_url or "http://127.0.0.1:18789/webhook"
     background_tasks.add_task(
         _async_task_worker,
@@ -141,6 +149,8 @@ async def dispatch_task(
         task_id=task_id,
         status="QUEUED",
         scrubbed=is_scrubbed,
+        hardware_plan=asdict(hw_plan),
+        generation=progenetic_agent.generation_count,
     )
 
 
@@ -215,4 +225,73 @@ async def openclaw_chat_completions(req: Request):
     """OpenAI-compatible chat completions endpoint under `/v1/openclaw/chat/completions` for Aider."""
     from loom.gateway.app import chat_completions
     return await chat_completions(req)
+
+
+@router.get("/progenetic-status")
+async def get_progenetic_status() -> Dict[str, Any]:
+    """Returns the evolutionary software genetics status of the ClothOS Progenetic Agent."""
+    from loom.clothos.progenetic_agent import get_progenetic_agent
+    return get_progenetic_agent().status()
+
+
+@router.get("/agi/state")
+async def get_clothos_agi_state() -> Dict[str, Any]:
+    """Returns the holistic proprioceptive umbrella state of the native ClothOS AGI."""
+    from loom.clothos.clothos_agi import get_clothos_agi
+    agi = get_clothos_agi()
+    from dataclasses import asdict
+    return asdict(agi.get_umbrella_state())
+
+
+@router.post("/agi/plan")
+async def plan_clothos_agi(req: Request) -> Dict[str, Any]:
+    """Formulates an umbrella computational execution plan (radix, hardware, TPU, CRISPR)."""
+    from loom.clothos.clothos_agi import get_clothos_agi
+    body = await req.json()
+    task = body.get("task", "General cognitive inference")
+    dims = body.get("tensor_dims", None)
+    agi = get_clothos_agi()
+    return agi.formulate_umbrella_execution_plan(task, tensor_dims=dims)
+
+
+@router.post("/agi/contemplate")
+async def trigger_clothos_agi_contemplation() -> Dict[str, Any]:
+    """Triggers an autonomous philosophical/architectural contemplation in the native ClothOS AGI."""
+    from loom.clothos.clothos_agi import get_clothos_agi
+    from dataclasses import asdict
+    agi = get_clothos_agi()
+    c = agi.contemplate()
+    return asdict(c)
+
+
+@router.post("/radix/evaluate")
+async def evaluate_polymorphic_radix(req: Request) -> Dict[str, Any]:
+    """Evaluates Base-12 (Dozenal) vs Base-2 vs Base-10 arithmetic entropy and recommendations."""
+    from loom.clothos.polymorphic_radix import get_polymorphic_radix_engine
+    engine = get_polymorphic_radix_engine()
+    body = {}
+    try:
+        body = await req.json()
+    except Exception:
+        pass
+    task_category = body.get("category", "tensor_inference")
+    dims = body.get("tensor_dims", [12, 768])
+    rec = engine.select_optimal_radix(task_category, tensor_dimensions=dims)
+    from dataclasses import asdict
+    return asdict(rec)
+
+
+@router.post("/tpu/step")
+async def execute_tpu_step(req: Request) -> Dict[str, Any]:
+    """Executes a cycle of the RISC-V 64-bit + TPU Systolic Matrix Multiply Unit."""
+    from loom.clothos.clothos_agi import get_clothos_agi
+    body = {}
+    try:
+        body = await req.json()
+    except Exception:
+        pass
+    vec = body.get("input_vector", None)
+    agi = get_clothos_agi()
+    return agi.execute_systolic_tpu_step(input_vector=vec)
+
 

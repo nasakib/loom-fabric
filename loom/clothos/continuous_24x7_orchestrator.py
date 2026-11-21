@@ -58,10 +58,12 @@ class ClothOSContinuousComputeManager:
         from loom.clothos.unified_autonomous_engine import ClothOSUnifiedAutonomousEngine
         from loom.clothos.research_harvester import research_harvester
         from loom.clothos.self_evolution import AutonomousSelfEvolutionEngine
+        from loom.clothos.dual_track_boot_builder import dual_track_boot_builder
 
         self.unified_engine = ClothOSUnifiedAutonomousEngine(self.workspace_root)
         self.research_harvester = research_harvester
         self.self_evolution = AutonomousSelfEvolutionEngine()
+        self.boot_builder = dual_track_boot_builder
 
     def run_forever(self, max_cycles: Optional[int] = None) -> None:
         """Runs the continuous autonomous computing loop."""
@@ -76,13 +78,15 @@ class ClothOSContinuousComputeManager:
         signal.signal(signal.SIGINT, self._handle_signal)
         signal.signal(signal.SIGTERM, self._handle_signal)
 
-        # Trigger initial research sync
+        # Trigger initial research sync and dual-track boot image verification
         try:
             logger.info("🔍 Ingesting initial OS research signals from GitHub & Reddit...")
             self.research_harvester.harvest_github_os_repos(max_results=3)
             self.research_harvester.harvest_hackernews_systems(limit=3)
+            logger.info("🛠 Baking initial dual-track bootable images (RISC-V + x86)...")
+            self.boot_builder.build_both_images()
         except Exception as e:
-            logger.debug(f"Initial harvest warning: {e}")
+            logger.debug(f"Initial harvest/boot warning: {e}")
 
         while not self.stop_event.is_set():
             if max_cycles and self.total_cycles >= max_cycles:
@@ -107,6 +111,8 @@ class ClothOSContinuousComputeManager:
                     logger.info(f"🧬 Executing Self-Evolution Cycle #{self.total_cycles}...")
                     evo_res = self.self_evolution.run_evolution_cycle(self.total_cycles)
                     logger.info(f"✔ Self-Evolution complete: SCI {evo_res.sci_start:.1f}% -> {evo_res.sci_end:.1f}%")
+                    logger.info("🛠 Updating dual-track bootable images (RISC-V + x86)...")
+                    self.boot_builder.build_both_images()
 
                 duration = time.time() - cycle_start
                 logger.info(

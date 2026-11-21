@@ -66,34 +66,39 @@ def get_local_hardware_profile() -> Dict[str, Any]:
     except ImportError:
         pass
 
-    # Inspect NVIDIA GPUs via nvidia-smi if available
-    try:
-        res = subprocess.run(
-            ["nvidia-smi", "--query-gpu=name,memory.total,memory.free,driver_version", "--format=csv,noheader,nounits"],
-            capture_output=True,
-            text=True,
-            timeout=2,
-        )
-        if res.returncode == 0:
-            for line in res.stdout.strip().splitlines():
-                parts = [p.strip() for p in line.split(",")]
-                if len(parts) >= 4:
-                    profile["gpus"].append({
-                        "name": parts[0],
-                        "vendor": "NVIDIA",
-                        "total_vram_mb": float(parts[1]),
-                        "free_vram_mb": float(parts[2]),
-                        "driver_version": parts[3],
-                        "backend": "CUDA",
-                    })
-    except Exception:
-        pass
+    # Inspect NVIDIA GPUs via nvidia-smi if available (never on Node 2 / Ryzen)
+    import shutil
+    extra_flags = 0x08000000 if sys.platform == "win32" else 0
+    node_name = platform.node().lower()
+    if "ryzen" not in node_name and "head" not in node_name and shutil.which("nvidia-smi"):
+        try:
+            res = subprocess.run(
+                ["nvidia-smi", "--query-gpu=name,memory.total,memory.free,driver_version", "--format=csv,noheader,nounits"],
+                capture_output=True,
+                text=True,
+                timeout=2,
+                creationflags=extra_flags,
+            )
+            if res.returncode == 0:
+                for line in res.stdout.strip().splitlines():
+                    parts = [p.strip() for p in line.split(",")]
+                    if len(parts) >= 4:
+                        profile["gpus"].append({
+                            "name": parts[0],
+                            "vendor": "NVIDIA",
+                            "total_vram_mb": float(parts[1]),
+                            "free_vram_mb": float(parts[2]),
+                            "driver_version": parts[3],
+                            "backend": "CUDA",
+                        })
+        except Exception:
+            pass
 
     # Inspect AMD/Intel GPUs via Windows PowerShell / WMI if on Windows
     if sys.platform == "win32":
         try:
             cmd = "Get-CimInstance Win32_VideoController | Select-Object -Property Name, AdapterRAM, DriverVersion | ConvertTo-Json"
-            ps_res = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True, timeout=3)
+            ps_res = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True, timeout=3, creationflags=extra_flags)
             if ps_res.returncode == 0 and ps_res.stdout.strip():
                 try:
                     data = json.loads(ps_res.stdout)

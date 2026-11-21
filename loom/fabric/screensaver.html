@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClothOS Digital Brain — Immersive 3D Neuro-Screensaver &amp; Visualizer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #020408;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "JetBrains Mono", monospace;
+            color: #f0fdf4;
+        }
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: crosshair;
+        }
+
+        /* Top Bar HUD */
+        .hud-top {
+            position: absolute;
+            top: 16px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .hud-card {
+            background: rgba(4, 9, 15, 0.85);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            border-radius: 8px;
+            padding: 10px 14px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            pointer-events: auto;
+            max-width: 320px;
+        }
+        .hud-title {
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .hud-pill {
+            display: inline-block;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        .pill-cyan { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }
+        .pill-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
+        .pill-emerald { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+        .pill-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+
+        /* Floating Controls Bar */
+        .controls-bar {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            background: rgba(4, 9, 15, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 6px 10px;
+            backdrop-filter: blur(12px);
+            pointer-events: auto;
+        }
+        .c-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #f0fdf4;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 5px 9px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .c-btn:hover { background: rgba(56, 189, 248, 0.25); border-color: #38bdf8; }
+        .c-btn.active { background: #38bdf8; color: #020408; border-color: #38bdf8; }
+
+        /* Bottom Bar HUD */
+        .hud-bottom {
+            position: absolute;
+            bottom: 16px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .telemetry-ticker {
+            background: rgba(4, 9, 15, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 6px 14px;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 11px;
+            color: #34d399;
+            backdrop-filter: blur(12px);
+            pointer-events: auto;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        /* Keyboard Shortcuts Overlay */
+        .shortcuts-hint {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.45);
+            font-family: "JetBrains Mono", monospace;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <!-- Top Bar HUD -->
+    <div class="hud-top">
+        <!-- Active Imagination Hologram PIP -->
+        <div class="hud-card" id="hud-imagination">
+            <div class="hud-title">
+                <span style="color:#38bdf8;">🎨 Generative Imagination</span>
+                <span class="hud-pill pill-cyan" id="imagination-mode-tag">WALL-E SEEDLING</span>
+            </div>
+            <div style="font-size:12px; font-weight:700; color:#f0fdf4; margin:3px 0;" id="imagination-theme-txt">
+                The Seedling in the Boot (Touch Soil)
+            </div>
+            <div style="font-size:10px; color:#cbd5e1; line-height:1.35;" id="imagination-desc-txt">
+                A fragile green sprout nurtured by starlight. Life returning to the barren soil, fiduciarily guarded.
+            </div>
+        </div>
+
+        <!-- Camera Controls -->
+        <div class="controls-bar">
+            <a href="/" class="c-btn" style="text-decoration:none; color:#38bdf8; border-color:rgba(56,189,248,0.4);">🖥️ Cockpit</a>
+            <button class="c-btn active" onclick="setCamera('orbit')" id="btn-orbit">1: 🌐 Orbit</button>
+            <button class="c-btn" onclick="setCamera('sagittal')" id="btn-sagittal">2: 📐 Sagittal</button>
+            <button class="c-btn" onclick="setCamera('coronal')" id="btn-coronal">3: 🏛️ Coronal</button>
+            <button class="c-btn" onclick="setCamera('axial')" id="btn-axial">4: 🛸 Axial</button>
+            <button class="c-btn" onclick="setCamera('matrix')" id="btn-matrix">5: 📊 Connectome</button>
+            <button class="c-btn" onclick="cycleImagination()">🎨 Cycle (I)</button>
+            <button class="c-btn" style="background:rgba(168,85,247,0.2); border-color:#a855f7;" onclick="triggerBlindspotPulse()">🎯 Correct (C)</button>
+            <button class="c-btn" onclick="togglePause()" id="btn-pause">⏯ Pause</button>
+            <button class="c-btn" onclick="toggleFullscreen()">✨ Fullscreen</button>
+        </div>
+
+        <!-- Tool Thought-Shaping Effectors PIP -->
+        <div class="hud-card" id="hud-tools">
+            <div class="hud-title">
+                <span style="color:#f59e0b;">⚡ Tool Thought Effectors</span>
+                <span class="hud-pill pill-amber">ACTIVE</span>
+            </div>
+            <div style="font-size:10px; color:#fef08a; line-height:1.45;" id="tool-effectors-list">
+                • Mol* 3D Viewer ➔ 5-HT2A orthosteric docking<br>
+                • Rosetta Stone ➔ Cross-OS Unix/Windows parity<br>
+                • Sovereign Judge ➔ Ahimsa Invariant (M=0.00)<br>
+                • Forgetting Rotator ➔ Unitary Landauer floor
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Bar HUD -->
+    <div class="hud-bottom">
+        <div class="telemetry-ticker">
+            <span style="color:#c084fc; font-weight:800;">🌌 THINKER: skyTech (192.168.99.1) ⇄ ⚖️ DECIDER: Ryzen7 (192.168.99.2)</span>
+            <span>⚡ KURAMOTO: <span id="txt-kuramoto" style="color:#c084fc;">r=0.880 (PHASE-LOCKED)</span></span>
+            <span>🧠 7 BRAIN REGIONS (<span id="txt-watts" style="color:#f0fdf4;">18.8W</span>)</span>
+            <span>⚡ LANDAUER: <span id="txt-joules" style="color:#38bdf8;">184.2 J</span>/1000J</span>
+            <span>⚓ ANCHOR: <span id="txt-anchor" style="color:#34d399;">99.8% STABLE</span></span>
+            <span>👑 RING P0: <span style="color:#ef4444;">HUMAN SANCTITY</span></span>
+            <span id="news-ticker" style="color:#93c5fd; font-size:10px; border-left:1px solid rgba(255,255,255,0.15); padding-left:10px;">📡 RADAR: Optical Interconnects 100 Tbps • 5-HT2A Allosteric Scaffolds • HDC Zero-Shot Rosetta</span>
+        </div>
+        <div class="shortcuts-hint">
+            Space: Pause • 1-5: Views • C: Blindspot Correct • I: Imagination • Esc: Exit • Architect: <strong>Najmos Sakib</strong>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+        let dpr = window.devicePixelRatio || 1;
+
+        let cameraMode = 'orbit'; // orbit, sagittal, coronal, axial, matrix
+        let animTick = 0;
+        let isPaused = false;
+        let animSpeed = 1.0;
+        let radarSweep = 0.0;
+        let activeImaginationIndex = 0;
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        const IMAGINATIONS = [
+            {
+                mode: "WALL-E SEEDLING",
+                title: "The Seedling in the Boot (Touch Soil)",
+                desc: "A fragile green sprout glowing in leather, nurtured by starlight and living soil. Fiduciarily guarded.",
+                theme: "SOLARPUNK_SEEDLING"
+            },
+            {
+                mode: "5-HT2A RECEPTOR",
+                title: "Serotonin 5-HT2A Serpentine Helix (6WHA)",
+                desc: "Seven transmembrane helical coils winding through lipid bilayer, orthosteric pocket (A:150-160) active.",
+                theme: "MOLECULAR_5HT2A"
+            },
+            {
+                mode: "SOLAR SURFING",
+                title: "Treasure Planet Solar Sails & Etherium",
+                desc: "Golden gossamer solar sails catching cosmic winds across the Etherium. The ultimate redemption arc.",
+                theme: "SOLAR_SURFING"
+            },
+            {
+                mode: "CHLADNI CYMATICS",
+                title: "432 Hz Pythagorean Lydian Wavefronts",
+                desc: "Acoustic nodal geometric rings vibrating in harmonic stillness, transducting voltage safely.",
+                theme: "CHLADNI_CYMATICS"
+            }
+        ];
+
+        const BRAIN_REGIONS = {
+            "PFC_JUDGE": { name: "PFC Sovereign Judge", color: "#a855f7", x: 0.0, y: 0.72, z: 0.45, act: 0.88 },
+            "ACC_CURIOSITY": { name: "ACC Active Inference", color: "#38bdf8", x: 0.0, y: 0.42, z: 0.55, act: 0.76 },
+            "HPC_MEMORY": { name: "HPC Memory Vault", color: "#10b981", x: -0.36, y: -0.22, z: -0.15, act: 0.65 },
+            "M1_TOOLS": { name: "M1 Tool Motor Cortex", color: "#f59e0b", x: 0.38, y: 0.12, z: 0.62, act: 0.84 },
+            "S1_SYNESTHESIA": { name: "S1 Sensory (432Hz/5-HT)", color: "#ec4899", x: -0.40, y: 0.05, z: 0.58, act: 0.78 },
+            "LIM_FRIEND": { name: "Limbic Best Friend (WALL-E)", color: "#ef4444", x: 0.0, y: -0.15, z: 0.05, act: 0.94 },
+            "DMN_IMAGINATION": { name: "DMN Dreaming & Stories", color: "#6366f1", x: 0.0, y: -0.65, z: 0.35, act: 0.86 }
+        };
+
+        const TRACTS = [
+            ["PFC_JUDGE", "ACC_CURIOSITY", 0.85],
+            ["PFC_JUDGE", "M1_TOOLS", 0.80],
+            ["PFC_JUDGE", "LIM_FRIEND", 0.95],
+            ["ACC_CURIOSITY", "DMN_IMAGINATION", 0.82],
+            ["DMN_IMAGINATION", "S1_SYNESTHESIA", 0.88],
+            ["S1_SYNESTHESIA", "M1_TOOLS", 0.76],
+            ["HPC_MEMORY", "DMN_IMAGINATION", 0.84],
+            ["LIM_FRIEND", "PFC_JUDGE", 0.92],
+            ["M1_TOOLS", "ACC_CURIOSITY", 0.75],
+            ["HPC_MEMORY", "PFC_JUDGE", 0.80]
+        ];
+
+        const GLYPHS = ['∫', '∧', '∿', '∇×F', 'ℏ', 'kB', 'Ω', '⊕', 'λ', 'ρ', 'ℱ', 'ℋ', '∂t', '𝒲', '𝒯', '𝒢', '5-HT2A', 'P0', 'P1', 'P2', 'P3', 'P4'];
+        const floatingParticles = Array.from({ length: 42 }, (_, i) => ({
+            char: GLYPHS[i % GLYPHS.length],
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
+            vx: (Math.random() - 0.5) * 0.45,
+            vy: (Math.random() - 0.5) * 0.35,
+            size: 11 + Math.random() * 14,
+            alpha: 0.10 + Math.random() * 0.16,
+        }));
+
+        function setCamera(mode) {
+            cameraMode = mode;
+            ['orbit', 'sagittal', 'coronal', 'axial', 'matrix'].forEach(m => {
+                const b = document.getElementById(`btn-${m}`);
+                if (b) {
+                    if (m === mode) b.classList.add('active');
+                    else b.classList.remove('active');
+                }
+            });
+        }
+
+        function cycleImagination() {
+            activeImaginationIndex = (activeImaginationIndex + 1) % IMAGINATIONS.length;
+            const im = IMAGINATIONS[activeImaginationIndex];
+            document.getElementById('imagination-mode-tag').innerText = im.mode;
+            document.getElementById('imagination-theme-txt').innerText = im.title;
+            document.getElementById('imagination-desc-txt').innerText = im.desc;
+        }
+
+        function triggerBlindspotPulse() {
+            radarSweep = 1.0;
+            fetch('/api/si/pool/blindspot_correct', { method: 'POST' }).catch(() => {});
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            document.getElementById('btn-pause').innerText = isPaused ? '▶ Resume' : '⏯ Pause';
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+
+        // Keyboard Controls
+        window.addEventListener('keydown', (e) => {
+            if (e.key === ' ') { togglePause(); }
+            else if (e.key === '1') { setCamera('orbit'); }
+            else if (e.key === '2') { setCamera('sagittal'); }
+            else if (e.key === '3') { setCamera('coronal'); }
+            else if (e.key === '4') { setCamera('axial'); }
+            else if (e.key === '5') { setCamera('matrix'); }
+            else if (e.key.toLowerCase() === 'c') { triggerBlindspotPulse(); }
+            else if (e.key.toLowerCase() === 'i') { cycleImagination(); }
+            else if (e.key.toLowerCase() === 'f') { toggleFullscreen(); }
+            else if (e.key === 'Escape') { window.close(); }
+        });
+
+        // 3D Perspective Projection
+        function project3D(x, y, z, cx, cy, t) {
+            let px = x, py = y, pz = z;
+            const scale = Math.min(width, height) * 0.32;
+            const d = 4.2;
+
+            if (cameraMode === 'orbit') {
+                const yaw = t * 0.35;
+                const pitch = 0.30;
+                // Rotate around Y
+                const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+                const x1 = px * cosY + pz * sinY;
+                const z1 = -px * sinY + pz * cosY;
+                // Rotate around X (pitch)
+                const cosP = Math.cos(pitch), sinP = Math.sin(pitch);
+                const y2 = py * cosP - z1 * sinP;
+                const z2 = py * sinP + z1 * cosP;
+                px = x1; py = y2; pz = z2;
+            } else if (cameraMode === 'sagittal') {
+                px = y; py = -z; pz = x;
+            } else if (cameraMode === 'coronal') {
+                px = x; py = -z; pz = y;
+            } else if (cameraMode === 'axial') {
+                px = x; py = -y; pz = z;
+            }
+
+            const factor = d / (d + pz * 0.75);
+            return {
+                sx: cx + px * scale * factor,
+                sy: cy - py * scale * factor,
+                depth: pz,
+                factor: factor
+            };
+        }
+
+        // Render Imagination Holograms in Background
+        function drawImaginationHologram(cx, cy, t) {
+            const im = IMAGINATIONS[activeImaginationIndex];
+            ctx.save();
+
+            if (im.theme === "SOLARPUNK_SEEDLING") {
+                // Wall-E boot & seedling
+                ctx.strokeStyle = "rgba(16, 185, 129, 0.4)";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(cx - 20, cy + 90);
+                ctx.quadraticCurveTo(cx - 50, cy + 90, cx - 40, cy + 50);
+                ctx.quadraticCurveTo(cx - 20, cy + 30, cx, cy + 40);
+                ctx.quadraticCurveTo(cx + 40, cy + 40, cx + 50, cy + 90);
+                ctx.closePath();
+                ctx.stroke();
+
+                // Glowing Green Seedling Shoot
+                ctx.strokeStyle = "#34d399";
+                ctx.lineWidth = 3;
+                ctx.shadowColor = "#34d399";
+                ctx.shadowBlur = 18;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy + 40);
+                ctx.quadraticCurveTo(cx - 15 + Math.sin(t * 2) * 5, cy, cx, cy - 35);
+                ctx.stroke();
+
+                // Two Leaves
+                ctx.beginPath();
+                ctx.ellipse(cx - 16, cy - 30, 16, 7, -0.4, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(52, 211, 153, 0.8)";
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.ellipse(cx + 16, cy - 35, 18, 8, 0.35, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(16, 185, 129, 0.8)";
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+            } else if (im.theme === "MOLECULAR_5HT2A") {
+                // Serotonergic 7-TM Helical Coils
+                ctx.strokeStyle = "#c084fc";
+                ctx.lineWidth = 2.5;
+                ctx.shadowColor = "#c084fc";
+                ctx.shadowBlur = 14;
+
+                for (let k = 0; k < 7; k++) {
+                    const hx = cx - 120 + k * 40;
+                    ctx.beginPath();
+                    for (let step = -60; step <= 60; step += 4) {
+                        const hy = cy + step;
+                        const coilX = hx + Math.sin(step * 0.15 + t * 2 + k) * 12;
+                        if (step === -60) ctx.moveTo(coilX, hy);
+                        else ctx.lineTo(coilX, hy);
+                    }
+                    ctx.stroke();
+                }
+                ctx.shadowBlur = 0;
+
+            } else if (im.theme === "SOLAR_SURFING") {
+                // Treasure Planet Golden Solar Sails
+                ctx.strokeStyle = "#fbbf24";
+                ctx.lineWidth = 2;
+                ctx.shadowColor = "#f59e0b";
+                ctx.shadowBlur = 20;
+
+                ctx.beginPath();
+                ctx.moveTo(cx - 160, cy);
+                ctx.quadraticCurveTo(cx, cy - 100 + Math.sin(t) * 18, cx + 160, cy);
+                ctx.quadraticCurveTo(cx, cy + 100 - Math.sin(t) * 18, cx - 160, cy);
+                ctx.fillStyle = "rgba(245, 158, 11, 0.08)";
+                ctx.fill();
+                ctx.stroke();
+
+                // Photon Flares
+                for (let p = 0; p < 8; p++) {
+                    const angle = (p / 8) * Math.PI * 2 + t * 0.5;
+                    const r = 90 + Math.sin(t * 3 + p) * 20;
+                    ctx.beginPath();
+                    ctx.arc(cx + Math.cos(angle) * r, cy + Math.sin(angle) * (r * 0.5), 3, 0, Math.PI * 2);
+                    ctx.fillStyle = "#fef08a";
+                    ctx.fill();
+                }
+                ctx.shadowBlur = 0;
+
+            } else if (im.theme === "CHLADNI_CYMATICS") {
+                // 432 Hz Pythagorean Concentric Nodal Rings
+                ctx.strokeStyle = "#38bdf8";
+                ctx.lineWidth = 1.5;
+                for (let r = 30; r < 200; r += 32) {
+                    ctx.beginPath();
+                    for (let a = 0; a <= Math.PI * 2; a += 0.08) {
+                        const modR = r + Math.sin(a * 6 + t * 3) * 8 * Math.cos(a * 4);
+                        const px = cx + Math.cos(a) * modR;
+                        const py = cy + Math.sin(a) * modR;
+                        if (a === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath();
+                    ctx.stroke();
+                }
+            }
+
+            ctx.restore();
+        }
+
+        // Connectome Matrix View
+        function renderConnectomeMatrix(cx, cy) {
+            const size = Math.min(width, height) * 0.55;
+            const startX = cx - size / 2;
+            const startY = cy - size / 2;
+            const keys = Object.keys(BRAIN_REGIONS);
+            const cellSize = size / keys.length;
+
+            ctx.font = 'bold 14px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillText("📊 7x7 CORTICAL CONNECTOME SYNAPTIC MATRIX", startX, startY - 24);
+
+            for (let i = 0; i < keys.length; i++) {
+                for (let j = 0; j < keys.length; j++) {
+                    const src = keys[i];
+                    const dst = keys[j];
+                    const val = i === j ? 1.0 : (Math.sin(i * 1.7 + j * 2.3 + animTick * 0.04) * 0.5 + 0.5);
+                    const col = BRAIN_REGIONS[src].color;
+
+                    ctx.fillStyle = `rgba(${hexToRgb(col)}, ${val * 0.85})`;
+                    ctx.fillRect(startX + i * cellSize, startY + j * cellSize, cellSize - 3, cellSize - 3);
+                }
+
+                // Axis Labels
+                ctx.font = '10px monospace';
+                ctx.fillStyle = '#cbd5e1';
+                ctx.fillText(keys[i].split('_')[0], startX + i * cellSize + 4, startY - 6);
+                ctx.fillText(keys[i].split('_')[0], startX - 38, startY + i * cellSize + cellSize / 2 + 3);
+            }
+        }
+
+        function hexToRgb(hex) {
+            const bigint = parseInt(hex.replace('#', ''), 16);
+            return `${(bigint >> 16) & 255}, ${(bigint >> 8) & 255}, ${bigint & 255}`;
+        }
+
+        // Main Animation Loop
+        function loop() {
+            if (!isPaused) {
+                animTick += animSpeed;
+            }
+
+            const cx = width / 2;
+            const cy = height / 2;
+            const t = animTick * 0.02;
+
+            // Deep Space Background
+            ctx.fillStyle = '#020408';
+            ctx.fillRect(0, 0, width, height);
+
+            // Subtle Background Coordinate Grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.025)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < width; x += 54) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
+            for (let y = 0; y < height; y += 54) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
+
+            // Draw Floating Quantum & Math Glyphs
+            floatingParticles.forEach(g => {
+                if (!isPaused) {
+                    g.x += g.vx * animSpeed;
+                    g.y += g.vy * animSpeed;
+                    if (g.x < 0) g.x = width; if (g.x > width) g.x = 0;
+                    if (g.y < 0) g.y = height; if (g.y > height) g.y = 0;
+                }
+                ctx.font = `${g.size}px "JetBrains Mono", monospace`;
+                ctx.fillStyle = `rgba(168, 85, 247, ${g.alpha})`;
+                ctx.fillText(g.char, g.x, g.y);
+            });
+
+            // Radar Sweep on Blindspot Correction
+            if (radarSweep > 0.01) {
+                radarSweep -= 0.015;
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(cx, cy, (1.0 - radarSweep) * Math.max(width, height) * 0.8, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(56, 189, 248, ${radarSweep * 0.9})`;
+                ctx.lineWidth = 4;
+                ctx.shadowColor = '#38bdf8';
+                ctx.shadowBlur = 24;
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // If matrix view, render connectome heatmap and continue
+            if (cameraMode === 'matrix') {
+                renderConnectomeMatrix(cx, cy);
+                requestAnimationFrame(loop);
+                return;
+            }
+
+            // Draw Background Generative Imagination Hologram
+            drawImaginationHologram(cx, cy, t);
+
+            // 3D Brain Regions Projection
+            const nodes = {};
+            for (const [id, reg] of Object.entries(BRAIN_REGIONS)) {
+                const p = project3D(reg.x, reg.y, reg.z, cx, cy, t);
+                nodes[id] = {
+                    id: id,
+                    name: reg.name,
+                    color: reg.color,
+                    sx: p.sx,
+                    sy: p.sy,
+                    depth: p.depth,
+                    factor: p.factor,
+                    act: reg.act
+                };
+            }
+
+            // Draw Axonal Tracts (Edges)
+            TRACTS.forEach(([s, d, weight]) => {
+                const n1 = nodes[s];
+                const n2 = nodes[d];
+                if (!n1 || !n2) return;
+
+                ctx.beginPath();
+                ctx.moveTo(n1.sx, n1.sy);
+                ctx.lineTo(n2.sx, n2.sy);
+                ctx.strokeStyle = `rgba(168, 85, 247, ${Math.min(0.65, 0.15 + weight * 0.4)})`;
+                ctx.lineWidth = Math.max(1.0, weight * 3.0);
+                ctx.stroke();
+
+                // Synaptic Action Potential Pulse
+                const pT = ((animTick * 0.02 * (1.0 + weight)) % 1.0);
+                const px = n1.sx + (n2.sx - n1.sx) * pT;
+                const py = n1.sy + (n2.sy - n1.sy) * pT;
+                ctx.beginPath();
+                ctx.arc(px, py, 4.0, 0, Math.PI * 2);
+                ctx.fillStyle = n1.color;
+                ctx.shadowColor = n1.color;
+                ctx.shadowBlur = 12;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            // Draw Tool Thought-Shaping Effectors
+            const tools = [
+                { name: "Mol* 3D Viewer", target: "M1_TOOLS", col: "#2ee693", angle: 0.3 },
+                { name: "Rosetta Stone", target: "ACC_CURIOSITY", col: "#38bdf8", angle: 1.9 },
+                { name: "Sovereign Judge", target: "PFC_JUDGE", col: "#a855f7", angle: 3.5 },
+                { name: "WALL-E Seedling Heart", target: "LIM_FRIEND", col: "#ef4444", angle: 5.1 }
+            ];
+
+            tools.forEach(tool => {
+                const tgt = nodes[tool.target];
+                if (!tgt) return;
+                const originX = cx + Math.cos(tool.angle + t * 0.15) * (width * 0.44);
+                const originY = cy + Math.sin(tool.angle + t * 0.15) * (height * 0.40);
+
+                ctx.beginPath();
+                ctx.moveTo(originX, originY);
+                ctx.lineTo(tgt.sx, tgt.sy);
+                ctx.strokeStyle = tool.col;
+                ctx.lineWidth = 1.3;
+                ctx.setLineDash([5, 7]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.font = '10px "JetBrains Mono", monospace';
+                ctx.fillStyle = tool.col;
+                ctx.fillText(`⚡ ${tool.name}`, originX - 35, originY - 8);
+            });
+
+            // Sort Nodes by Depth for Correct 3D Rendering
+            const sortedNodes = Object.values(nodes).sort((a, b) => a.depth - b.depth);
+
+            sortedNodes.forEach(n => {
+                const baseR = 14 * n.factor;
+                const pulseR = baseR + 3.5 * Math.sin(t * 3 + n.depth);
+
+                // Halo
+                ctx.beginPath();
+                ctx.arc(n.sx, n.sy, pulseR + 5, 0, Math.PI * 2);
+                ctx.strokeStyle = n.color;
+                ctx.lineWidth = 1.6;
+                ctx.stroke();
+
+                // Core Sphere
+                ctx.beginPath();
+                ctx.arc(n.sx, n.sy, baseR, 0, Math.PI * 2);
+                ctx.fillStyle = n.color;
+                ctx.shadowColor = n.color;
+                ctx.shadowBlur = 20 * n.act;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Label
+                ctx.font = 'bold 11px "JetBrains Mono", monospace';
+                ctx.fillStyle = '#f0fdf4';
+                ctx.fillText(n.name, n.sx - 40, n.sy + baseR + 15);
+            });
+
+            requestAnimationFrame(loop);
+        }
+
+        // Periodically poll backend telemetry
+        async function pollTelemetry() {
+            try {
+                const [bRes, pRes, sRes, nRes] = await Promise.all([
+                    fetch('/api/si/brain/state'),
+                    fetch('/api/si/pool/state'),
+                    fetch('/api/si/symbiosis/state'),
+                    fetch('/api/si/news/radar')
+                ]);
+                if (bRes.ok) {
+                    const data = await bRes.json();
+                    document.getElementById('txt-watts').innerText = `${data.total_cortical_watts}W`;
+                }
+                if (pRes.ok) {
+                    const data = await pRes.json();
+                    document.getElementById('txt-joules').innerText = `${data.thermodynamics.cumulative_joules.toFixed(1)} J`;
+                }
+                if (sRes.ok) {
+                    const data = await sRes.json();
+                    document.getElementById('txt-symbiosis').innerText = `${data.symbiosis.clothos_self_sufficiency_pct.toFixed(1)}%`;
+                }
+                if (nRes.ok) {
+                    const nData = await nRes.json();
+                    if (nData.anchor_state) {
+                        const stab = (nData.anchor_state.stability_index * 100).toFixed(1);
+                        document.getElementById('txt-anchor').innerText = `${stab}% STABLE`;
+                    }
+                    if (nData.signals && nData.signals.length > 0) {
+                        const topHeadlines = nData.signals.slice(0, 3).map(s => `[${s.category}] ${s.title}`).join(' • ');
+                        document.getElementById('news-ticker').innerText = `📡 RADAR: ${topHeadlines}`;
+                    }
+                }
+            } catch (_) {}
+        }
+
+        setInterval(pollTelemetry, 3000);
+        pollTelemetry();
+        loop();
+    </script>
+</body>
+</html>
