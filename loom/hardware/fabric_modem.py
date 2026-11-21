@@ -4,7 +4,7 @@
 Loom Fabric Modem Controller (`loom/hardware/fabric_modem.py`).
 ==============================================================
 Manages the hardware Fabric Modem state machine, mesh network scanning,
-Wi-Fi-style association, and direct GPU tensor streaming.
+Wi-Fi-style association, node purity enforcement, and direct GPU tensor streaming.
 """
 
 from __future__ import annotations
@@ -45,6 +45,8 @@ class FabricPeerNode:
     distance_meters: float
     link_quality: LinkQuality
     ip_endpoint: str           # Direct wire or overlay endpoint
+    supports_nvidia: bool = False
+    pure_amd_open: bool = False # Node 2 Purity: zero NVIDIA code, drivers, or libraries
     pricing_usd_hr: float = 0.0 # 0.0 = local / cooperative free mesh
 
 
@@ -88,7 +90,7 @@ class LoomFabricModem:
         self.state = ModemState.SCANNING
         self.known_peers.clear()
 
-        # Discovered peers: Incorporates the live cluster nodes
+        # Discovered peers: Incorporates the live cluster nodes with Node 2 Purity
         # 1. SkyTech Dual-GPU Worker (RTX 3060 12GB CUDA + RX 580 8GB Vulkan)
         link_skytech = self.transceiver.calculate_link_quality(distance_meters=1.5, obstacles_count=0)
         p1 = FabricPeerNode(
@@ -101,22 +103,26 @@ class LoomFabricModem:
             distance_meters=1.5,
             link_quality=link_skytech,
             ip_endpoint="192.168.99.1:8002",
+            supports_nvidia=True,
+            pure_amd_open=False,
             pricing_usd_hr=0.0,
         )
         self.known_peers[p1.ssid] = p1
 
-        # 2. Ryzen7 Head Orchestrator (16-vCPU Zen 3 + Radeon 680M)
+        # 2. Ryzen7 Head Orchestrator (Node 2: PURE AMD / OPEN ROAD - ZERO NVIDIA LIBRARIES)
         link_ryzen = self.transceiver.calculate_link_quality(distance_meters=2.8, obstacles_count=0)
         p2 = FabricPeerNode(
             node_id="Ryzen7-Head",
             ssid="LoomMesh-RyzenHead",
             bssid="FA:B1:00:77:30:02",
-            hardware_label="AMD Ryzen 7 7730U 16-vCPU (32GB Host RAM + Radeon 680M)",
+            hardware_label="AMD Ryzen 7 7730U 16-vCPU (32GB Host RAM + Radeon Vega 8)",
             available_vram_gb=14.4, # Plasma object store / host RAM pool
             total_tflops=8.4,
             distance_meters=2.8,
             link_quality=link_ryzen,
             ip_endpoint="192.168.99.2:8002",
+            supports_nvidia=False,
+            pure_amd_open=True, # Node 2 Purity guaranteed
             pricing_usd_hr=0.0,
         )
         self.known_peers[p2.ssid] = p2
@@ -133,6 +139,8 @@ class LoomFabricModem:
             distance_meters=12.0,
             link_quality=link_edge,
             ip_endpoint="192.168.99.45:8002",
+            supports_nvidia=False,
+            pure_amd_open=False,
             pricing_usd_hr=0.35, # Community compute rate
         )
         self.known_peers[p3.ssid] = p3
@@ -154,6 +162,8 @@ class LoomFabricModem:
                 "snr_db": p.link_quality.snr_db,
                 "bandwidth_gbps": p.link_quality.effective_bandwidth_gbps,
                 "latency_ms": p.link_quality.latency_ms,
+                "supports_nvidia": p.supports_nvidia,
+                "pure_amd_open": p.pure_amd_open,
                 "pricing": "Free (Co-op)" if p.pricing_usd_hr == 0.0 else f"${p.pricing_usd_hr}/hr",
             }
             for p in self.known_peers.values()
@@ -179,7 +189,8 @@ class LoomFabricModem:
         logger.info(
             f"⚡ Fabric Modem Associated with '{ssid}' ({peer.node_id}) | "
             f"Signal: {peer.link_quality.signal_bars} ({peer.link_quality.rssi_dbm} dBm) | "
-            f"Bandwidth: {peer.link_quality.effective_bandwidth_gbps} Gbps"
+            f"Bandwidth: {peer.link_quality.effective_bandwidth_gbps} Gbps | "
+            f"Pure AMD: {peer.pure_amd_open}"
         )
         return True
 
@@ -204,6 +215,7 @@ class LoomFabricModem:
                 "peer_node_id": self.associated_peer.node_id,
                 "carrier_modulation": self.associated_peer.link_quality.modulation.value,
                 "link_quality": self.associated_peer.link_quality.signal_bars,
+                "pure_amd_open": self.associated_peer.pure_amd_open,
             }
         finally:
             self.state = prev_state
@@ -223,6 +235,8 @@ class LoomFabricModem:
                 "modulation": self.associated_peer.link_quality.modulation.value,
                 "effective_bandwidth_gbps": self.associated_peer.link_quality.effective_bandwidth_gbps,
                 "latency_ms": self.associated_peer.link_quality.latency_ms,
+                "pure_amd_open": self.associated_peer.pure_amd_open,
+                "supports_nvidia": self.associated_peer.supports_nvidia,
             }
         else:
             peer_info = None
@@ -243,5 +257,6 @@ class LoomFabricModem:
             "pooled_mesh_tflops": round(pooled_tflops, 1),
             "total_bytes_transferred_mb": round(self.total_bytes_transferred / (1024 * 1024), 2),
             "total_dispatches": self.total_dispatches,
+            "dma_queue_depth": self.transceiver.current_queue_depth,
             "uptime_seconds": round(time.time() - self.created_at, 1),
         }

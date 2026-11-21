@@ -7,7 +7,7 @@ Simulates a dedicated Fabric Modem chip operating alongside host silicon.
 Models:
 1. Multi-band RF / Optical PHY (60 GHz mmWave, 5.8 GHz Wi-Fi 7, PCIe Direct).
 2. Carrier metrics: RSSI (dBm), SNR (dB), Modulation (QAM-4096 to BPSK).
-3. Zero-Copy Host PCIe DMA Transfer engine (bypassing host CPU interrupts).
+3. Zero-Copy Host PCIe DMA Transfer engine with hardware queue backpressure.
 4. Adaptive Link Constellation based on real-time distance and attenuation.
 """
 
@@ -45,6 +45,7 @@ class LinkQuality:
     latency_ms: float
     packet_loss_rate: float
     signal_bars: str              # e.g. "●●●●●" (5 bars) or "●●○○○"
+    backpressure_factor: float = 1.0 # 1.0 = normal, >1.0 = queue congested
 
     @property
     def is_viable(self) -> bool:
@@ -61,12 +62,15 @@ class FabricTransceiver:
         pcie_gen: int = 4,
         pcie_lanes: int = 16,
         tx_power_dbm: float = 23.0,
+        max_dma_queue_depth: int = 32,
     ):
         self.device_id = device_id
         self.band = band
         self.pcie_gen = pcie_gen
         self.pcie_lanes = pcie_lanes
         self.tx_power_dbm = tx_power_dbm
+        self.max_dma_queue_depth = max_dma_queue_depth
+        self.current_queue_depth = 0
 
         # Theoretical PCIe Bus Capacity in GB/s
         # PCIe 4.0: ~1.969 GB/s per lane (x16 = ~31.5 GB/s)
@@ -88,7 +92,7 @@ class FabricTransceiver:
         obstacles_count: int = 0,
         noise_floor_dbm: float = -95.0,
     ) -> LinkQuality:
-        """Calculates link quality based on free-space path loss and obstacles."""
+        """Calculates link quality based on free-space path loss, obstacles, and queue pressure."""
         if self.band in (TransceiverBand.PCIE_DIRECT, TransceiverBand.LOOPBACK_EMU):
             # Cabled / Direct: near-flawless signal
             rssi = -32.0
@@ -147,6 +151,10 @@ class FabricTransceiver:
             rf_bw = self.rf_peak_bandwidth_gbps * eff_factor
             bw = min(rf_bw, self.pcie_max_bandwidth_gbps)
 
+        # Queue backpressure adjustment
+        bp_factor = 1.0 + (self.current_queue_depth / max(1, self.max_dma_queue_depth)) * 0.5
+        latency *= bp_factor
+
         # Generate visual Wi-Fi style bars
         if rssi >= -50.0:
             bars = "●●●●●" # 5 bars
@@ -169,17 +177,29 @@ class FabricTransceiver:
             latency_ms=round(latency, 2),
             packet_loss_rate=round(loss, 4),
             signal_bars=bars,
+            backpressure_factor=round(bp_factor, 2),
         )
 
     def execute_dma_transfer(self, payload_bytes: int, link: LinkQuality) -> float:
         """Simulates zero-copy direct memory transfer over PCIe to the RF transceiver.
-        Returns the hardware transmission latency in milliseconds.
+        Returns the hardware transmission latency in milliseconds with backpressure accounting.
         """
         if not link.is_viable:
             raise ConnectionError(f"Fabric Link not viable: RSSI={link.rssi_dbm} dBm, Loss={link.packet_loss_rate*100}%")
         
-        # Bytes -> Bits -> Gigabits
-        payload_gigabits = (payload_bytes * 8.0) / 1e9
-        transfer_seconds = payload_gigabits / link.effective_bandwidth_gbps
-        total_time_ms = link.latency_ms + (transfer_seconds * 1000.0)
-        return round(total_time_ms, 3)
+        # Enforce queue limit to prevent DMA buffer starvation
+        if self.current_queue_depth >= self.max_dma_queue_depth:
+            # Backpressure throttle: wait for virtual slot
+            throttle_penalty_ms = 5.0 * (self.current_queue_depth - self.max_dma_queue_depth + 1)
+        else:
+            throttle_penalty_ms = 0.0
+
+        self.current_queue_depth += 1
+        try:
+            # Bytes -> Bits -> Gigabits
+            payload_gigabits = (payload_bytes * 8.0) / 1e9
+            transfer_seconds = payload_gigabits / max(0.001, link.effective_bandwidth_gbps)
+            total_time_ms = link.latency_ms + (transfer_seconds * 1000.0) + throttle_penalty_ms
+            return round(total_time_ms, 3)
+        finally:
+            self.current_queue_depth = max(0, self.current_queue_depth - 1)
