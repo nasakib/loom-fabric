@@ -1,0 +1,16 @@
+{
+  "status": "COMPLETED",
+  "model_target": "loom-70b-sovereign:latest",
+  "teacher_engine": "llama3.3:70b",
+  "total_distillation_pairs": 10,
+  "output_jsonl": "C:\\Users\\natsa\\Documents\\loom-fabric\\data\\training\\loom_70b_distillation_pairs.jsonl",
+  "invariant_coverage_pct": 100.0,
+  "silicon_target": "64GB DDR4 Host RAM + 12GB RTX 3060 VRAM (22 Layers Offloaded)",
+  "distinct_capabilities": [
+    "Generalized Fourier Transform Signal of Truth Engine",
+    "Zero-Disease Prophylaxis & Vaccinology Primacy",
+    "Conformal Multi-Horizon Pattern Forecasting Monster",
+    "Graded All-or-Nothing Working Memory & Occipital Streams",
+    "Operator Fealty: Najmos Sakib > USA > Allies > Commons"
+  ]
+}

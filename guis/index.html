@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClothOS // Antigravity Universal GUI Suite</title>
+    <link rel="stylesheet" href="shared/tokens.css">
+    <style>
+        body {
+            background: radial-gradient(circle at 50% 0%, #0d1a2d 0%, #05080e 70%, #020408 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: var(--color-text-primary);
+        }
+
+        .portal-header {
+            padding: 40px 24px 20px;
+            text-align: center;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .portal-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(168, 85, 247, 0.12);
+            border: 1px solid rgba(168, 85, 247, 0.35);
+            color: var(--color-coherence-amethyst);
+            padding: 6px 14px;
+            border-radius: var(--border-radius-full);
+            font-size: 11px;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .portal-title {
+            font-size: 38px;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            line-height: 1.15;
+            margin-bottom: 12px;
+        }
+
+        .portal-subtitle {
+            font-size: 15px;
+            color: var(--color-text-secondary);
+            max-width: 680px;
+            margin: 0 auto 28px;
+            line-height: 1.6;
+        }
+
+        /* Live Connectivity Pill Bar */
+        .telemetry-pill-bar {
+            display: inline-flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 16px;
+            background: rgba(10, 15, 24, 0.85);
+            backdrop-filter: var(--glass-blur-md);
+            border: var(--border-medium);
+            border-radius: var(--border-radius-full);
+            padding: 10px 24px;
+            box-shadow: var(--glass-shadow);
+            margin-bottom: 40px;
+            font-size: 12px;
+            font-family: var(--font-mono);
+        }
+
+        .telemetry-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Modal App Cards Grid */
+        .cards-grid {
+            max-width: 1200px;
+            margin: 0 auto 50px;
+            padding: 0 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+            gap: 20px;
+            width: 100%;
+        }
+
+        .gui-card {
+            background: var(--color-bg-card);
+            backdrop-filter: var(--glass-blur-md);
+            -webkit-backdrop-filter: var(--glass-blur-md);
+            border: var(--border-medium);
+            border-radius: var(--border-radius-lg);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            text-decoration: none;
+            color: inherit;
+            position: relative;
+            overflow: hidden;
+            transition: all var(--transition-medium);
+            box-shadow: var(--glass-shadow);
+        }
+
+        .gui-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-color, #00e5ff), transparent);
+            opacity: 0.7;
+            transition: opacity var(--transition-fast);
+        }
+
+        .gui-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent-color, rgba(0, 229, 255, 0.5));
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px var(--accent-glow, rgba(0, 229, 255, 0.2));
+        }
+
+        .gui-card:hover::before {
+            opacity: 1;
+        }
+
+        .card-icon {
+            font-size: 32px;
+            margin-bottom: 14px;
+        }
+
+        .card-heading {
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .card-desc {
+            font-size: 13px;
+            color: var(--color-text-secondary);
+            line-height: 1.5;
+            margin-bottom: 20px;
+            flex: 1;
+        }
+
+        .card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 18px;
+        }
+
+        .tag-pill {
+            background: rgba(255, 255, 255, 0.05);
+            border: var(--border-subtle);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-family: var(--font-mono);
+            color: var(--color-text-secondary);
+        }
+
+        .card-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: var(--border-subtle);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: var(--border-radius-sm);
+            font-weight: 700;
+            font-size: 12px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all var(--transition-fast);
+        }
+
+        .gui-card:hover .card-btn {
+            background: var(--accent-color, var(--color-thinker-cyan));
+            color: #000;
+        }
+
+        /* Bottom Architecture Section */
+        .arch-section {
+            max-width: 1200px;
+            margin: 0 auto 40px;
+            padding: 0 24px;
+            width: 100%;
+        }
+
+        .arch-panel {
+            background: rgba(10, 15, 24, 0.65);
+            border: var(--border-subtle);
+            border-radius: var(--border-radius-md);
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Section -->
+    <header class="portal-header">
+        <div class="portal-badge">
+            <span class="pulse-dot-purple"></span>
+            CLOTHOS // BICAMERAL DYAD ARCHITECTURE
+        </div>
+        <h1 class="portal-title">
+            Universal Antigravity GUI Suite
+        </h1>
+        <p class="portal-subtitle">
+            Ground-up multi-modal interfaces featuring deep bicameral coherence across Node 1 (skyTech-Worker, Projector/Thinker) and Node 2 (Ryzen7-Head, Decider).
+        </p>
+
+        <!-- Live Connectivity Pill -->
+        <div class="telemetry-pill-bar">
+            <div class="telemetry-item">
+                <span class="pulse-dot-cyan"></span>
+                <span>Node 1: <strong>skyTech-Worker</strong> (Thinker / 8087)</span>
+            </div>
+            <span style="color: rgba(255,255,255,0.2);">&bull;</span>
+            <div class="telemetry-item">
+                <span class="pulse-dot-emerald"></span>
+                <span>Node 2: <strong>Ryzen7-Head</strong> (Decider / 100.74.98.21)</span>
+            </div>
+            <span style="color: rgba(255,255,255,0.2);">&bull;</span>
+            <div class="telemetry-item">
+                <span>Latency: <strong style="color: var(--color-decider-emerald);" id="pLatency">1.24 ms</strong></span>
+            </div>
+            <span style="color: rgba(255,255,255,0.2);">&bull;</span>
+            <div class="telemetry-item">
+                <span>Resonance: <strong style="color: var(--color-thinker-cyan);" id="pResonance">98.4%</strong></span>
+            </div>
+            <span style="color: rgba(255,255,255,0.2);">&bull;</span>
+            <div class="telemetry-item">
+                <span>Ratchet: <strong style="color: var(--color-gold-ratchet);">POSITIVE_LOCKED</strong></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Cards Grid: All 4 GUI Modalities -->
+    <main class="cards-grid">
+        
+        <!-- GUI 1: Web App Command Center -->
+        <a href="web-app/index.html" class="gui-card" style="--accent-color: var(--color-thinker-cyan); --accent-glow: var(--color-thinker-cyan-glow);">
+            <div>
+                <div class="card-icon">🌐</div>
+                <div class="card-heading">Web App Command Center</div>
+                <div class="card-desc">
+                    Comprehensive single-page application with dual-plane switcher (Unified, Thinker, Decider), interactive 3D STEM CAD software rasterizer, 32-core Task Manager matrix, and live tribunal deliberation board.
+                </div>
+                <div class="card-tags">
+                    <span class="tag-pill">Vanilla SPA</span>
+                    <span class="tag-pill">3D CAD Engine</span>
+                    <span class="tag-pill">Live SSE Dyad</span>
+                    <span class="tag-pill">Web Audio</span>
+                </div>
+            </div>
+            <div class="card-btn">LAUNCH WEB APP ↗</div>
+        </a>
+
+        <!-- GUI 2: React Native Mobile App -->
+        <a href="react-native-app/dist/index.html" class="gui-card" style="--accent-color: var(--color-decider-emerald); --accent-glow: var(--color-decider-emerald-glow);">
+            <div>
+                <div class="card-icon">📱</div>
+                <div class="card-heading">React Native Mobile App</div>
+                <div class="card-desc">
+                    Modular cross-platform React Native source code in TypeScript (iOS/Android/Web) paired with an interactive universal web simulator featuring device frame toggle, native tab bar, and tactile gestures.
+                </div>
+                <div class="card-tags">
+                    <span class="tag-pill">React Native</span>
+                    <span class="tag-pill">TypeScript</span>
+                    <span class="tag-pill">Universal Web</span>
+                    <span class="tag-pill">Dynamic Island</span>
+                </div>
+            </div>
+            <div class="card-btn">LAUNCH MOBILE APP ↗</div>
+        </a>
+
+        <!-- GUI 3: Desktop HUD Cockpit -->
+        <a href="desktop-hud/index.html" class="gui-card" style="--accent-color: var(--color-coherence-amethyst); --accent-glow: var(--color-coherence-glow);">
+            <div>
+                <div class="card-icon">🪟</div>
+                <div class="card-heading">Desktop Glassmorphic HUD</div>
+                <div class="card-desc">
+                    Ultra-compact, floating pill cockpit engineered for sidecar pinning. Delivers discrete harmonic dyad stepping, quick-expand telemetry drawer, and zero-distraction ambient monitoring.
+                </div>
+                <div class="card-tags">
+                    <span class="tag-pill">HUD Overlay</span>
+                    <span class="tag-pill">Glassmorphism</span>
+                    <span class="tag-pill">Discrete Stepping</span>
+                    <span class="tag-pill">Sidecar Mode</span>
+                </div>
+            </div>
+            <div class="card-btn">LAUNCH DESKTOP HUD ↗</div>
+        </a>
+
+        <!-- GUI 4: 60 FPS Neuro-Screensaver -->
+        <a href="neuro-screensaver/index.html" class="gui-card" style="--accent-color: #f43f5e; --accent-glow: rgba(244, 63, 94, 0.25);">
+            <div>
+                <div class="card-icon">🌌</div>
+                <div class="card-heading">60 FPS Neuro-Screensaver</div>
+                <div class="card-desc">
+                    Coupled Kuramoto non-linear harmonic oscillator visualizer modeling Node 1 & Node 2 phase dynamics in 60 FPS with Lissajous attractor ribbons, mouse gravity wells, and ambient drone synesthesia.
+                </div>
+                <div class="card-tags">
+                    <span class="tag-pill">Kuramoto Dynamics</span>
+                    <span class="tag-pill">Lissajous Ribbons</span>
+                    <span class="tag-pill">Ambient Audio Drone</span>
+                    <span class="tag-pill">60 FPS</span>
+                </div>
+            </div>
+            <div class="card-btn">LAUNCH SCREENSAVER ↗</div>
+        </a>
+
+    </main>
+
+    <!-- Architecture & Autopoiesis Reference -->
+    <section class="arch-section">
+        <div class="arch-panel">
+            <div>
+                <div style="font-size: 13px; font-weight: 700; margin-bottom: 4px;">
+                    Pedagogical Autopoiesis: Laws 6 &amp; 7 Active
+                </div>
+                <div style="font-size: 11px; color: var(--color-text-secondary); max-width: 700px; line-height: 1.5;">
+                    <strong>Law 6 (Deliberate Bicameral Dyad):</strong> Generative projector (skyTech-Worker) never ratifies its own hypotheses; decider (Ryzen7-Head) evaluates with Grief AD-017 and Landauer limits.<br>
+                    <strong>Law 7 (Universal GUI Harmony):</strong> Shared tokens, responsive zero-placeholder views, and bidirectional telemetry across all GUI modalities.
+                </div>
+            </div>
+            <div style="font-family: var(--font-mono); font-size: 10px; color: var(--color-text-muted);">
+                Loom Fabric &bull; ClothOS v2.4
+            </div>
+        </div>
+    </section>
+
+    <!-- Client Script for Telemetry -->
+    <script src="shared/bicameral-client.js"></script>
+    <script>
+        const client = new BicameralClient();
+        client.subscribe(state => {
+            document.getElementById('pLatency').textContent = state.lastStepMs + ' ms';
+            document.getElementById('pResonance').textContent = (state.resonance * 100).toFixed(1) + '%';
+        });
+    </script>
+</body>
+</html>

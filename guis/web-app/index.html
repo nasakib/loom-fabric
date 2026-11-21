@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClothOS // Antigravity Bicameral Command Center</title>
+    <link rel="stylesheet" href="../shared/tokens.css">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='35' cy='50' r='25' fill='%2300e5ff'/><circle cx='65' cy='50' r='25' fill='%2310b981'/></svg>">
+</head>
+<body>
+
+    <!-- Top Navigation Bar -->
+    <header class="top-nav">
+        <div class="brand-section">
+            <div class="dyad-orb-icon" title="Bicameral Dyad Core"></div>
+            <div>
+                <div class="brand-title">
+                    <span>ClothOS</span>
+                    <span style="color: var(--color-thinker-cyan);">Thinker</span>
+                    <span style="color: var(--color-text-secondary);">&bull;</span>
+                    <span style="color: var(--color-decider-emerald);">Decider</span>
+                    <span class="brand-badge">DYAD v2.4</span>
+                </div>
+                <div style="font-size: 10px; color: var(--color-text-secondary); font-family: var(--font-mono);">
+                    Antigravity Universal Bicameral Portal
+                </div>
+            </div>
+        </div>
+
+        <!-- Perspective Switcher -->
+        <nav class="perspective-switcher" aria-label="Perspective Switcher">
+            <button class="plane-btn active" data-plane="UNIFIED" id="btnPlaneUnified">
+                <span class="pulse-dot-purple"></span> 🌐 UNIFIED DYAD
+            </button>
+            <button class="plane-btn" data-plane="THINKER" id="btnPlaneThinker">
+                <span class="pulse-dot-cyan"></span> 🌌 THINKER LENS
+            </button>
+            <button class="plane-btn" data-plane="DECIDER" id="btnPlaneDecider">
+                <span class="pulse-dot-emerald"></span> ⚖️ DECIDER LENS
+            </button>
+        </nav>
+
+        <!-- Global Telemetry & Actions -->
+        <div class="nav-actions">
+            <div style="display: flex; gap: 14px; font-family: var(--font-mono); font-size: 11px; margin-right: 8px;">
+                <div>Coherence: <strong id="valCoherence" style="color: var(--color-coherence-amethyst);">0.992</strong></div>
+                <div>Resonance: <strong id="valResonance" style="color: var(--color-thinker-cyan);">98.4%</strong></div>
+                <div>Cycle: <strong id="valCycle" style="color: #fff;">1420</strong></div>
+            </div>
+
+            <button class="btn-action primary" id="btnStepDyad" title="Force discrete bicameral harmonic step">
+                ⚡ STEP DYAD
+            </button>
+            <button class="btn-action" id="btnAudioToggle" title="Toggle real-time micro-harmonics">
+                🔊 HARMONICS
+            </button>
+            <a href="../desktop-hud/index.html" class="btn-action" style="text-decoration: none;" title="Open Glassmorphic Desktop HUD">
+                🪟 HUD
+            </a>
+            <a href="../neuro-screensaver/index.html" class="btn-action" style="text-decoration: none;" title="Open 60fps Neuro-Screensaver">
+                🌌 SCREENSAVER
+            </a>
+        </div>
+    </header>
+
+    <!-- Master Layout Grid -->
+    <main class="app-container">
+        
+        <!-- Left Column: Nodes & Coupling -->
+        <aside class="left-column">
+            <!-- Node 1: skyTech-Worker (Thinker) -->
+            <section class="glass-pane" id="cardNodeThinker" style="margin-bottom: 16px;">
+                <div class="pane-header">
+                    <span class="pane-title">
+                        <span class="pulse-dot-cyan"></span> Node 1 &bull; Thinker
+                    </span>
+                    <span class="badge-ratified" style="background: rgba(0,229,255,0.15); color: var(--color-thinker-cyan); border-color: rgba(0,229,255,0.3);">
+                        ONLINE
+                    </span>
+                </div>
+                <div class="pane-body">
+                    <div class="node-card thinker">
+                        <div class="node-header">
+                            <div>
+                                <div class="node-name">skyTech-Worker</div>
+                                <div style="font-size: 10px; color: var(--color-text-secondary); font-family: var(--font-mono);">
+                                    localhost:8087 (Local Primary)
+                                </div>
+                            </div>
+                            <span class="node-role-badge">PROJECTOR</span>
+                        </div>
+                        <div class="node-metric-row">
+                            <span class="metric-label">32-Core Compute Load:</span>
+                            <span class="metric-val" id="node1Load">28.4%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill-cyan" id="node1Bar" style="width: 28.4%;"></div>
+                        </div>
+                        <div class="node-metric-row">
+                            <span class="metric-label">Landauer Entropy (&Delta;S):</span>
+                            <span class="metric-val" style="color: var(--color-gold-ratchet);">412.5 J (&le;1000J limit)</span>
+                        </div>
+                        <div class="node-metric-row">
+                            <span class="metric-label">Active CAD/Babel Manifolds:</span>
+                            <span class="metric-val">89 Formulas</span>
+                        </div>
+                        <div style="margin-top: 10px; padding-top: 8px; border-top: var(--border-subtle); font-size: 11px;">
+                            <span style="color: var(--color-text-muted);">Current Active Hypothesis:</span>
+                            <div id="node1Hypothesis" style="color: #fff; font-family: var(--font-mono); font-size: 10px; margin-top: 2px;">
+                                Thermodynamic Landauer Entropic Lower Bound Optimization (&Delta;S &lt; 1000J)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Node 2: Ryzen7-Head (Decider) -->
+            <section class="glass-pane" id="cardNodeDecider" style="margin-bottom: 16px;">
+                <div class="pane-header">
+                    <span class="pane-title">
+                        <span class="pulse-dot-emerald"></span> Node 2 &bull; Decider
+                    </span>
+                    <span class="badge-ratified">SYNCED</span>
+                </div>
+                <div class="pane-body">
+                    <div class="node-card decider">
+                        <div class="node-header">
+                            <div>
+                                <div class="node-name">Ryzen7-Head</div>
+                                <div style="font-size: 10px; color: var(--color-text-secondary); font-family: var(--font-mono);">
+                                    100.74.98.21:8087 (Tailscale Mesh)
+                                </div>
+                            </div>
+                            <span class="node-role-badge">DECIDER</span>
+                        </div>
+                        <div class="node-metric-row">
+                            <span class="metric-label">16-Thread Compute Load:</span>
+                            <span class="metric-val" id="node2Load">34.2%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill-emerald" id="node2Bar" style="width: 34.2%;"></div>
+                        </div>
+                        <div class="node-metric-row">
+                            <span class="metric-label">Grief AD-017 Safeguard:</span>
+                            <span class="metric-val" id="node2Ad017" style="color: var(--color-decider-emerald);">ARMED_PROTECTIVE</span>
+                        </div>
+                        <div class="node-metric-row">
+                            <span class="metric-label">Fiduciary Fealty:</span>
+                            <span class="metric-val" style="color: var(--color-decider-emerald);">1.000 (ABSOLUTE)</span>
+                        </div>
+                        <div class="node-metric-row">
+                            <span class="metric-label">Tribunal Quorum Ratifications:</span>
+                            <span class="metric-val" id="node2Verdicts" style="color: #fff;">348 Ratified</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Harmonic Coupling Card -->
+            <section class="glass-pane">
+                <div class="pane-header">
+                    <span class="pane-title">
+                        <span class="pulse-dot-purple"></span> Bicameral Dyad Coupling
+                    </span>
+                    <span style="font-family: var(--font-mono); font-size: 10px; color: var(--color-coherence-amethyst);">
+                        K = 0.842
+                    </span>
+                </div>
+                <div class="pane-body" style="font-size: 11px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                        <span style="color: var(--color-text-secondary);">Phase Difference (&Delta;&phi;):</span>
+                        <span style="font-family: var(--font-mono); color: var(--color-thinker-cyan);">0.014 rad (In Phase)</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                        <span style="color: var(--color-text-secondary);">Dual-Node Latency:</span>
+                        <span style="font-family: var(--font-mono); color: var(--color-decider-emerald);" id="valLatency">1.24 ms</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--color-text-secondary);">Autopoietic Self-Mod:</span>
+                        <span style="font-family: var(--font-mono); color: var(--color-gold-ratchet);">Law 6 &amp; 7 Enforced</span>
+                    </div>
+                </div>
+            </section>
+        </aside>
+
+        <!-- Center Stage: Dynamic Viewers (CAD / Tribunal / Telemetry) -->
+        <section class="glass-pane center-stage">
+            <nav class="view-nav">
+                <button class="tab-btn active" data-tab="cad">📐 STEM 3D CAD ENGINE</button>
+                <button class="tab-btn" data-tab="tribunal">🏛️ TRIBUNAL DELIBERATIONS</button>
+                <button class="tab-btn" data-tab="telemetry">📊 32-CORE COMPUTE MATRIX</button>
+            </nav>
+
+            <div class="pane-body" style="padding: 16px; flex: 1;">
+                
+                <!-- View 1: 3D CAD Engine Viewport -->
+                <div id="viewCad">
+                    <div class="cad-viewport-container">
+                        <canvas id="cadCanvas"></canvas>
+
+                        <!-- Floating CAD Controls -->
+                        <div class="cad-overlay-toolbar">
+                            <button class="cad-btn cad-shape-btn active" data-shape="torus_knot" title="Torus Knot (p=2, q=3)">Torus Knot</button>
+                            <button class="cad-btn cad-shape-btn" data-shape="calabi_yau" title="Calabi-Yau Cross Section">Calabi-Yau</button>
+                            <button class="cad-btn cad-shape-btn" data-shape="dyson_lattice" title="Dyson Octahedral Lattice">Dyson Lattice</button>
+                            <button class="cad-btn cad-shape-btn" data-shape="gyroid" title="Gyroid Minimal Surface">Gyroid</button>
+                            <span style="border-right: 1px solid rgba(255,255,255,0.15); margin: 0 4px;"></span>
+                            <button class="cad-btn cad-mode-btn active" data-mode="solid">Solid</button>
+                            <button class="cad-btn cad-mode-btn" data-mode="wireframe">Wireframe</button>
+                            <button class="cad-btn cad-mode-btn" data-mode="quantum">Quantum Glow</button>
+                            <span style="border-right: 1px solid rgba(255,255,255,0.15); margin: 0 4px;"></span>
+                            <button class="cad-btn active" id="btnToggleAutoRotate">Auto-Spin</button>
+                        </div>
+
+                        <!-- Real-time Stats Badge -->
+                        <div class="cad-telemetry-badge" id="cadStatsBadge">
+                            Initializing 3D Geometry...
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 11px; color: var(--color-text-secondary);">
+                        <div>
+                            <span>🎮 Interaction: </span>
+                            <span style="color: #fff;">Click &amp; Drag to Rotate &bull; Scroll to Zoom &bull; Real-Time Software Rasterizer</span>
+                        </div>
+                        <div style="font-family: var(--font-mono); color: var(--color-thinker-cyan);">
+                            Sovereign CAD Engine &bull; Zero External Libraries
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View 2: Tribunal Deliberations Table -->
+                <div id="viewTribunal" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">
+                            Decider Tribunal Deliberation Board
+                        </h3>
+                        <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-decider-emerald);">
+                            Quorum: The Judge &bull; Grief AD-017 &bull; Fiduciary &bull; Landauer
+                        </span>
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table class="deliberation-table">
+                            <thead>
+                                <tr>
+                                    <th>Proposal ID</th>
+                                    <th>Hypothesis Title</th>
+                                    <th>Domain</th>
+                                    <th>Verdict</th>
+                                    <th>Tribunal Quorum Breakdown</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tribunalTableBody">
+                                <!-- Populated dynamically by app.js -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- View 3: 32-Core Telemetry Canvas -->
+                <div id="viewTelemetry" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">
+                            Dual-Machine Multiprocessor Core Distribution
+                        </h3>
+                        <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-thinker-cyan);">
+                            48 Aggregated Hardware &amp; Virtual Threads
+                        </span>
+                    </div>
+                    <canvas id="telemetryCanvas" style="width: 100%; height: 360px; background: rgba(0,0,0,0.3); border-radius: var(--border-radius-sm); border: var(--border-subtle); display: block;"></canvas>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Right Column: Live Stream & Deliberation Form -->
+        <aside class="right-column">
+            <!-- Thought & Verdict Stream -->
+            <section class="glass-pane" style="margin-bottom: 16px; flex: 1;">
+                <div class="pane-header">
+                    <span class="pane-title">
+                        <span class="pulse-dot-purple"></span> Bicameral Stream
+                    </span>
+                    <span style="font-family: var(--font-mono); font-size: 10px; color: var(--color-text-secondary);">
+                        LIVE SSE
+                    </span>
+                </div>
+                <div class="pane-body">
+                    <div class="stream-list" id="streamList">
+                        <!-- Populated dynamically by app.js -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Hypothesis Synthesizer Form -->
+            <section class="glass-pane">
+                <div class="pane-header">
+                    <span class="pane-title">
+                        <span class="pulse-dot-cyan"></span> Inject Hypothesis
+                    </span>
+                    <span style="font-family: var(--font-mono); font-size: 10px; color: var(--color-gold-ratchet);">
+                        THINKER &rarr; DECIDER
+                    </span>
+                </div>
+                <div class="pane-body">
+                    <form id="hypothesisForm" class="hypothesis-form">
+                        <input type="text" id="hypoTitle" class="input-field" placeholder="Hypothesis or Design Vector Title" required>
+                        <select id="hypoDomain" class="input-field" style="background: #0f172a;">
+                            <option value="cad_geometry">CAD Parametric Geometry</option>
+                            <option value="biochem_synthesis">BabelForge Molecular Peptide</option>
+                            <option value="thermodynamics">Landauer Entropic Optimization</option>
+                            <option value="governance">Fiduciary System Fealty</option>
+                        </select>
+                        <textarea id="hypoDesc" class="input-field" rows="2" placeholder="Theoretical rationale &amp; boundary conditions..."></textarea>
+                        <button type="submit" class="btn-action primary" style="justify-content: center;">
+                            DISPATCH TO TRIBUNAL ⚖️
+                        </button>
+                    </form>
+                </div>
+            </section>
+        </aside>
+
+    </main>
+
+    <!-- Bottom Status Bar -->
+    <footer class="bottom-footer">
+        <div class="footer-metric-pill">
+            <span class="pulse-dot-cyan"></span>
+            <span>Node 1: skyTech-Worker (Thinker / Port 8087)</span>
+        </div>
+        <div class="footer-metric-pill">
+            <span class="pulse-dot-emerald"></span>
+            <span>Node 2: Ryzen7-Head (Decider / 100.74.98.21:8087)</span>
+        </div>
+        <div class="footer-metric-pill">
+            <span style="color: var(--color-text-muted);">Protocol:</span>
+            <span>HTTP/2 &bull; Bicameral SSE Dyad v2.4</span>
+        </div>
+        <div class="footer-metric-pill">
+            <span style="color: var(--color-text-muted);">Tailscale Latency:</span>
+            <span style="color: var(--color-decider-emerald);">1.24 ms</span>
+        </div>
+        <div class="footer-metric-pill">
+            <span style="color: var(--color-gold-ratchet);">&bull; Ratchet: POSITIVE_LOCKED</span>
+        </div>
+    </footer>
+
+    <!-- Client Scripts -->
+    <script src="../shared/bicameral-client.js"></script>
+    <script src="scripts/cad-engine.js"></script>
+    <script src="scripts/app.js"></script>
+</body>
+</html>

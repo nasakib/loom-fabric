@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClothOS // Desktop Glassmorphic HUD</title>
+    <link rel="stylesheet" href="../shared/tokens.css">
+    <style>
+        body {
+            background: transparent;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        /* Floating Pill HUD Cockpit */
+        .hud-pill {
+            background: rgba(8, 14, 24, 0.88);
+            backdrop-filter: var(--glass-blur-lg);
+            -webkit-backdrop-filter: var(--glass-blur-lg);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: var(--border-radius-full);
+            box-shadow: 0 16px 50px rgba(0, 0, 0, 0.85), 0 0 24px rgba(0, 229, 255, 0.15);
+            padding: 8px 18px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: #fff;
+            user-select: none;
+            transition: all var(--transition-medium);
+        }
+
+        .hud-pill:hover {
+            border-color: rgba(0, 229, 255, 0.4);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95), 0 0 35px rgba(0, 229, 255, 0.25);
+        }
+
+        .hud-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+        }
+
+        .hud-divider {
+            width: 1px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .hud-metric {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .hud-metric-label {
+            font-size: 9px;
+            color: var(--color-text-muted);
+            text-transform: uppercase;
+            font-family: var(--font-heading);
+            font-weight: 600;
+        }
+
+        .hud-metric-val {
+            font-size: 12px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+        }
+
+        .hud-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: var(--border-subtle);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: var(--border-radius-full);
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .hud-btn:hover {
+            background: rgba(0, 229, 255, 0.25);
+            border-color: var(--color-thinker-cyan);
+            color: var(--color-thinker-cyan);
+        }
+
+        /* Floating drawer on click */
+        .hud-drawer {
+            position: absolute;
+            top: 76px;
+            width: 380px;
+            background: rgba(10, 15, 24, 0.95);
+            backdrop-filter: var(--glass-blur-lg);
+            border: var(--border-medium);
+            border-radius: var(--border-radius-md);
+            padding: 16px;
+            box-shadow: var(--glass-shadow-elevated);
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .hud-drawer.open {
+            display: flex;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Compact Floating HUD -->
+    <div class="hud-pill" id="hudPill">
+        <div class="hud-logo">
+            <span class="pulse-dot-cyan"></span>
+            <span>ClothOS <span style="color: var(--color-thinker-cyan);">HUD</span></span>
+        </div>
+
+        <div class="hud-divider"></div>
+
+        <div class="hud-metric">
+            <span class="hud-metric-label">Resonance</span>
+            <span class="hud-metric-val" id="hudResonance" style="color: var(--color-thinker-cyan);">98.4%</span>
+        </div>
+
+        <div class="hud-metric">
+            <span class="hud-metric-label">Coherence</span>
+            <span class="hud-metric-val" id="hudCoherence" style="color: var(--color-coherence-amethyst);">0.992</span>
+        </div>
+
+        <div class="hud-metric">
+            <span class="hud-metric-label">Mesh Latency</span>
+            <span class="hud-metric-val" id="hudLatency" style="color: var(--color-decider-emerald);">1.24 ms</span>
+        </div>
+
+        <div class="hud-divider"></div>
+
+        <button class="hud-btn" id="hudBtnStep" title="Force discrete bicameral harmonic step">
+            ⚡ STEP
+        </button>
+
+        <button class="hud-btn" id="hudBtnToggleDrawer" title="Toggle detailed telemetry drawer">
+            🎛️
+        </button>
+    </div>
+
+    <!-- Expandable Telemetry Drawer -->
+    <div class="hud-drawer" id="hudDrawer">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: var(--border-subtle); padding-bottom: 8px;">
+            <strong style="font-size: 12px; text-transform: uppercase;">Dyad Quick Telemetry</strong>
+            <span style="font-size: 10px; font-family: var(--font-mono); color: var(--color-decider-emerald);">LOCKED POSITIVE</span>
+        </div>
+        <div style="font-size: 11px; display: flex; justify-content: space-between;">
+            <span style="color: var(--color-text-secondary);">Node 1 (skyTech-Worker):</span>
+            <span style="font-family: var(--font-mono); color: var(--color-thinker-cyan);" id="dNode1">32 Cores &bull; 28.4%</span>
+        </div>
+        <div style="font-size: 11px; display: flex; justify-content: space-between;">
+            <span style="color: var(--color-text-secondary);">Node 2 (Ryzen7-Head):</span>
+            <span style="font-family: var(--font-mono); color: var(--color-decider-emerald);" id="dNode2">16 Cores &bull; 34.2%</span>
+        </div>
+        <div style="font-size: 11px; display: flex; justify-content: space-between;">
+            <span style="color: var(--color-text-secondary);">Grief AD-017 Safeguard:</span>
+            <span style="font-family: var(--font-mono); color: var(--color-decider-emerald);">ARMED_PROTECTIVE</span>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <a href="../web-app/index.html" class="hud-btn" style="flex: 1; justify-content: center; text-decoration: none;">
+                Open Full Web App 🚀
+            </a>
+            <a href="../react-native-app/dist/index.html" class="hud-btn" style="flex: 1; justify-content: center; text-decoration: none;">
+                Open Mobile View 📱
+            </a>
+        </div>
+    </div>
+
+    <script src="../shared/bicameral-client.js"></script>
+    <script>
+        const client = new BicameralClient();
+
+        document.getElementById('hudBtnStep').addEventListener('click', () => {
+            client.stepDyad();
+        });
+
+        const drawer = document.getElementById('hudDrawer');
+        document.getElementById('hudBtnToggleDrawer').addEventListener('click', () => {
+            drawer.classList.toggle('open');
+        });
+
+        client.subscribe(state => {
+            document.getElementById('hudResonance').textContent = (state.resonance * 100).toFixed(1) + '%';
+            document.getElementById('hudCoherence').textContent = state.coherence.toFixed(3);
+            document.getElementById('hudLatency').textContent = state.lastStepMs + ' ms';
+            document.getElementById('dNode1').textContent = `32 Cores • ${state.node1.load}%`;
+            document.getElementById('dNode2').textContent = `16 Cores • ${state.node2.load}%`;
+        });
+    </script>
+</body>
+</html>

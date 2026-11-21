@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "ClothOS Bicameral Dyad",
+    "slug": "clothos-bicameral-mobile",
+    "version": "2.4.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#05080e"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ai.clothos.bicameral"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#05080e"
+      },
+      "package": "ai.clothos.bicameral"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    }
+  }
+}

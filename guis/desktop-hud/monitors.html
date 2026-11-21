@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ClothOS // Visual Monitor & KVM Arrangement Matrix</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --bg: #0f1015;
+      --card-bg: #181920;
+      --card-border: #282a36;
+      --accent: #00e699;
+      --accent-glow: rgba(0, 230, 153, 0.35);
+      --cyan: #38bdf8;
+      --cyan-glow: rgba(56, 189, 248, 0.35);
+      --purple: #c084fc;
+      --text: #f1f5f9;
+      --text-dim: #94a3b8;
+      --active-gold: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    header {
+      background: #13141b;
+      border-bottom: 1px solid var(--card-border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo-badge {
+      background: linear-gradient(135deg, #00e699, #059669);
+      color: #0b0f19;
+      font-weight: 900;
+      font-size: 1.1rem;
+      padding: 6px 12px;
+      border-radius: 8px;
+      letter-spacing: 1px;
+    }
+    .title h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .title p {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+    .btn-primary {
+      background: #00e699;
+      color: #0f1015;
+      border-color: #00e699;
+    }
+    .btn-primary:hover {
+      background: #00c985;
+      color: #0f1015;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+
+    /* Desk Canvas */
+    .desk-container {
+      flex: 1;
+      padding: 40px 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .desk-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .desk-header h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .desk-header p {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+    }
+
+    /* Layout Toolbar */
+    .layout-presets {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+      background: #14151c;
+      padding: 6px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+    }
+    .preset-btn {
+      padding: 6px 14px;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .preset-btn.active, .preset-btn:hover {
+      background: #20222d;
+      color: var(--text);
+    }
+    .preset-btn.active {
+      color: var(--accent);
+      border: 1px solid rgba(0, 230, 153, 0.4);
+    }
+
+    /* Monitor Arrangement Grid */
+    .monitors-stage {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-bottom: 36px;
+      min-height: 380px;
+      padding: 20px;
+      position: relative;
+    }
+
+    /* Monitor Object */
+    .monitor-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s;
+      position: relative;
+    }
+    .monitor-unit:hover {
+      transform: translateY(-6px);
+    }
+    .monitor-unit.active {
+      transform: translateY(-8px);
+    }
+
+    .monitor-frame {
+      background: #1a1b24;
+      border: 3px solid #333647;
+      border-radius: 14px;
+      padding: 10px;
+      box-shadow: 0 18px 36px rgba(0, 0, 0, 0.6);
+      position: relative;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .monitor-unit.active .monitor-frame {
+      border-color: var(--accent);
+      box-shadow: 0 0 24px var(--accent-glow), 0 20px 40px rgba(0,0,0,0.8);
+    }
+
+    .monitor-screen {
+      background: linear-gradient(145deg, #0d0e14, #141620);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      position: relative;
+    }
+
+    /* Sizes based on physical aspect ratio & role */
+    .monitor-node2 .monitor-screen { width: 280px; height: 180px; }
+    .monitor-node1-p .monitor-screen { width: 340px; height: 215px; }
+    .monitor-node1-s .monitor-screen { width: 280px; height: 180px; }
+    .monitor-node3 .monitor-screen { width: 290px; height: 185px; }
+
+    .monitor-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .monitor-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    .monitor-sub {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .node-tag {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .tag-node2 { background: rgba(56, 189, 248, 0.15); color: var(--cyan); border: 1px solid rgba(56, 189, 248, 0.3); }
+    .tag-node1 { background: rgba(0, 230, 153, 0.15); color: var(--accent); border: 1px solid rgba(0, 230, 153, 0.3); }
+    .tag-node3 { background: rgba(192, 132, 252, 0.15); color: var(--purple); border: 1px solid rgba(192, 132, 252, 0.3); }
+
+    .monitor-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      font-size: 0.78rem;
+    }
+    .spec-row {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-dim);
+    }
+    .spec-val {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .monitor-footer {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .hotkey-pill {
+      background: #252836;
+      color: #f59e0b;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-family: monospace;
+    }
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #00e699;
+      box-shadow: 0 0 8px #00e699;
+    }
+    .active-cursor-badge {
+      display: none;
+      background: #f59e0b;
+      color: #000;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .monitor-unit.active .active-cursor-badge {
+      display: inline-block;
+    }
+
+    /* Stand & Base */
+    .monitor-neck {
+      width: 32px;
+      height: 22px;
+      background: linear-gradient(to bottom, #2b2e3e, #1c1d27);
+      border-left: 2px solid #3d4157;
+      border-right: 2px solid #3d4157;
+    }
+    .monitor-base {
+      width: 110px;
+      height: 8px;
+      background: #242735;
+      border-radius: 6px 6px 2px 2px;
+      border: 1px solid #3d4157;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Transition Arrow */
+    .edge-bridge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-size: 1.4rem;
+      padding: 0 6px;
+    }
+    .edge-bridge span {
+      font-size: 0.7rem;
+      color: var(--accent);
+      font-weight: 700;
+      margin-top: 4px;
+    }
+
+    /* Control Panel at Bottom */
+    .desk-controls {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px 28px;
+      max-width: 820px;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .controls-info h3 {
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+    }
+    .controls-info p {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+    .switch-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    /* Live Cursor Simulation Canvas */
+    .cursor-sim {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      pointer-events: none;
+      z-index: 999;
+      transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+      display: none;
+    }
+    .cursor-sim svg {
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.8));
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="logo-badge">CLOTHOS</div>
+      <div class="title">
+        <h1>Multi-Monitor & KVM Stage Matrix</h1>
+        <p>Unified Keyboard & Pointer Distribution · Zero-Latency 2.5GbE Fabric</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn" onclick="testGlideAnimation()">⚡ Test Cursor Glide</button>
+      <button class="btn btn-primary" onclick="launchMWB()">Launch MWB App</button>
+    </div>
+  </header>
+
+  <main class="desk-container">
+    <div class="desk-header">
+      <h2>Visual Physical Desk Arrangement</h2>
+      <p>Click any monitor to switch cursor & keyboard focus instantly, or use global hotkeys.</p>
+    </div>
+
+    <!-- Layout Presets -->
+    <div class="layout-presets">
+      <button class="preset-btn active" onclick="setLayout('standard')">💻 Laptop Left ➔ Desktops Right (Default)</button>
+      <button class="preset-btn" onclick="setLayout('reverse')">🖥️ Desktops Left ➔ Laptop Right</button>
+      <button class="preset-btn" onclick="setLayout('stacked')">📐 Stacked (Laptop Below, Displays Above)</button>
+    </div>
+
+    <!-- Monitors Display Stage -->
+    <div class="monitors-stage" id="stage">
+      
+      <!-- Screen 1: Node 2 (Laptop Screen) -->
+      <div class="monitor-unit monitor-node2 active" id="unit-node2" onclick="setActiveMonitor('node2')">
+        <div class="monitor-frame">
+          <div class="monitor-screen">
+            <div class="monitor-header">
+              <div>
+                <div class="monitor-title">Laptop Display</div>
+                <div class="monitor-sub">Node 2 · Orchestrator</div>
+              </div>
+              <span class="node-tag tag-node2">Node 2</span>
+            </div>
+            <div class="monitor-body">
+              <div class="spec-row"><span>Resolution</span><span class="spec-val">1280 × 720 (Primary)</span></div>
+              <div class="spec-row"><span>GPU</span><span class="spec-val">AMD Radeon 7730U</span></div>
+              <div class="spec-row"><span>Network IP</span><span class="spec-val">192.168.99.2 (Host)</span></div>
+            </div>
+            <div class="monitor-footer">
+              <span class="hotkey-pill">Ctrl+Alt+F2</span>
+              <div class="status-indicator">
+                <span class="active-cursor-badge">📍 ACTIVE CURSOR</span>
+                <span class="status-dot"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="monitor-neck"></div>
+        <div class="monitor-base"></div>
+      </div>
+
+      <div class="edge-bridge" id="bridge-1">
+        ⟷
+        <span>Seamless Edge</span>
+      </div>
+
+      <!-- Screen 2: Node 1 Primary (RTX 3060 1080p) -->
+      <div class="monitor-unit monitor-node1-p" id="unit-node1-p" onclick="setActiveMonitor('node1-p')">
+        <div class="monitor-frame">
+          <div class="monitor-screen">
+            <div class="monitor-header">
+              <div>
+                <div class="monitor-title">Gaming Display 1</div>
+                <div class="monitor-sub">Node 1 · skyTech Worker</div>
+              </div>
+              <span class="node-tag tag-node1">Node 1</span>
+            </div>
+            <div class="monitor-body">
+              <div class="spec-row"><span>Resolution</span><span class="spec-val">1920 × 1080 (FHD)</span></div>
+              <div class="spec-row"><span>Primary GPU</span><span class="spec-val">NVIDIA RTX 3060 (12GB)</span></div>
+              <div class="spec-row"><span>Network IP</span><span class="spec-val">192.168.99.1 (2.5GbE)</span></div>
+              <div class="spec-row"><span>AI Models</span><span class="spec-val">70B / 32B VRAM Resident</span></div>
+            </div>
+            <div class="monitor-footer">
+              <span class="hotkey-pill">Ctrl+Alt+F1</span>
+              <div class="status-indicator">
+                <span class="active-cursor-badge">📍 ACTIVE CURSOR</span>
+                <span class="status-dot"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="monitor-neck"></div>
+        <div class="monitor-base"></div>
+      </div>
+
+      <div class="edge-bridge" id="bridge-2">
+        ⟷
+        <span>Seamless Edge</span>
+      </div>
+
+      <!-- Screen 3: Node 1 Secondary (RX 580 864p) -->
+      <div class="monitor-unit monitor-node1-s" id="unit-node1-s" onclick="setActiveMonitor('node1-s')">
+        <div class="monitor-frame">
+          <div class="monitor-screen">
+            <div class="monitor-header">
+              <div>
+                <div class="monitor-title">Aux Display 2</div>
+                <div class="monitor-sub">Node 1 · Auxiliary</div>
+              </div>
+              <span class="node-tag tag-node1">Node 1</span>
+            </div>
+            <div class="monitor-body">
+              <div class="spec-row"><span>Resolution</span><span class="spec-val">1536 × 864 (Aux)</span></div>
+              <div class="spec-row"><span>Secondary GPU</span><span class="spec-val">AMD Radeon RX 580 (8GB)</span></div>
+              <div class="spec-row"><span>Network IP</span><span class="spec-val">192.168.99.1</span></div>
+            </div>
+            <div class="monitor-footer">
+              <span class="hotkey-pill">Ctrl+Alt+F1</span>
+              <div class="status-indicator">
+                <span class="active-cursor-badge">📍 ACTIVE CURSOR</span>
+                <span class="status-dot"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="monitor-neck"></div>
+        <div class="monitor-base"></div>
+      </div>
+
+      <div class="edge-bridge" id="bridge-3">
+        ⟷
+        <span>Mesh UDP</span>
+      </div>
+
+      <!-- Screen 4: Node 3 (Brother's PC) -->
+      <div class="monitor-unit monitor-node3" id="unit-node3" onclick="setActiveMonitor('node3')">
+        <div class="monitor-frame">
+          <div class="monitor-screen">
+            <div class="monitor-header">
+              <div>
+                <div class="monitor-title">Brother's PC</div>
+                <div class="monitor-sub">Node 3 · Dynamic Node</div>
+              </div>
+              <span class="node-tag tag-node3">Node 3</span>
+            </div>
+            <div class="monitor-body">
+              <div class="spec-row"><span>Status</span><span class="spec-val">Stealth Sentry Active</span></div>
+              <div class="spec-row"><span>Role</span><span class="spec-val">Distributed Worker</span></div>
+              <div class="spec-row"><span>Discovery</span><span class="spec-val">UDP Beacon (:5556)</span></div>
+            </div>
+            <div class="monitor-footer">
+              <span class="hotkey-pill">Ctrl+Alt+F3</span>
+              <div class="status-indicator">
+                <span class="active-cursor-badge">📍 ACTIVE CURSOR</span>
+                <span class="status-dot" style="background:#c084fc; box-shadow:0 0 8px #c084fc;"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="monitor-neck"></div>
+        <div class="monitor-base"></div>
+      </div>
+
+    </div>
+
+    <!-- Control Bar -->
+    <div class="desk-controls">
+      <div class="controls-info">
+        <h3 id="status-title">Active Focus: Node 2 (Laptop Screen)</h3>
+        <p id="status-desc">Moving the mouse past the right border smoothly warps into Node 1 Gaming Display.</p>
+      </div>
+      <div class="switch-actions">
+        <button class="btn" onclick="setActiveMonitor('node2')">Focus Node 2 (Laptop)</button>
+        <button class="btn btn-primary" onclick="setActiveMonitor('node1-p')">Focus Node 1 (skyTech)</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let activeId = 'node2';
+
+    function setActiveMonitor(id) {
+      activeId = id;
+      document.querySelectorAll('.monitor-unit').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById('unit-' + id);
+      if (target) {
+        target.classList.add('active');
+      }
+
+      const titleEl = document.getElementById('status-title');
+      const descEl = document.getElementById('status-desc');
+
+      if (id === 'node2') {
+        titleEl.textContent = 'Active Focus: Node 2 (Laptop Screen)';
+        descEl.textContent = 'Mouse & keyboard active on Node 2. Move right to glide into Node 1.';
+      } else if (id.startsWith('node1')) {
+        titleEl.textContent = 'Active Focus: Node 1 (skyTech Dual-GPU Desktop)';
+        descEl.textContent = 'Mouse & keyboard active on Node 1 (RTX 3060 / RX 580). Move left to return to Laptop.';
+      } else if (id === 'node3') {
+        titleEl.textContent = "Active Focus: Node 3 (Brother's PC)";
+        descEl.textContent = 'Mouse & keyboard active on Brother’s PC via Mouse Without Borders.';
+      }
+    }
+
+    function setLayout(mode) {
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const stage = document.getElementById('stage');
+      const node2 = document.getElementById('unit-node2');
+      const b1 = document.getElementById('bridge-1');
+      const node1p = document.getElementById('unit-node1-p');
+      const b2 = document.getElementById('bridge-2');
+      const node1s = document.getElementById('unit-node1-s');
+      const b3 = document.getElementById('bridge-3');
+      const node3 = document.getElementById('unit-node3');
+
+      stage.innerHTML = '';
+      if (mode === 'standard') {
+        stage.appendChild(node2);
+        stage.appendChild(b1);
+        stage.appendChild(node1p);
+        stage.appendChild(b2);
+        stage.appendChild(node1s);
+        stage.appendChild(b3);
+        stage.appendChild(node3);
+        stage.style.flexDirection = 'row';
+      } else if (mode === 'reverse') {
+        stage.appendChild(node1p);
+        stage.appendChild(b2);
+        stage.appendChild(node1s);
+        stage.appendChild(b1);
+        stage.appendChild(node2);
+        stage.appendChild(b3);
+        stage.appendChild(node3);
+        stage.style.flexDirection = 'row';
+      } else if (mode === 'stacked') {
+        stage.appendChild(node1p);
+        stage.appendChild(b2);
+        stage.appendChild(node1s);
+        stage.appendChild(node2);
+        stage.style.flexDirection = 'row';
+      }
+    }
+
+    function testGlideAnimation() {
+      const units = ['node2', 'node1-p', 'node1-s', 'node3'];
+      let idx = 0;
+      const interval = setInterval(() => {
+        setActiveMonitor(units[idx]);
+        idx++;
+        if (idx >= units.length) {
+          clearInterval(interval);
+          setTimeout(() => setActiveMonitor('node2'), 1000);
+        }
+      }, 700);
+    }
+
+    function launchMWB() {
+      window.location.href = '#';
+      alert('To open Mouse Without Borders settings:\nPress Windows Key and search "Mouse without Borders".');
+    }
+  </script>
+</body>
+</html>

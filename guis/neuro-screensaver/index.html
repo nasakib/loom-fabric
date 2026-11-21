@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClothOS // 60 FPS Coupled Neuro-Oscillator Screensaver</title>
+    <link rel="stylesheet" href="../shared/tokens.css">
+    <style>
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+        }
+
+        body {
+            background: #020408;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            color: #fff;
+            font-family: var(--font-heading);
+            cursor: crosshair;
+        }
+
+        #screensaverCanvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: block;
+        }
+
+        /* Glassmorphic floating HUD overlay */
+        .screensaver-overlay {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 15, 24, 0.75);
+            backdrop-filter: var(--glass-blur-md);
+            -webkit-backdrop-filter: var(--glass-blur-md);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: var(--border-radius-full);
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+            transition: opacity 0.5s ease;
+            user-select: none;
+        }
+
+        .metric-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .metric-label {
+            font-size: 9px;
+            color: var(--color-text-muted);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .metric-val {
+            font-size: 13px;
+            font-family: var(--font-mono);
+            font-weight: 700;
+        }
+
+        .ctrl-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: var(--border-subtle);
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: var(--border-radius-full);
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .ctrl-btn:hover {
+            background: rgba(0, 229, 255, 0.25);
+            border-color: var(--color-thinker-cyan);
+            color: var(--color-thinker-cyan);
+        }
+
+        .top-left-title {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="screensaverCanvas"></canvas>
+
+    <div class="top-left-title">
+        <div style="font-size: 16px; font-weight: 800; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;">
+            <span class="pulse-dot-purple"></span>
+            <span>ClothOS // Bicameral Attractor Manifold</span>
+        </div>
+        <div style="font-size: 11px; font-family: var(--font-mono); color: var(--color-text-secondary);">
+            Node 1 (Thinker: cyan) ⇄ Node 2 (Decider: emerald) Coupled Harmonic Phase Space
+        </div>
+    </div>
+
+    <!-- Floating HUD Controls -->
+    <div class="screensaver-overlay" id="overlayBar">
+        <div class="metric-group">
+            <span class="metric-label">Coupling (K)</span>
+            <span class="metric-val" id="dispK" style="color: var(--color-coherence-amethyst);">0.842</span>
+        </div>
+        <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1);"></div>
+        <div class="metric-group">
+            <span class="metric-label">Phase (&Delta;&phi;)</span>
+            <span class="metric-val" id="dispPhase" style="color: var(--color-thinker-cyan);">0.014 rad</span>
+        </div>
+        <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1);"></div>
+        <div class="metric-group">
+            <span class="metric-label">Dyad Resonance</span>
+            <span class="metric-val" id="dispResonance" style="color: var(--color-decider-emerald);">98.4%</span>
+        </div>
+        <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1);"></div>
+        <button class="ctrl-btn" id="btnSound">🔊 SOUND ON</button>
+        <button class="ctrl-btn" id="btnPerturb">⚡ PERTURB</button>
+        <a href="../web-app/index.html" class="ctrl-btn" style="text-decoration: none;">EXIT TO WEB APP ↗</a>
+    </div>
+
+    <script src="../shared/bicameral-client.js"></script>
+    <script>
+        const canvas = document.getElementById('screensaverCanvas');
+        const ctx = canvas.getContext('2d');
+        const client = new BicameralClient();
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        // Coupled Oscillator Physics State
+        let theta1 = 0.2;
+        let theta2 = 0.5;
+        let omega1 = 0.045; // Thinker natural frequency
+        let omega2 = 0.042; // Decider natural frequency
+        let K = 0.018;      // Coupling constant
+
+        // Swarm particles
+        const particleCount = 280;
+        const particles = [];
+        for (let i = 0; i < particleCount; i++) {
+            particles.push({
+                x: (Math.random() - 0.5) * width * 0.6,
+                y: (Math.random() - 0.5) * height * 0.6,
+                vx: (Math.random() - 0.5) * 1.5,
+                vy: (Math.random() - 0.5) * 1.5,
+                nodeTarget: i % 2 === 0 ? 1 : 2,
+                hue: i % 2 === 0 ? 190 : 155
+            });
+        }
+
+        // Mouse perturbation
+        let mouseX = 0, mouseY = 0, hasMouse = false;
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX - width / 2;
+            mouseY = e.clientY - height / 2;
+            hasMouse = true;
+        });
+
+        // Ambient Synesthesia Audio
+        let audioCtx = null;
+        let osc1 = null, osc2 = null, gainNode = null;
+        let audioActive = false;
+
+        function initAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            osc1 = audioCtx.createOscillator();
+            osc2 = audioCtx.createOscillator();
+            gainNode = audioCtx.createGain();
+
+            osc1.type = 'sine';
+            osc2.type = 'triangle';
+            osc1.frequency.setValueAtTime(110, audioCtx.currentTime); // A2 Thinker fundamental
+            osc2.frequency.setValueAtTime(165, audioCtx.currentTime); // E3 Decider harmonic fifth
+
+            gainNode.gain.setValueAtTime(0.04, audioCtx.currentTime);
+            osc1.connect(gainNode);
+            osc2.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            osc1.start();
+            osc2.start();
+            audioActive = true;
+        }
+
+        document.getElementById('btnSound').addEventListener('click', () => {
+            if (!audioCtx) {
+                initAudio();
+                document.getElementById('btnSound').textContent = '🔊 AUDIO PLAYING';
+            } else {
+                if (audioActive) {
+                    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                    audioActive = false;
+                    document.getElementById('btnSound').textContent = '🔇 SOUND OFF';
+                } else {
+                    gainNode.gain.setValueAtTime(0.04, audioCtx.currentTime);
+                    audioActive = true;
+                    document.getElementById('btnSound').textContent = '🔊 AUDIO PLAYING';
+                }
+            }
+        });
+
+        document.getElementById('btnPerturb').addEventListener('click', () => {
+            theta1 += (Math.random() - 0.5) * 2.0;
+            theta2 += (Math.random() - 0.5) * 2.0;
+            client.stepDyad();
+        });
+
+        // Render loop
+        function draw() {
+            // Semi-transparent fade for motion trails
+            ctx.fillStyle = 'rgba(2, 4, 8, 0.16)';
+            ctx.fillRect(0, 0, width, height);
+
+            const cx = width / 2;
+            const cy = height / 2;
+
+            // Kuramoto Phase Coupling Update:
+            // dθ1/dt = ω1 + K * sin(θ2 - θ1)
+            // dθ2/dt = ω2 + K * sin(θ1 - θ2)
+            const phaseDiff = theta2 - theta1;
+            theta1 += omega1 + K * Math.sin(phaseDiff);
+            theta2 += omega2 + K * Math.sin(-phaseDiff);
+
+            // Audio modulation based on phase coherence
+            if (osc1 && osc2 && audioActive) {
+                const detune = Math.abs(Math.sin(phaseDiff)) * 12;
+                osc1.frequency.setValueAtTime(110 + Math.sin(theta1) * 2, audioCtx.currentTime);
+                osc2.frequency.setValueAtTime(165 + detune, audioCtx.currentTime);
+            }
+
+            // Attractor centers
+            const r1 = 180 + Math.sin(theta1 * 2) * 40;
+            const r2 = 180 + Math.cos(theta2 * 2) * 40;
+            const x1 = Math.cos(theta1) * r1;
+            const y1 = Math.sin(theta1) * r1;
+            const x2 = Math.cos(theta2) * r2;
+            const y2 = Math.sin(theta2) * r2;
+
+            // Draw Lissajous coupling ribbon
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
+            ctx.lineWidth = 1.5;
+            for (let t = 0; t < Math.PI * 2; t += 0.05) {
+                const lx = cx + Math.sin(3 * t + theta1) * (width * 0.28);
+                const ly = cy + Math.sin(2 * t + theta2) * (height * 0.28);
+                if (t === 0) ctx.moveTo(lx, ly);
+                else ctx.lineTo(lx, ly);
+            }
+            ctx.closePath();
+            ctx.stroke();
+
+            // Render particles
+            for (let i = 0; i < particleCount; i++) {
+                const p = particles[i];
+                const tx = p.nodeTarget === 1 ? x1 : x2;
+                const ty = p.nodeTarget === 1 ? y1 : y2;
+
+                const dx = tx - p.x;
+                const dy = ty - p.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+                p.vx += (dx / dist) * 0.4;
+                p.vy += (dy / dist) * 0.4;
+
+                // Mouse gravitational attraction
+                if (hasMouse) {
+                    const mdx = mouseX - p.x;
+                    const mdy = mouseY - p.y;
+                    const mdist = Math.sqrt(mdx * mdx + mdy * mdy) || 1;
+                    if (mdist < 300) {
+                        p.vx += (mdx / mdist) * 0.6;
+                        p.vy += (mdy / mdist) * 0.6;
+                    }
+                }
+
+                p.vx *= 0.94;
+                p.vy *= 0.94;
+                p.x += p.vx;
+                p.y += p.vy;
+
+                ctx.fillStyle = `hsla(${p.hue}, 90%, 65%, 0.75)`;
+                ctx.beginPath();
+                ctx.arc(cx + p.x, cy + p.y, 1.8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw Node 1 Thinker Orb (Cyan)
+            ctx.shadowColor = '#00e5ff';
+            ctx.shadowBlur = 25;
+            ctx.fillStyle = '#00e5ff';
+            ctx.beginPath();
+            ctx.arc(cx + x1, cy + y1, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw Node 2 Decider Orb (Emerald)
+            ctx.shadowColor = '#10b981';
+            ctx.shadowBlur = 25;
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath();
+            ctx.arc(cx + x2, cy + y2, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Dynamic coupling filament line between nodes
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.moveTo(cx + x1, cy + y1);
+            ctx.lineTo(cx + x2, cy + y2);
+            ctx.stroke();
+
+            // Telemetry readings
+            document.getElementById('dispPhase').textContent = Math.abs(phaseDiff % Math.PI).toFixed(3) + ' rad';
+
+            requestAnimationFrame(draw);
+        }
+        draw();
+
+        client.subscribe(state => {
+            document.getElementById('dispResonance').textContent = (state.resonance * 100).toFixed(1) + '%';
+        });
+    </script>
+</body>
+</html>
