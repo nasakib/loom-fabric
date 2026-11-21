@@ -84,6 +84,12 @@ target/
 
 # Local cluster runtime state files
 deliverables/DELIVERABLE_*.md
+deliverables/art/
+deliverables/bootable_images/
+deliverables/diagnostics/
+deliverables/packages/
+deliverables/releases/
+deliverables/users/
 .loom_*.json
 .loom_*_ledger/
 .loom/
