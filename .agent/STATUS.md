@@ -8,7 +8,7 @@
 - **Live DAG Critical Path**: `20.5 ms`
   - `[1:Torque Enclave] ──▶ [2:Stitch MMU/ZMQ] ──▶ [3:Loom QCT Router] ──▶ [4:Fabric:qwen2.5:7b] ──▶ [5:ClothOS Rehydrate]`
 
-- **ClothOS Unified Autonomous Engine**: `ACTIVE` (SCI: `99.7%`) | GPU 0 (RTX 3060): `SYNTHESIZED_HYP_1` | GPU 1 (RX 580): `EVALUATING_HYP_48268` | Hypotheses: `48,268` | Experiments: `48,541` (`45319` Confirmed, `2935` Refuted) | Crystallized Skills: `4515` | Distillation Pairs: `648` | Ratchet Teeth: `221,618` | Deliverables: `20060`
+- **ClothOS Unified Autonomous Engine**: `ACTIVE` (SCI: `99.7%`) | GPU 0 (RTX 3060): `SYNTHESIZED_HYP_1` | GPU 1 (RX 580): `EVALUATING_HYP_48290` | Hypotheses: `48,290` | Experiments: `48,563` (`45340` Confirmed, `2936` Refuted) | Crystallized Skills: `4536` | Distillation Pairs: `648` | Ratchet Teeth: `221,639` | Deliverables: `20062`
 
 ## 1. Discovered Cross-Platform Fabric Nodes
 - **skyTech-Worker** (`192.168.99.1`) — `Windows` | `x86_64 (RTX 3060 12GB CUDA + RX 580 8GB Vulkan)` | Role: `gpu_worker` | Free VRAM: `16,767 MB` | Status: `ONLINE`

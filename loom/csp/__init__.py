@@ -39,6 +39,13 @@ from loom.csp.fiber_lease import (
     FiberLeaseType,
     FiberCarrierTier,
 )
+from loom.csp.agit import (
+    AGITEngine,
+    AGITNode,
+    AGITDeviceClass,
+    AGITCooperativeTask,
+    AGITSwarmClique,
+)
 
 __all__ = [
     "CspNodeManifest",
@@ -81,4 +88,10 @@ __all__ = [
     "LeasedFiberCircuit",
     "FiberLeaseType",
     "FiberCarrierTier",
+    # Automated General Intelligence of Things (AGIT)
+    "AGITEngine",
+    "AGITNode",
+    "AGITDeviceClass",
+    "AGITCooperativeTask",
+    "AGITSwarmClique",
 ]

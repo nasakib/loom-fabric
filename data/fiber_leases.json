@@ -95,6 +95,30 @@
         "bit_error_rate": 1e-12,
         "laser_temperature_c": 38.5
       }
+    },
+    "cir-sl-349df85518": {
+      "circuit_id": "cir-sl-349df85518",
+      "carrier_id": "zayo_metro",
+      "carrier_name": "Zayo Group Metro Dark Fiber",
+      "lease_type": "DARK_FIBER_STRAND",
+      "endpoint_a_node_id": "skyTech-Worker",
+      "endpoint_b_node_id": "Ryzen7-Head",
+      "physical_length_km": 5.0,
+      "committed_bandwidth_gbps": 100.0,
+      "optical_wavelength_nm": 1310.0,
+      "monthly_lease_cost_usd": 1600.0,
+      "hourly_amortized_cost_usd": 2.2222,
+      "optical_propagation_latency_ms": 0.0245,
+      "is_active": true,
+      "provisioned_epoch": 1795300550.8472216,
+      "contract_expiration_epoch": 1797892550.8472226,
+      "circuit_telemetry": {
+        "rx_power_dbm": -2.5,
+        "tx_power_dbm": 3.0,
+        "optical_snr_db": 44.0,
+        "bit_error_rate": 1e-12,
+        "laser_temperature_c": 38.5
+      }
     }
   }
 }
