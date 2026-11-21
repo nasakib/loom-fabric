@@ -55,6 +55,14 @@ def test_transceiver_rf_propagation_and_bars():
     assert l_cable.latency_ms <= 0.5
     assert l_cable.signal_bars == "●●●●●"
 
+    # 4. 100G BiDi Single-Strand Optical Fiber
+    phy_fiber = FabricTransceiver(band=TransceiverBand.FIBER_BIDI_100G)
+    l_fiber = phy_fiber.calculate_link_quality(distance_meters=2000.0)
+    assert l_fiber.is_viable is True
+    assert l_fiber.effective_bandwidth_gbps == 100.0
+    assert l_fiber.signal_bars == "●●●●●"
+    assert l_fiber.latency_ms < 0.20 # Sub-microsecond fiber propagation (~0.0098ms) + SerDes
+
 
 def test_zero_copy_dma_transfer():
     phy = FabricTransceiver(band=TransceiverBand.MMWAVE_60GHZ)

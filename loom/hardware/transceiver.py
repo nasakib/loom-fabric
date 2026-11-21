@@ -21,10 +21,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 
 class TransceiverBand(str, Enum):
-    MMWAVE_60GHZ = "60GHz_mmWave"     # Ultra-high throughput line-of-sight (up to 40 Gbps, sub-ms)
-    WIFI7_5GHZ = "5.8GHz_Wi-Fi7"      # High throughput room-to-room (up to 15 Gbps)
-    PCIE_DIRECT = "PCIe_Direct_Cable" # Direct copper/optical tether (up to 64 GB/s)
-    LOOPBACK_EMU = "Loopback_PCIe4"   # Local virtual test harness
+    MMWAVE_60GHZ = "60GHz_mmWave"         # Ultra-high throughput line-of-sight (up to 40 Gbps, sub-ms)
+    WIFI7_5GHZ = "5.8GHz_Wi-Fi7"          # High throughput room-to-room (up to 15 Gbps)
+    PCIE_DIRECT = "PCIe_Direct_Cable"     # Direct copper/optical tether (up to 64 GB/s)
+    LOOPBACK_EMU = "Loopback_PCIe4"       # Local virtual test harness
+    FIBER_BIDI_100G = "100G_BiDi_Fiber"   # Dedicated single-strand optical lambda link (100 Gbps, 4.9 us/km)
+    FIBER_PON_10G = "10G_XGSPON_Fiber"    # Neighborhood passive optical network (10 Gbps, sub-ms)
 
 
 class ModulationScheme(str, Enum):
@@ -78,12 +80,14 @@ class FabricTransceiver:
         bytes_per_lane_gb = 1.969 if pcie_gen == 4 else (3.938 if pcie_gen == 5 else 0.985)
         self.pcie_max_bandwidth_gbps = bytes_per_lane_gb * pcie_lanes * 8.0
 
-        # RF Base Bandwidth Limits
+        # RF / Optical Base Bandwidth Limits
         self.rf_peak_bandwidth_gbps = {
             TransceiverBand.MMWAVE_60GHZ: 40.0,
             TransceiverBand.WIFI7_5GHZ: 15.0,
             TransceiverBand.PCIE_DIRECT: self.pcie_max_bandwidth_gbps,
             TransceiverBand.LOOPBACK_EMU: self.pcie_max_bandwidth_gbps,
+            TransceiverBand.FIBER_BIDI_100G: 100.0,
+            TransceiverBand.FIBER_PON_10G: 10.0,
         }[band]
 
     def calculate_link_quality(
@@ -92,7 +96,7 @@ class FabricTransceiver:
         obstacles_count: int = 0,
         noise_floor_dbm: float = -95.0,
     ) -> LinkQuality:
-        """Calculates link quality based on free-space path loss, obstacles, and queue pressure."""
+        """Calculates link quality based on free-space path loss, optical attenuation, or PCIe bus."""
         if self.band in (TransceiverBand.PCIE_DIRECT, TransceiverBand.LOOPBACK_EMU):
             # Cabled / Direct: near-flawless signal
             rssi = -32.0
@@ -101,6 +105,22 @@ class FabricTransceiver:
             loss = 0.0
             latency = 0.35 # sub-millisecond
             bw = min(self.pcie_max_bandwidth_gbps, self.rf_peak_bandwidth_gbps)
+        elif self.band in (TransceiverBand.FIBER_BIDI_100G, TransceiverBand.FIBER_PON_10G):
+            # Single-mode optical fiber propagation model
+            # Attenuation: 0.35 dB/km @ 1310nm single mode + 0.5 dB connector insertion loss
+            dist_km = max(0.001, distance_meters / 1000.0)
+            optical_loss_db = (dist_km * 0.35) + 0.5
+            tx_opt_power_dbm = 3.0 # +3 dBm DFB laser
+            rx_opt_power_dbm = tx_opt_power_dbm - optical_loss_db
+            rssi = rx_opt_power_dbm # Optical RX power in dBm
+            snr = max(10.0, 48.0 - optical_loss_db)
+            mod = ModulationScheme.QAM4096 # Digital PAM4 / coherent optical constellation
+            loss = 0.000001
+            # Speed of light in silica: c / n = 299792 / 1.4682 = ~204,190 km/s -> ~4.897 us/km
+            fiber_delay_ms = dist_km * 0.0049
+            phy_serdes_ms = 0.12 # SerDes framing + KP4 RS(544,514) FEC latency
+            latency = phy_serdes_ms + fiber_delay_ms
+            bw = self.rf_peak_bandwidth_gbps
         else:
             # Wireless RF propagation model
             # Free-space path loss (FSPL) in dB: FSPL = 20*log10(d) + 20*log10(f) + 32.44
