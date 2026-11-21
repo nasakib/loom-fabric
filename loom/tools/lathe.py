@@ -28,7 +28,8 @@ class LatheShaper:
 
     def turn_embeddings(self, vectors: np.ndarray, target_dim: Optional[int] = None) -> np.ndarray:
         """
-        Spins vectors on the spindle, centering them and shaving off collinear noise via SVD/QR.
+        Spins vectors on the spindle, centering them and shaving off collinear noise via SVD.
+        Preserves relative semantic pairwise similarities while eliminating common-mode drift.
         Guarantees all turned vectors lie cleanly on the unitary hypersphere (L2 = 1.0).
         """
         self.operations_count += 1
@@ -36,21 +37,34 @@ class LatheShaper:
         if arr.ndim == 1:
             arr = arr.reshape(1, -1)
 
-        # 1. Center around origin (shave eccentricity)
+        if arr.shape[0] == 1:
+            norm = np.linalg.norm(arr, axis=-1, keepdims=True)
+            norm = np.where(norm == 0, 1.0, norm)
+            return arr / norm
+
+        # 1. Center around origin (shave common-mode anisotropic bias)
         mean_vec = np.mean(arr, axis=0, keepdims=True)
         centered = arr - mean_vec
 
-        # 2. Orthogonalize via QR decomposition
-        q, _ = np.linalg.qr(centered.T)
-        orthogonalized = q.T[: arr.shape[0]]
+        if np.allclose(centered, 0):
+            norm = np.linalg.norm(arr, axis=-1, keepdims=True)
+            norm = np.where(norm == 0, 1.0, norm)
+            return arr / norm
 
-        if target_dim and target_dim < orthogonalized.shape[1]:
-            orthogonalized = orthogonalized[:, :target_dim]
+        # 2. Decompose via SVD onto principal manifold (preserving pairwise angles)
+        try:
+            _, _, vt = np.linalg.svd(centered, full_matrices=False)
+            if target_dim and target_dim < vt.shape[0]:
+                turned_coords = centered @ vt[:target_dim].T
+            else:
+                turned_coords = centered @ vt.T
+        except Exception:
+            turned_coords = centered
 
         # 3. Normalize to unitary hypersphere (||v||_2 = 1.0)
-        norms = np.linalg.norm(orthogonalized, axis=-1, keepdims=True)
-        norms[norms == 0] = 1.0
-        turned = orthogonalized / norms
+        norms = np.linalg.norm(turned_coords, axis=-1, keepdims=True)
+        norms = np.where(norms == 0, 1.0, norms)
+        turned = turned_coords / norms
 
         logger.debug(f"🔄 [Lathe Turned]: Shaved {arr.shape} -> {turned.shape} onto unitary manifold.")
         return turned

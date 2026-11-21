@@ -393,6 +393,15 @@ class ClothOSPackageManager:
 
         # 7. Neofetch
         elif prog_clean == "neofetch":
+            try:
+                import psutil
+                v = psutil.virtual_memory()
+                used_mib = int(v.used / (1024 * 1024))
+                tot_mib = int(v.total / (1024 * 1024))
+                mem_str = f"{used_mib}MiB / {tot_mib}MiB ({round(v.total / (1024**3), 1)} GB Host RAM)"
+            except Exception:
+                mem_str = "28450MiB / 40826MiB (39.9 GB Host RAM)"
+
             logo = (
                 "         /\\          clothos@sovereign\n"
                 "        /  \\         -----------------\n"
@@ -409,7 +418,7 @@ class ClothOSPackageManager:
                 "                     CPU: RV64GCV + x86_64 Dual-Node (32 Cores)\n"
                 "                     GPU: NVIDIA RTX 3060 12GB CUDA + AMD RX 580 8GB OpenCL\n"
                 "                     TPU: Google TPU v5e MXU 16x16 Systolic Array (256 PEs)\n"
-                "                     Memory: 28450MiB / 105984MiB (103.5 GB Pooled)\n"
+                f"                     Memory: {mem_str}\n"
             )
             return {"stdout": logo + "\n", "stderr": "", "exit_code": 0}
 

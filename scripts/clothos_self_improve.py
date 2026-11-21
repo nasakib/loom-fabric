@@ -11,7 +11,7 @@ Unifies the full autonomous stack into a self-driving improvement loop:
 4. Empirical Verification Gate: DevLoop metrology (L2 <= 1e-4) + Epistemic Reality Guard.
 5. Monotonic Ratchet: Cements verified truth weights into .clothos_learned_patterns.json.
 6. Git Discipline: Stages verified files, creates Conventional Commits, and pushes.
-7. Mesh Propagation: Streams differential updates to Node 2 at ~580 MB/s.
+7. Mesh Propagation: Streams differential updates to Node 2 over 2.5GbE mesh (~285 MB/s effective).
 """
 
 from __future__ import annotations
@@ -338,7 +338,7 @@ class ClothOSSelfImprover:
         if sync_node2:
             console.print("\n[bold cyan]6. Propagating Verified Milestone to Node 2 (Mesh Stream)...[/bold cyan]")
             mesh_ok = self.propagate_to_node2()
-            console.print(f"   • Node 2 Sync: [bold {'green' if mesh_ok else 'red'}]{'SUCCESS (580 MB/s Bit-Exact)' if mesh_ok else 'FAILED'}[/bold {'green' if mesh_ok else 'red'}]")
+            console.print(f"   • Node 2 Sync: [bold {'green' if mesh_ok else 'red'}]{'SUCCESS (Bit-Exact SHA-256 via 2.5GbE)' if mesh_ok else 'FAILED'}[/bold {'green' if mesh_ok else 'red'}]")
 
         elapsed = round(time.perf_counter() - start_t, 2)
 

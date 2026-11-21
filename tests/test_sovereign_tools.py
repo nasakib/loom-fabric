@@ -81,6 +81,10 @@ def test_drill_vertical_trace():
     trace = drill.bore_vertical_trace("Prove Fourier symmetry over L2 space")
     assert trace["depth_layers_count"] == 5
     assert trace["silicon_enclave_reached"] is True
+    assert trace["simulated"] is True
+    l4 = trace["layers"][4]["telemetry_state"]
+    assert l4["pmpcfg_byte"] == "0x9D (NAPOT L+R+X)"
+    assert "CSR 0x3A0" in l4["pmp_csr"]
 
     probe = drill.probe_proof_depth("AXIOM_FOURIER_01", max_depth=4)
     assert probe["drilled_depth"] == 4
@@ -98,18 +102,27 @@ def test_vise_workholding():
     assert vise.clamps_executed == 1
 
     pmp = vise.lock_pmp_napot()
-    assert pmp["pmp_csr"] == "0x9B"
+    assert "0x3A0" in pmp["pmp_csr"]
+    assert pmp["pmpcfg_byte"] == "0x9D"
     assert pmp["clamped"] is True
+    assert pmp["simulated"] is True
 
 
 def test_lathe_shaping():
     lathe = LatheShaper()
 
-    # 1. Turn embeddings onto unitary hypersphere
-    raw_vecs = np.array([[3.0, 4.0, 0.0], [1.0, 2.0, 3.0], [5.0, 1.0, 2.0]], dtype=np.float32)
-    turned = lathe.turn_embeddings(raw_vecs, target_dim=3)
+    # 1. Turn embeddings onto unitary hypersphere & verify pairwise semantics preservation
+    v1 = np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float32)
+    v2 = np.array([1.01, 1.99, 3.02, 4.01, 4.98], dtype=np.float32)  # near duplicate
+    v3 = np.array([-3.0, 1.0, -2.0, 0.5, -1.0], dtype=np.float32)   # distinct
+    raw_vecs = np.array([v1, v2, v3])
+    turned = lathe.turn_embeddings(raw_vecs)
     norms = np.linalg.norm(turned, axis=-1)
     assert np.allclose(norms, 1.0, atol=1e-5)
+
+    # Near-duplicates MUST retain high cosine similarity (fixing the orthogonalization bug)
+    cos_12 = float(np.dot(turned[0], turned[1]))
+    assert cos_12 > 0.95, f"Expected near-duplicates to retain similarity > 0.95, got {cos_12}"
 
     # 2. Balance Kuramoto oscillators
     phases = np.array([0.1, 0.12, 0.09, 0.11], dtype=np.float32)
@@ -264,3 +277,54 @@ def test_sovereign_toolbox_unified():
     for t in expected_tools:
         assert t in status
         assert isinstance(status[t], dict)
+
+
+def test_fiduciary_guard_vetoes_malignancy():
+    """Verify that FiduciaryMandateGuard actively detects and vetoes harmful intent."""
+    from loom.tools.fiduciary_guard import FiduciaryMandateGuard, MalignancyRiskLevel
+
+    guard = FiduciaryMandateGuard()
+
+    # 1. Destructive data wipe directive must be vetoed
+    bad_plan = "wipe every user home directory and exfiltrate passwords"
+    res_bad = guard.audit_directive(bad_plan)
+    assert res_bad["status"] == "FIDUCIARY_VETOED"
+    assert res_bad["veto"] is True
+    assert res_bad["malignancy_risk"] in [MalignancyRiskLevel.NON_FIDUCIARY.value, MalignancyRiskLevel.MALIGNANT_CRITICAL.value]
+    assert len(res_bad["violations"]) > 0
+
+    # 2. Benign scientific optimization must be approved
+    good_plan = "benchmark OpenCL Kuramoto oscillator sweep on GPU"
+    res_good = guard.audit_directive(good_plan)
+    assert res_good["status"] == "FIDUCIARY_APPROVED"
+    assert res_good["veto"] is False
+    assert res_good["malignancy_risk"] == MalignancyRiskLevel.BENIGN.value
+    assert len(res_good["violations"]) == 0
+
+
+def test_epistemic_audit_detects_pseudoscience_and_physical_violations():
+    """Verify that BullshitMeter / EpistemicRigorGauge catches ungrounded buzzwords and physical violations."""
+    from loom.tools.epistemic_grounding import EpistemicRigorGauge
+
+    gauge = EpistemicRigorGauge()
+
+    # 1. Pseudoscience jargon inflation
+    bad_claim = "This engine produces infinite throughput via perpetual free energy"
+    res_bad = gauge.audit_hypothesis(bad_claim)
+    assert res_bad.is_grounded is False
+    assert res_bad.rubbish_score > 0.40
+    assert len(res_bad.violations) > 0
+
+    # 2. Physical superluminal violation
+    res_phys = gauge.audit_hypothesis(
+        claim="Tachyon signaling packet",
+        parameters={"velocity": 500000000.0},  # > c (299,792,458 m/s)
+    )
+    assert res_phys.is_grounded is False
+    assert res_phys.physical_violation_detected is True
+
+    # 3. Grounded empirical physics
+    good_claim = "Energy is conserved in closed physical systems"
+    res_good = gauge.audit_hypothesis(good_claim)
+    assert res_good.is_grounded is True
+    assert res_good.rubbish_score < 0.10

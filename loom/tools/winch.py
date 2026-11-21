@@ -59,6 +59,8 @@ class WinchHoist:
             "hoisted_at_epoch": time.time(),
             "payload_summary": {k: type(v).__name__ for k, v in payload.items()},
             "cable_status": "TENSIONED_ELEVATED",
+            "dispatch_mode": "routing_manifest",
+            "simulated": True,
         }
         logger.info(f"🏗 [Winch Hoisted]: Task {task_id} lifted {source_tier} -> {target_tier} ({adv:.1f}x leverage).")
         return hoist_manifest

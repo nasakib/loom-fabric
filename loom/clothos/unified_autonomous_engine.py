@@ -355,10 +355,23 @@ class ClothOSUnifiedAutonomousEngine:
         except Exception:
             node2_data = {"online": False}
 
+        try:
+            import psutil
+            host_ram_gb = round(psutil.virtual_memory().total / (1024**3), 2)
+        except Exception:
+            host_ram_gb = 39.87
+
+        measured_pooled = round(
+            host_ram_gb + (31.33 if node2_data.get("online") else 0.0),
+            2
+        )
+
         return {
             "device_count": len(prof.accelerators) + 1,
             "total_vram_gb": mesh_status.get("cluster_total_vram_gb", 20.0),
-            "pooled_memory_gb": mesh_status.get("total_pooled_memory_gb", 103.5),
+            "pooled_memory_gb": mesh_status.get("total_pooled_memory_gb", measured_pooled),
+            "host_physical_ram_gb": host_ram_gb,
+            "theoretical_pooled_capacity_gb": 103.5,
             "node2_peer": node2_data,
         }
 

@@ -126,14 +126,27 @@ class ClothOSPosixSubsystem:
         )
         cloth_fs.write_file("/proc/cpuinfo", cpu_info.encode("utf-8"))
 
-        # /proc/meminfo
+        # /proc/meminfo (Dynamic hardware memory metrology)
+        try:
+            import psutil
+            v = psutil.virtual_memory()
+            mem_total_kb = int(v.total / 1024)
+            mem_free_kb = int(v.available / 1024)
+            buffers_kb = int(getattr(v, "buffers", 0) / 1024) if hasattr(v, "buffers") else 1048576
+            cached_kb = int(getattr(v, "cached", 0) / 1024) if hasattr(v, "cached") else 8388608
+        except Exception:
+            mem_total_kb = 41808000
+            mem_free_kb = 16384000
+            buffers_kb = 1048576
+            cached_kb = 8388608
+
         mem_info = (
-            "MemTotal:       108527616 kB\n"  # 103.5 GB Pooled Memory
-            "MemFree:         75497472 kB\n"
-            "MemAvailable:    88080384 kB\n"
-            "Buffers:          1048576 kB\n"
-            "Cached:          12582912 kB\n"
-            "SwapTotal:              0 kB\n"
+            f"MemTotal:       {mem_total_kb:10d} kB\n"
+            f"MemFree:        {mem_free_kb:10d} kB\n"
+            f"MemAvailable:   {mem_free_kb:10d} kB\n"
+            f"Buffers:        {buffers_kb:10d} kB\n"
+            f"Cached:         {cached_kb:10d} kB\n"
+            f"SwapTotal:               0 kB\n"
         )
         cloth_fs.write_file("/proc/meminfo", mem_info.encode("utf-8"))
 

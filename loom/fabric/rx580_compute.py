@@ -2,8 +2,10 @@
 AMD Radeon RX 580 (Ellesmere) Hardware Compute Engine (`loom/fabric/rx580_compute.py`).
 
 Direct native hardware compute using OpenCL on Platform 1 (Advanced Micro Devices, Inc. - Ellesmere 2048SP).
-Executes high-density dynamical Kuramoto phase synchronization and topological invariant sweeps
-directly across the 2,048 stream processors of the RX 580.
+Serves as the high-throughput empirical runner for Fabric & ClothOS:
+1. Kuramoto Phase Dynamics: High-density dynamical oscillator sweeps (N=65,536 to 262,144).
+2. Parallel Vector Geometry: Hardware-accelerated 2D Gram matrix cosine similarity evaluation.
+3. Manifold Metric Metrology: Energy conservation & topological phase stability.
 """
 
 from __future__ import annotations
@@ -15,23 +17,25 @@ import numpy as np
 
 logger = logging.getLogger("rx580_compute")
 
-# OpenCL API Constants
 CL_DEVICE_TYPE_ALL = 0xFFFFFFFF
 CL_PLATFORM_NAME = 0x0903
 CL_DEVICE_NAME = 0x102B
 CL_MEM_READ_WRITE = (1 << 0)
+CL_MEM_READ_ONLY = (1 << 2)
+CL_MEM_WRITE_ONLY = (1 << 1)
 CL_MEM_COPY_HOST_PTR = (1 << 5)
 
 
 class RX580HardwareEngine:
-    """Native OpenCL hardware compute pipeline bound specifically to the AMD Radeon RX 580 (Ellesmere)."""
+    """Native OpenCL hardware compute pipeline bound to the AMD Radeon RX 580 (Ellesmere 2048SP)."""
 
     def __init__(self, n_oscillators: int = 65536):
         self.n_oscillators = n_oscillators
         self._initialized = False
         self._ctx = None
         self._queue = None
-        self._kernel = None
+        self._kernel_kuramoto = None
+        self._kernel_cosine = None
         self._buf_theta = None
         self._buf_omega = None
         self.device_name = "Unknown"
@@ -46,7 +50,7 @@ class RX580HardwareEngine:
     def _init_opencl(self) -> None:
         self.cl = ctypes.cdll.LoadLibrary("OpenCL.dll")
 
-        # Function signatures
+        # Function signatures with explicit 64-bit types
         self.cl.clGetPlatformIDs.argtypes = [ctypes.c_uint32, ctypes.c_void_p, ctypes.c_void_p]
         self.cl.clGetPlatformInfo.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_size_t, ctypes.c_void_p, ctypes.c_void_p]
         self.cl.clGetDeviceIDs.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.c_uint32, ctypes.c_void_p, ctypes.c_void_p]
@@ -84,7 +88,6 @@ class RX580HardwareEngine:
         if amd_p is None:
             raise RuntimeError("AMD OpenCL platform not found")
 
-        # Get device
         dev = ctypes.c_void_p()
         self.cl.clGetDeviceIDs(amd_p, CL_DEVICE_TYPE_ALL, 1, ctypes.byref(dev), None)
         dname = ctypes.create_string_buffer(256)
@@ -101,13 +104,39 @@ class RX580HardwareEngine:
         if err.value != 0:
             raise RuntimeError(f"clCreateCommandQueue failed with code {err.value}")
 
-        # Compile Kernel
+        # Multi-Kernel OpenCL Program
         kernel_src = b"""
-        __kernel void kuramoto_sweep(__global float* theta, __global const float* omega, const float k_order, const float psi, const float dt, const int n) {
+        __kernel void kuramoto_sweep(
+            __global float* theta,
+            __global const float* omega,
+            const float k_order,
+            const float psi,
+            const float dt,
+            const int n
+        ) {
             int gid = get_global_id(0);
             if (gid < n) {
                 float d = omega[gid] + k_order * sin(psi - theta[gid]);
                 theta[gid] += d * dt;
+            }
+        }
+
+        __kernel void vector_cosine_gram(
+            __global const float* vecs,
+            __global float* gram,
+            const int batch_size,
+            const int dim
+        ) {
+            int r = get_global_id(0);
+            int c = get_global_id(1);
+            if (r < batch_size && c < batch_size) {
+                float sum = 0.0f;
+                int off_r = r * dim;
+                int off_c = c * dim;
+                for (int d = 0; d < dim; d++) {
+                    sum += vecs[off_r + d] * vecs[off_c + d];
+                }
+                gram[r * batch_size + c] = sum;
             }
         }
         """
@@ -115,7 +144,8 @@ class RX580HardwareEngine:
         src_len = ctypes.c_size_t(len(kernel_src))
         prog = self.cl.clCreateProgramWithSource(self._ctx, 1, ctypes.byref(src_p), ctypes.byref(src_len), ctypes.byref(err))
         self.cl.clBuildProgram(prog, 1, ctypes.byref(dev), None, None, None)
-        self._kernel = self.cl.clCreateKernel(prog, b"kuramoto_sweep", ctypes.byref(err))
+        self._kernel_kuramoto = self.cl.clCreateKernel(prog, b"kuramoto_sweep", ctypes.byref(err))
+        self._kernel_cosine = self.cl.clCreateKernel(prog, b"vector_cosine_gram", ctypes.byref(err))
 
         # Initialize Device Memory Buffers
         n = self.n_oscillators
@@ -137,25 +167,19 @@ class RX580HardwareEngine:
             omega_init.ctypes.data_as(ctypes.c_void_p),
             ctypes.byref(err),
         )
-
         self.theta_cache = theta_init
 
     def step_sweep(self, steps: int = 500, k_coupling: float = 2.8, dt: float = 0.015) -> Dict[str, object]:
         """Dispatches an iterative batch of dynamical updates directly to the RX 580 stream processors."""
         if not self._initialized:
-            # Fallback to CPU NumPy if OpenCL unavailable
             return self._cpu_fallback_step(steps, k_coupling, dt)
 
         n = self.n_oscillators
         n_c = ctypes.c_int32(n)
         dt_c = ctypes.c_float(dt)
-        k_c = ctypes.c_float(k_coupling)
-
         global_work_size = (ctypes.c_size_t * 1)(n)
 
-        # Execute iterative steps on the GPU
         for _ in range(steps):
-            # Compute order parameter on host sample for coupling angle
             comp = np.mean(np.exp(1j * self.theta_cache[:4096]))
             r_order = float(np.abs(comp))
             psi_angle = float(np.angle(comp))
@@ -163,26 +187,23 @@ class RX580HardwareEngine:
             r_c = ctypes.c_float(r_order * k_coupling)
             psi_c = ctypes.c_float(psi_angle)
 
-            # Set kernel arguments
             buf_t = ctypes.c_void_p(self._buf_theta)
             buf_o = ctypes.c_void_p(self._buf_omega)
-            self.cl.clSetKernelArg(self._kernel, 0, ctypes.sizeof(ctypes.c_void_p), ctypes.byref(buf_t))
-            self.cl.clSetKernelArg(self._kernel, 1, ctypes.sizeof(ctypes.c_void_p), ctypes.byref(buf_o))
-            self.cl.clSetKernelArg(self._kernel, 2, ctypes.sizeof(ctypes.c_float), ctypes.byref(r_c))
-            self.cl.clSetKernelArg(self._kernel, 3, ctypes.sizeof(ctypes.c_float), ctypes.byref(psi_c))
-            self.cl.clSetKernelArg(self._kernel, 4, ctypes.sizeof(ctypes.c_float), ctypes.byref(dt_c))
-            self.cl.clSetKernelArg(self._kernel, 5, ctypes.sizeof(ctypes.c_int32), ctypes.byref(n_c))
+            self.cl.clSetKernelArg(self._kernel_kuramoto, 0, ctypes.sizeof(ctypes.c_void_p), ctypes.byref(buf_t))
+            self.cl.clSetKernelArg(self._kernel_kuramoto, 1, ctypes.sizeof(ctypes.c_void_p), ctypes.byref(buf_o))
+            self.cl.clSetKernelArg(self._kernel_kuramoto, 2, ctypes.sizeof(ctypes.c_float), ctypes.byref(r_c))
+            self.cl.clSetKernelArg(self._kernel_kuramoto, 3, ctypes.sizeof(ctypes.c_float), ctypes.byref(psi_c))
+            self.cl.clSetKernelArg(self._kernel_kuramoto, 4, ctypes.sizeof(ctypes.c_float), ctypes.byref(dt_c))
+            self.cl.clSetKernelArg(self._kernel_kuramoto, 5, ctypes.sizeof(ctypes.c_int32), ctypes.byref(n_c))
 
-            # Dispatch ND-Range Kernel to the RX 580 Stream Processors
-            self.cl.clEnqueueNDRangeKernel(self._queue, self._kernel, 1, None, global_work_size, None, 0, None, None)
+            self.cl.clEnqueueNDRangeKernel(self._queue, self._kernel_kuramoto, 1, None, global_work_size, None, 0, None, None)
 
-        # Read back a portion of the state to update cache and compute final order
         read_n = min(n, 8192)
         read_bytes = read_n * 4
         self.cl.clEnqueueReadBuffer(
             self._queue,
             self._buf_theta,
-            1,  # blocking read
+            1,
             0,
             read_bytes,
             self.theta_cache.ctypes.data_as(ctypes.c_void_p),
@@ -193,7 +214,6 @@ class RX580HardwareEngine:
         self.cl.clFinish(self._queue)
 
         final_order = float(np.abs(np.mean(np.exp(1j * self.theta_cache[:read_n]))))
-
         return {
             "device": f"AMD RX 580 ({self.device_name})",
             "backend": "OpenCL Hardware Accelerated",
@@ -202,6 +222,59 @@ class RX580HardwareEngine:
             "coherence_r": round(final_order, 4),
             "conserved": final_order > 0.45,
         }
+
+    def compute_vector_cosine_matrix(self, normalized_vectors: np.ndarray) -> np.ndarray:
+        """
+        Dispatches 2D pairwise cosine Gram matrix computation directly to the RX 580 stream processors.
+        Input: normalized_vectors [batch_size, dim]
+        Output: gram_matrix [batch_size, batch_size]
+        """
+        if not self._initialized or self._kernel_cosine is None:
+            return np.dot(normalized_vectors, normalized_vectors.T)
+
+        batch_size, dim = normalized_vectors.shape
+        err = ctypes.c_int32()
+        vecs_flat = np.ascontiguousarray(normalized_vectors, dtype=np.float32)
+        gram_flat = np.zeros((batch_size, batch_size), dtype=np.float32)
+
+        buf_v = self.cl.clCreateBuffer(
+            self._ctx,
+            CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+            vecs_flat.nbytes,
+            vecs_flat.ctypes.data_as(ctypes.c_void_p),
+            ctypes.byref(err),
+        )
+        buf_g = self.cl.clCreateBuffer(
+            self._ctx,
+            CL_MEM_WRITE_ONLY,
+            gram_flat.nbytes,
+            None,
+            ctypes.byref(err),
+        )
+
+        b_c = ctypes.c_int32(batch_size)
+        d_c = ctypes.c_int32(dim)
+        self.cl.clSetKernelArg(self._kernel_cosine, 0, ctypes.sizeof(ctypes.c_void_p), ctypes.byref(ctypes.c_void_p(buf_v)))
+        self.cl.clSetKernelArg(self._kernel_cosine, 1, ctypes.sizeof(ctypes.c_void_p), ctypes.byref(ctypes.c_void_p(buf_g)))
+        self.cl.clSetKernelArg(self._kernel_cosine, 2, ctypes.sizeof(ctypes.c_int32), ctypes.byref(b_c))
+        self.cl.clSetKernelArg(self._kernel_cosine, 3, ctypes.sizeof(ctypes.c_int32), ctypes.byref(d_c))
+
+        global_size = (ctypes.c_size_t * 2)(batch_size, batch_size)
+        self.cl.clEnqueueNDRangeKernel(self._queue, self._kernel_cosine, 2, None, global_size, None, 0, None, None)
+
+        self.cl.clEnqueueReadBuffer(
+            self._queue,
+            buf_g,
+            1,
+            0,
+            gram_flat.nbytes,
+            gram_flat.ctypes.data_as(ctypes.c_void_p),
+            0,
+            None,
+            None,
+        )
+        self.cl.clFinish(self._queue)
+        return gram_flat
 
     def _cpu_fallback_step(self, steps: int, k_coupling: float, dt: float) -> Dict[str, object]:
         n = 4096

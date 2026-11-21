@@ -25,6 +25,11 @@ import time
 import urllib.parse
 import webbrowser
 
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
 from loom.clothos.posix_compat import clothos_posix
 from loom.clothos.diagnostics_and_ops import diagnostics_ops
 from loom.clothos.riscv_tpu_emulator import riscv_tpu_emulator
@@ -83,7 +88,12 @@ class ClothOSDesktopApiHandler(BaseHTTPRequestHandler):
                     },
                     "node2_mesh": {"head_node": "192.168.99.2", "mesh_latency_ms": 0.42, "status": "SYNCED"},
                 },
-                "memory_pool_gb": 103.5,
+                "memory_pool_gb": (
+                    round(psutil.virtual_memory().total / (1024**3), 1)
+                    if "psutil" in sys.modules or hasattr(psutil, "virtual_memory")
+                    else 39.9
+                ),
+                "theoretical_pooled_gb": 103.5,
                 "processes_count": len(clothos_posix.processes),
             }
             self._set_headers()

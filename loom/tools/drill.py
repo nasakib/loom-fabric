@@ -47,6 +47,13 @@ class DrillInspector:
         prompt_len = len(prompt)
         est_tokens = max(1, prompt_len // 4)
 
+        # Dynamic host telemetry
+        try:
+            import psutil
+            host_free_mb = int(psutil.virtual_memory().available / (1024 * 1024))
+        except Exception:
+            host_free_mb = 16384
+
         layers: List[VerticalBoreholeLayer] = [
             VerticalBoreholeLayer(
                 layer_depth=0,
@@ -58,7 +65,7 @@ class DrillInspector:
                 layer_depth=1,
                 name="L1_Latent_Embedding",
                 subsystem="VectorForge 1536-dim Latent Space",
-                telemetry_state={"latent_dimensions": 1536, "embedding_manifold": "orthogonalized", "entropy_loss": 0.024},
+                telemetry_state={"latent_dimensions": 1536, "embedding_manifold": "orthogonalized", "entropy_loss": round(min(1.0, 1.0 / (est_tokens + 1)), 4)},
             ),
             VerticalBoreholeLayer(
                 layer_depth=2,
@@ -70,17 +77,20 @@ class DrillInspector:
                 layer_depth=3,
                 name="L3_Physical_Silicon_VRAM",
                 subsystem="Dual-Node Hardware Mesh",
-                telemetry_state={"gpu0_vram_free_mb": 11200, "gpu1_vram_free_mb": 7800, "host_ram_free_mb": 54200},
+                telemetry_state={"gpu0_vram_free_mb": 11200, "gpu1_vram_free_mb": 7800, "host_ram_free_mb": host_free_mb},
             ),
             VerticalBoreholeLayer(
                 layer_depth=4,
                 name="L4_Bare_Metal_Silicon_CSR",
                 subsystem="ClothOS RISC-V Enclave",
                 telemetry_state={
-                    "csr_pmp_0x9b": "0x9B (NAPOT L+R+X)",
+                    "pmp_csr": "pmpcfg0 (CSR 0x3A0)",
+                    "pmpcfg_byte": "0x9D (NAPOT L+R+X)",
+                    "csr_pmp_0x9b": "0x9D (NAPOT L+R+X)",  # backward compat alias
                     "vlen_bits": 512,
                     "isa": "rv64imafdcv_zicsr_zifencei_zfh",
                     "air_gap_verified": True,
+                    "simulated": True,
                 },
             ),
         ]
@@ -91,6 +101,7 @@ class DrillInspector:
             "depth_layers_count": len(layers),
             "layers": [l.model_dump() for l in layers],
             "silicon_enclave_reached": True,
+            "simulated": True,
         }
 
     def probe_proof_depth(self, axiom_id: str, max_depth: int = 6) -> Dict[str, Any]:

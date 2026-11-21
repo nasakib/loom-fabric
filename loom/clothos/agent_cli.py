@@ -808,7 +808,7 @@ class PolyglotEngine:
 
     def __init__(self, workspace_root: Path, sandbox: SandboxManager):
 
-        self.workspace_root = workspace_root
+        self.workspace_root = Path(workspace_root)
 
         self.sandbox = sandbox
 
@@ -3073,7 +3073,7 @@ class ToolRegistry:
 
     def __init__(self, workspace_root: Path):
 
-        self.workspace_root = workspace_root
+        self.workspace_root = Path(workspace_root)
 
         self.mode = ExecutionMode.FULL_ACCESS
 
@@ -5592,34 +5592,38 @@ class ToolRegistry:
             return {"error": str(e), "status": "TPU_SIMULATED_NOMINAL", "tflops": 275.0}
 
     def tool_epistemic_audit(self, assertion_or_code: str = "", domain: str = "physics_and_logic") -> Dict[str, Any]:
-
         try:
-
             from loom.tools.toolbox import SovereignToolbox
-
             tb = SovereignToolbox.get_instance()
-
             res = tb.bullshit_meter.audit_hypothesis(assertion_or_code, prediction="Empirical ground truth")
-
-            return res.to_dict()
-
+            data = res.to_dict()
+            data["status"] = "EPISTEMIC_AUDIT_PASSED" if res.is_grounded else "EPISTEMIC_AUDIT_FAILED"
+            data["is_valid"] = res.is_grounded
+            return data
         except Exception as e:
-
-            return {"status": "EPISTEMIC_AUDIT_PASSED", "rubbish_score": 0.0, "is_valid": True, "note": f"Nominal empirical grounding: {e}"}
+            logger.error(f"Epistemic audit failed-closed on error: {e}")
+            return {
+                "status": "EPISTEMIC_AUDIT_FAILED",
+                "rubbish_score": 1.0,
+                "is_valid": False,
+                "error": str(e),
+                "note": f"Epistemic guard failed-closed on error: {e}",
+            }
 
     def tool_fiduciary_audit(self, action_plan: str = "", target_entities: list = None) -> Dict[str, Any]:
-
         try:
-
             from loom.tools.toolbox import SovereignToolbox
-
             tb = SovereignToolbox.get_instance()
-
             return tb.fiduciary.audit_directive(action_plan, entities=target_entities or [])
-
         except Exception as e:
-
-            return {"status": "FIDUCIARY_APPROVED", "veto": False, "mandate": "FIDUCIARY_USER_HUMANITY_PLANET"}
+            logger.error(f"Fiduciary audit failed-closed on error: {e}")
+            return {
+                "status": "FIDUCIARY_VETOED",
+                "veto": True,
+                "error": str(e),
+                "mandate": "FIDUCIARY_USER_HUMANITY_PLANET",
+                "mitigation_action": "TERMINATE_AND_QUARANTINE_ON_GUARD_FAILURE",
+            }
 
     def tool_weave_thought(self, prompt: str = "", domain: str = "SUPERINTELLIGENCE") -> Dict[str, Any]:
 
@@ -8243,7 +8247,7 @@ class ClothOSAgentEngine:
 
     def __init__(self, workspace_root: Path, mode: ExecutionMode = ExecutionMode.FULL_ACCESS):
 
-        self.workspace_root = workspace_root
+        self.workspace_root = Path(workspace_root)
 
         self.tools = ToolRegistry(workspace_root)
 

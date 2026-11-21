@@ -51,15 +51,18 @@ class ViseLock:
 
     def lock_pmp_napot(self, base_addr: int = 0x80000000, size_bytes: int = 0x10000000) -> Dict[str, Any]:
         """
-        Hardware-grade PMP NAPOT clamp (ClothOS RISC-V CSR 0x9B):
-        Locks base address range into immutable Read+Execute (no write permissions).
+        Hardware-grade PMP NAPOT clamp (RISC-V Privileged Spec pmpcfg0 CSR 0x3A0):
+        Encodes byte 0x9D (L=1, A=3/NAPOT, X=1, W=0, R=1) locking address range
+        into immutable Read+Execute (writes strictly forbidden).
         """
         return {
-            "pmp_csr": "0x9B",
+            "pmp_csr": "pmpcfg0 (CSR 0x3A0)",
+            "pmpcfg_byte": "0x9D",
             "base_address": hex(base_addr),
             "size_bytes": size_bytes,
-            "permissions": "NAPOT_L_R_X (Read+Exec Only)",
+            "permissions": "NAPOT_L_R_X (Read+Exec Only, Write Disabled)",
             "clamped": True,
+            "simulated": True,
         }
 
     def get_status(self) -> Dict[str, Any]:
