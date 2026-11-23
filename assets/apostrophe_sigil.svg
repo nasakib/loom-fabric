@@ -1,136 +1,205 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <!-- Background Gradient -->
-    <radialGradient id="bgGlow" cx="50%" cy="50%" r="60%">
-      <stop offset="0%" stop-color="#141E33" />
-      <stop offset="60%" stop-color="#0B0F19" />
-      <stop offset="100%" stop-color="#05070B" />
+    <!-- Deep Imperial Night Velvet Purple Background -->
+    <radialGradient id="purpleVelvetBg" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#280C4D" />
+      <stop offset="45%" stop-color="#15052A" />
+      <stop offset="75%" stop-color="#0D031A" />
+      <stop offset="100%" stop-color="#06010D" />
     </radialGradient>
 
-    <!-- Champion Gold Metallic Gradient -->
-    <linearGradient id="goldMetallic" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FDE68A" />
-      <stop offset="30%" stop-color="#F59E0B" />
-      <stop offset="70%" stop-color="#D97706" />
-      <stop offset="100%" stop-color="#B45309" />
+    <!-- Pristine Alabaster White & Silver Marble Gradient -->
+    <linearGradient id="alabasterWhite" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="35%" stop-color="#FAF5FF" />
+      <stop offset="70%" stop-color="#E9D5FF" />
+      <stop offset="100%" stop-color="#D8B4FE" />
     </linearGradient>
 
-    <!-- Electric Cyan Gradient for Sovereign Compute Core -->
-    <linearGradient id="cyanCore" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#0077FE" />
-      <stop offset="50%" stop-color="#00D2FE" />
-      <stop offset="100%" stop-color="#38BDF8" />
+    <!-- Royal Tyrian Purple Accent Gradient -->
+    <linearGradient id="tyrianPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C084FC" />
+      <stop offset="40%" stop-color="#9333EA" />
+      <stop offset="80%" stop-color="#6B21A8" />
+      <stop offset="100%" stop-color="#3B0764" />
     </linearGradient>
 
-    <!-- Platinum Accent Gradient -->
-    <linearGradient id="platinumGleam" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9" />
-      <stop offset="50%" stop-color="#94A3B8" stop-opacity="0.4" />
-      <stop offset="100%" stop-color="#475569" stop-opacity="0.8" />
+    <!-- Deep Monastic Violet Shadow Gradient -->
+    <linearGradient id="deepVioletCore" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3B0764" />
+      <stop offset="50%" stop-color="#1E0538" />
+      <stop offset="100%" stop-color="#0F021D" />
     </linearGradient>
 
-    <!-- Drop Shadow Filter for Floating Depth -->
-    <filter id="sigilShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.65" />
-      <feDropShadow dx="0" dy="0" stdDeviation="24" flood-color="#00F0FF" flood-opacity="0.25" />
+    <!-- Divine Starlight Pure White Glow -->
+    <linearGradient id="starlightCore" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#C084FC" />
+      <stop offset="30%" stop-color="#E9D5FF" />
+      <stop offset="70%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#FFFFFF" />
+    </linearGradient>
+
+    <!-- Ethereal Purple Halo Aureole -->
+    <radialGradient id="sacredHalo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#C084FC" stop-opacity="0.5" />
+      <stop offset="50%" stop-color="#9333EA" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#581C87" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- High-Luminance White Bloom Filter -->
+    <filter id="whiteBloom" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="glow1" />
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="glow2" />
+      <feMerge>
+        <feMergeNode in="glow1" />
+        <feMergeNode in="glow2" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
     </filter>
 
-    <filter id="coreGlow">
-      <feGaussianBlur stdDeviation="6" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    <filter id="sacredShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="22" flood-color="#000000" flood-opacity="0.85" />
+      <feDropShadow dx="0" dy="0" stdDeviation="28" flood-color="#A855F7" flood-opacity="0.35" />
     </filter>
   </defs>
 
-  <!-- Background Canvas -->
-  <rect width="512" height="512" rx="96" fill="url(#bgGlow)" />
-  <circle cx="256" cy="256" r="210" fill="none" stroke="#1E293B" stroke-width="1.5" stroke-dasharray="4 8" opacity="0.6" />
+  <!-- Deep Velvet Canvas -->
+  <rect width="512" height="512" rx="96" fill="url(#purpleVelvetBg)" />
 
-  <g filter="url(#sigilShadow)">
-    <!-- ========================================== -->
-    <!-- 1. THE TROPHY CUP & HANDLES                -->
-    <!-- Formed by dual mirrored Apostrophes (’)   -->
-    <!-- ========================================== -->
+  <!-- Sacred Geometry Ecclesiastical Rings -->
+  <circle cx="256" cy="245" r="215" fill="none" stroke="#581C87" stroke-width="1.5" opacity="0.5" />
+  <circle cx="256" cy="245" r="208" fill="none" stroke="#FAF5FF" stroke-width="0.8" stroke-dasharray="3 9" opacity="0.45" />
+  <circle cx="256" cy="245" r="182" fill="none" stroke="#7E22CE" stroke-width="1.2" opacity="0.35" />
 
-    <!-- Left Trophy Handle / Outer Apostrophe Sweeps -->
-    <path d="M 176 130 
-             C 110 130 90 210 110 270 
-             C 125 315 165 345 200 350
-             C 170 330 150 290 145 260
-             C 140 230 150 170 185 155
-             C 192 152 186 130 176 130 Z" 
-          fill="url(#goldMetallic)" opacity="0.9" />
+  <!-- Monastic Cardinal Punctum Stars (Pure Alabaster) -->
+  <g fill="#FFFFFF" opacity="0.85">
+    <circle cx="256" cy="37" r="3" />
+    <circle cx="256" cy="453" r="3" />
+    <circle cx="48" cy="245" r="3" />
+    <circle cx="464" cy="245" r="3" />
+    <circle cx="109" cy="98" r="1.8" />
+    <circle cx="403" cy="98" r="1.8" />
+    <circle cx="109" cy="392" r="1.8" />
+    <circle cx="403" cy="392" r="1.8" />
+  </g>
 
-    <!-- Right Trophy Handle / Mirrored Apostrophe Sweeps -->
-    <path d="M 336 130 
-             C 402 130 422 210 402 270 
-             C 387 315 347 345 312 350
-             C 342 330 362 290 367 260
-             C 372 230 362 170 327 155
-             C 320 152 326 130 336 130 Z" 
-          fill="url(#goldMetallic)" opacity="0.9" />
+  <!-- Divine Aureole Behind the Chalice -->
+  <circle cx="256" cy="225" r="125" fill="url(#sacredHalo)" />
 
-    <!-- Trophy Central Chalice / Body Bowl -->
-    <path d="M 170 140
-             C 170 260 210 320 256 345
-             C 302 320 342 260 342 140
-             C 310 155 285 160 256 160
-             C 227 160 202 155 170 140 Z"
-          fill="url(#platinumGleam)" stroke="url(#goldMetallic)" stroke-width="3" />
+  <!-- Main Apostolic Reliquary & Trophy Structure -->
+  <g filter="url(#sacredShadow)">
 
-    <!-- Chalice Rim / Sovereign Crown Arc -->
-    <path d="M 160 140 Q 256 168 352 140 Q 256 125 160 140 Z"
-          fill="url(#goldMetallic)" />
+    <!-- ======================================================== -->
+    <!-- 1. APOSTOLIC CHALICE: DUAL MIRRORED APOSTROPHES (’)     -->
+    <!-- Crafted in Alabaster White with Royal Tyrian Shading    -->
+    <!-- ======================================================== -->
 
-    <!-- ========================================== -->
-    <!-- 2. THE FLOATING SOVEREIGN APOSTROPHE FLAME  -->
-    <!-- Grammatical 'Possession' & Compute Core   -->
-    <!-- ========================================== -->
-    <g filter="url(#coreGlow)">
-      <!-- Central Iconic Apostrophe (’) Flame of Ownership -->
-      <path d="M 256 180 
-               C 278 180 295 198 295 220 
-               C 295 245 275 270 252 295 
-               C 246 302 238 308 234 314
-               C 232 316 230 310 232 302
-               C 236 285 248 266 250 255
-               C 230 255 217 240 217 220
-               C 217 198 234 180 256 180 Z" 
-            fill="url(#cyanCore)" />
+    <!-- Left Chalice Handle / Outer Monastic Arc -->
+    <path d="M 175 125 
+             C 98 125 74 215 96 280 
+             C 114 330 160 360 200 365
+             C 168 342 142 298 136 265
+             C 130 230 142 165 182 150
+             C 190 147 186 125 175 125 Z" 
+          fill="url(#alabasterWhite)" 
+          stroke="url(#tyrianPurple)" 
+          stroke-width="2.5" />
 
-      <!-- Inner Radiant Hotspot -->
-      <circle cx="256" cy="216" r="14" fill="#FFFFFF" opacity="0.8" />
+    <!-- Right Chalice Handle / Mirrored Monastic Arc -->
+    <path d="M 337 125 
+             C 414 125 438 215 416 280 
+             C 398 330 352 360 312 365
+             C 344 342 370 298 376 265
+             C 382 230 370 165 330 150
+             C 322 147 326 125 337 125 Z" 
+          fill="url(#alabasterWhite)" 
+          stroke="url(#tyrianPurple)" 
+          stroke-width="2.5" />
+
+    <!-- Central Reliquary Chalice Bowl (Deep Velvet Interior with White Rim) -->
+    <path d="M 166 135
+             C 166 265 208 335 256 360
+             C 304 335 346 265 346 135
+             C 310 152 284 158 256 158
+             C 228 158 202 152 166 135 Z"
+          fill="url(#deepVioletCore)" 
+          stroke="url(#alabasterWhite)" 
+          stroke-width="3" />
+
+    <!-- Pure Alabaster Crown Rim -->
+    <path d="M 158 135 Q 256 166 354 135 Q 256 118 158 135 Z"
+          fill="url(#alabasterWhite)" />
+
+    <!-- Slender Silver Ribs on Bowl -->
+    <path d="M 215 156 C 218 240 236 300 256 335" fill="none" stroke="#D8B4FE" stroke-width="1.5" opacity="0.75" />
+    <path d="M 297 156 C 294 240 276 300 256 335" fill="none" stroke="#D8B4FE" stroke-width="1.5" opacity="0.75" />
+
+    <!-- ======================================================== -->
+    <!-- 2. THE SACRED APOSTROPHE FLAME: PURE STARLIGHT WHITE      -->
+    <!-- Symbolizing Sovereign Custody, Possession & Divine Truth-->
+    <!-- ======================================================== -->
+    <g filter="url(#whiteBloom)">
+      <!-- The Ascending Apostrophe (’) Flame in Pure Starlight White -->
+      <path d="M 256 170 
+               C 282 170 302 192 302 218 
+               C 302 248 278 276 250 306 
+               C 242 315 233 322 228 328
+               C 226 330 223 324 225 315
+               C 230 295 244 272 246 258
+               C 222 258 206 240 206 218
+               C 206 192 226 170 256 170 Z" 
+            fill="url(#starlightCore)" />
+
+      <!-- Luminous White Celestial Hotspot -->
+      <circle cx="256" cy="214" r="14" fill="#FFFFFF" />
+      <circle cx="256" cy="214" r="24" fill="#F5F3FF" opacity="0.6" />
+
+      <!-- Apex Apostolic Star of Truth -->
+      <polygon points="256,92 259,102 269,102 261,108 264,118 256,112 248,118 251,108 243,102 253,102" 
+               fill="#FFFFFF" />
     </g>
 
-    <!-- ========================================== -->
-    <!-- 3. THE STEM, KEYHOLE & OWNERSHIP PEDESTAL  -->
-    <!-- Symbolizing Sovereign Custody & Foundation -->
-    <!-- ========================================== -->
+    <!-- ======================================================== -->
+    <!-- 3. ALABASTER STEM, MONASTIC KNOT & APOSTOLIC SEAL PEDESTAL-->
+    <!-- ======================================================== -->
 
-    <!-- Trophy Stem -->
-    <path d="M 246 343 L 266 343 L 268 395 L 244 395 Z" 
-          fill="url(#goldMetallic)" />
+    <!-- Chalice Stem in Alabaster White -->
+    <path d="M 245 358 L 267 358 L 270 410 L 242 410 Z" 
+          fill="url(#alabasterWhite)" 
+          stroke="url(#tyrianPurple)" 
+          stroke-width="1.5" />
 
-    <!-- Stem Collar / Flange -->
-    <rect x="236" y="375" width="40" height="8" rx="4" fill="url(#platinumGleam)" />
+    <!-- Episcopal Amethyst Gemstone Ring on Stem -->
+    <rect x="233" y="380" width="46" height="10" rx="3" 
+          fill="url(#tyrianPurple)" 
+          stroke="#FFFFFF" 
+          stroke-width="1" />
 
-    <!-- Pedestal Base of Ownership -->
-    <path d="M 200 415 
-             L 220 395 
-             L 292 395 
-             L 312 415 
-             L 326 430
-             L 186 430 Z" 
-          fill="url(#goldMetallic)" />
+    <!-- Alabaster Altar Pedestal Steps -->
+    <!-- Step 1: Upper Bevel -->
+    <path d="M 206 422 
+             L 226 410 
+             L 286 410 
+             L 306 422 
+             L 322 436
+             L 190 436 Z" 
+          fill="url(#alabasterWhite)" 
+          stroke="url(#tyrianPurple)" 
+          stroke-width="1.5" />
 
-    <rect x="176" y="430" width="160" height="14" rx="4" fill="#1E293B" stroke="url(#goldMetallic)" stroke-width="2" />
+    <!-- Step 2: Foundation Plinth in Royal Purple & Pure White Edge -->
+    <rect x="170" y="436" width="172" height="18" rx="4" 
+          fill="#1E0538" 
+          stroke="#FFFFFF" 
+          stroke-width="2.5" />
 
-    <!-- Ownership Keyhole Emblem on Pedestal Base -->
-    <!-- Represents the root of trust, private key, and possessive lock -->
-    <circle cx="256" cy="411" r="5" fill="#0B0F19" />
-    <polygon points="253,411 259,411 261,421 251,421" fill="#0B0F19" />
+    <!-- The Apostolic Keyhole of Ownership (Inlaid Alabaster White) -->
+    <!-- Represents sovereign private key custody & behind-the-meter anchor -->
+    <circle cx="256" cy="423" r="5.5" fill="#FFFFFF" />
+    <polygon points="253,423 259,423 262,434 250,434" fill="#FFFFFF" />
 
-    <!-- Subtle Victory Stars / Constellation Points -->
-    <polygon points="256,105 259,114 268,114 261,120 263,129 256,123 249,129 251,120 244,114 253,114" 
-             fill="#FDE68A" />
+    <!-- Lateral Sanctuary Punctum Marks -->
+    <circle cx="195" cy="445" r="2.5" fill="#FAF5FF" />
+    <circle cx="317" cy="445" r="2.5" fill="#FAF5FF" />
   </g>
 </svg>
