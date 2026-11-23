@@ -1,8 +1,8 @@
-# APOSTROPHIE INC.
+# APOSTROPHE INC.
 ## The Sovereign Compute Utility: Turning Stranded Energy into Distributed AI Infrastructure
 ### Institutional Series A Pitch Deck & Capital Formation Strategy
 
-**Operating Entity (OpCo):** Apostrophie Inc.  
+**Operating Entity (OpCo):** Apostrophe Inc.  
 **Sovereign HoldCo & IP Repository:** Vector Core Holdings, LLC  
 **Founder & Sovereign Architect (Ring P0):** Najmos Sakib  
 **Target Counterparty:** Paul Clough, Senior Vice President of Capital Markets, The Post Oak Group  
@@ -18,16 +18,16 @@ Artificial intelligence and high-performance computing are colliding with the th
 
 Simultaneously, renewable power producers across ERCOT and West Texas face severe **negative pricing and grid curtailment** because physical high-voltage lines cannot transmit stranded daytime solar and nighttime wind to urban load centers.
 
-**Apostrophie** is the cyber-physical solution: a vertically integrated compute utility that turns **stranded energy directly into sovereign, high-margin AI compute**.
+**Apostrophe** is the cyber-physical solution: a vertically integrated compute utility that turns **stranded energy directly into sovereign, high-margin AI compute**.
 
-Instead of pitching fragmented software tools, Apostrophie presents **a single, vertically integrated biological computing platform** structured across three anatomical layers:
+Instead of pitching fragmented software tools, Apostrophe presents **a single, vertically integrated biological computing platform** structured across three anatomical layers:
 1. **The Physical Body (ClothOS / Loom Fabric):** Orchestrates heterogeneous silicon (NVIDIA CUDA, AMD Vulkan, Apple Metal, RISC-V) directly at the power generation site and across leased dark fiber.
 2. **The Brain & Connectome (BabelForge / Typemetric-JIT / ujit):** Mathematical compiler enforcing Kuramoto phase synchronization, metric $k$-center geometric diversity, and sub-0.1ms JIT kernel synthesis to eliminate clock drift and cache thrashing.
 3. **The Economic Nervous System (Spotlight-Local):** Microsecond gas settlement ($1.00 = 1,000 gas units) that pays 99.0% net revenue to compute hosts while capturing a 1.0% platform gas tax into an Autonomous Infrastructure Reserve that programmatically pays for physical dark fiber leases.
 
 ---
 
-## Corporate Governance: The Apostrophie Structure
+## Corporate Governance: The Apostrophe Structure
 
 To give institutional investors clean legal comfort while protecting foundational IP and sovereign control:
 
@@ -35,7 +35,7 @@ To give institutional investors clean legal comfort while protecting foundationa
 flowchart TD
     Founder["Najmos Sakib (Ring P0 Sovereign Root of Trust)"]
     HoldCo["Vector Core Holdings, LLC (HoldCo / IP Repository)<br/>• 100% Core Patents & Trademarks<br/>• Kuramoto & Spectral Algorithms<br/>• sl_treasury_vectorcore_holdings (1% Tax Vault)"]
-    OpCo["APOSTROPHIE INC. (Commercial OpCo)<br/>• Worldwide Exclusive Operating License<br/>• Enterprise SaaS Contracts ($50k-$500k/yr)<br/>• Fabric Modem Hardware Sales<br/>• Spotlight-Local Gas Clearinghouse"]
+    OpCo["APOSTROPHE INC. (Commercial OpCo)<br/>• Worldwide Exclusive Operating License<br/>• Enterprise SaaS Contracts ($50k-$500k/yr)<br/>• Fabric Modem Hardware Sales<br/>• Spotlight-Local Gas Clearinghouse"]
     Investor["The Post Oak Group / Institutional Capital<br/>$20M Two-Tranche Investment Facility"]
 
     Founder -->|100% Voting / Governance| HoldCo
@@ -69,15 +69,15 @@ flowchart TD
 
 ---
 
-### Slide 2: The Solution â€” Apostrophie
+### Slide 2: The Solution â€” Apostrophe
 
 #### Headline
 **The Sovereign Compute Utility: Data Centers Without Concrete.**
 
 #### The Core Breakthrough
-Apostrophie deploys edge compute directly behind the meter at power generation substations, commercial buildings, and enterprise facilities. It interconnects distributed heterogeneous silicon via leased commercial dark fiber (operating at 4.897 Âµs/km).
+Apostrophe deploys edge compute directly behind the meter at power generation substations, commercial buildings, and enterprise facilities. It interconnects distributed heterogeneous silicon via leased commercial dark fiber (operating at 4.897 Âµs/km).
 
-#### The Anatomy of Apostrophie
+#### The Anatomy of Apostrophe
 ```mermaid
 graph TD
     subgraph Layer3["Layer 3: Economic Nervous System (Spotlight-Local)"]
@@ -132,7 +132,7 @@ Generic advisors caution against vertical integration because they confuse opera
 
 ```
 ┌──────────────────┬────────────────────────────────────────────────────────────┬───────────────────────────────────────┐
-│ System Layer     │ If You Use Off-the-Shelf Third Parties...                  │ Apostrophie's Vertically Integrated Advantage│
+│ System Layer     │ If You Use Off-the-Shelf Third Parties...                  │ Apostrophe's Vertically Integrated Advantage│
 ├──────────────────┼────────────────────────────────────────────────────────────┼───────────────────────────────────────┤
 │ Physical Silicon │ Tied to single-vendor NVIDIA price gouging & 52-week lead  │ Heterogeneous HAL: CUDA, AMD Vulkan,  │
 │ (ClothOS)        │ times.                                                     │ Apple Metal, and RISC-V unified.      │
@@ -145,7 +145,7 @@ Generic advisors caution against vertical integration because they confuse opera
 └──────────────────┴────────────────────────────────────────────────────────────┴───────────────────────────────────────┘
 ```
 
-> *â€œJust as Apple had to build Apple Silicon, macOS, and the App Store together to beat the PC, Apostrophie integrates the silicon abstraction, compiler math, and settlement rails to create an unbreakable moat.â€*
+> *â€œJust as Apple had to build Apple Silicon, macOS, and the App Store together to beat the PC, Apostrophe integrates the silicon abstraction, compiler math, and settlement rails to create an unbreakable moat.â€*
 
 ---
 
@@ -154,7 +154,7 @@ Generic advisors caution against vertical integration because they confuse opera
 #### Headline
 **Patented Mathematics That Turn Chaos into Coherence.**
 
-Distributing compute across heterogeneous chips (NVIDIA GPU + AMD APU + ARM CPU) normally crashes because chips run on different clocks and lose cache locality. Apostrophie solves this at the mathematical layer:
+Distributing compute across heterogeneous chips (NVIDIA GPU + AMD APU + ARM CPU) normally crashes because chips run on different clocks and lose cache locality. Apostrophe solves this at the mathematical layer:
 
 1. **Kuramoto Phase-Locking:**  
    Quantizes angular clock phases into dozenal base-12 integer steps. Nodes synchronize dynamically at $R > 0.85$, eliminating floating-point drift and network resync storms (3.1 ns reflex).
@@ -190,7 +190,7 @@ Distributing compute across heterogeneous chips (NVIDIA GPU + AMD APU + ARM CPU)
 ```
 
 - **Zero Telecom Debt:** Commercial dark fiber leases (Zayo, Crown Castle, UTOPIA) are funded by platform transaction flow, creating an expanding physical asset base with zero corporate debt.
-- **Host Loyalty:** Cloud providers take 50% to 75% of compute margins. Apostrophie delivers **99.0% net payouts** to silicon hosts, creating an unstoppable supply-side flywheel.
+- **Host Loyalty:** Cloud providers take 50% to 75% of compute margins. Apostrophe delivers **99.0% net payouts** to silicon hosts, creating an unstoppable supply-side flywheel.
 
 ---
 
@@ -222,7 +222,7 @@ Distributing compute across heterogeneous chips (NVIDIA GPU + AMD APU + ARM CPU)
      │  │ Stranded Renewable Energy Arbitrage ($45B TAM)   │  │
      │  │  ┌────────────────────────────────────────────┐  │  │
      │  │  │ Edge Infrastructure & Dark Fiber ($65B TAM)│  │  │
-     │  │  │    ★ APOSTROPHIE ADDRESSABLE WEDGE ($25B)   │  │  │
+     │  │  │    ★ APOSTROPHE ADDRESSABLE WEDGE ($25B)   │  │  │
      │  │  └────────────────────────────────────────────┘  │  │
      │  └──────────────────────────────────────────────────┘  │
      └────────────────────────────────────────────────────────┘
@@ -239,7 +239,7 @@ Distributing compute across heterogeneous chips (NVIDIA GPU + AMD APU + ARM CPU)
 #### Headline
 **The R&D Risk is Retired: Production Code, Not White Papers.**
 
-Unlike theoretical Web3 decentralized compute projects that lack low-level execution logic, Apostrophie's core engine is **already built and verified in production repositories**:
+Unlike theoretical Web3 decentralized compute projects that lack low-level execution logic, Apostrophe's core engine is **already built and verified in production repositories**:
 
 - **Automated Verification:** **59 comprehensive test suites** covering mathematical invariants, memory vaults, POSIX shims, and distributed runtime execution.
 - **Physical Heterogeneous Cluster Live:** 
@@ -269,7 +269,7 @@ Unlike theoretical Web3 decentralized compute projects that lack low-level execu
 | **Active Compute Nodes** | 100 | 750 | 3,500 | 12,000 | 45,000 |
 | **Power Under Management (MW)** | 0.5 MW | 3.5 MW | 18.0 MW | 65.0 MW | 240.0 MW |
 | **Gross Network Gas Volume** | $3.2M | $24.5M | $118.0M | $420.0M | $1,550.0M |
-| **Apostrophie Net Revenue** | **$1.2M** | **$7.8M** | **$34.2M** | **$112.5M** | **$395.0M** |
+| **Apostrophe Net Revenue** | **$1.2M** | **$7.8M** | **$34.2M** | **$112.5M** | **$395.0M** |
 | **Gross Margin (%)** | 78% | 81% | 84% | 86% | 88% |
 | **EBITDA** | ($1.8M) | $1.2M | $14.5M | $58.0M | $220.0M |
 
