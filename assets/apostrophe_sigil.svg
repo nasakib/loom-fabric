@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <!-- Deep Cosmic Void Background: Jovian Night & Galactic Center Rift -->
-    <radialGradient id="cosmicVoidBg" cx="50%" cy="45%" r="68%">
-      <stop offset="0%" stop-color="#220A45" />
-      <stop offset="30%" stop-color="#140428" />
-      <stop offset="65%" stop-color="#090214" />
-      <stop offset="100%" stop-color="#030006" />
+    <!-- Deep Cosmic Void Canvas Gradient -->
+    <radialGradient id="mathVoidBg" cx="50%" cy="45%" r="70%">
+      <stop offset="0%" stop-color="#1B0736" />
+      <stop offset="35%" stop-color="#0F031E" />
+      <stop offset="70%" stop-color="#07010E" />
+      <stop offset="100%" stop-color="#020005" />
     </radialGradient>
 
-    <!-- Jovian Imperial Violet Magnetosphere Gradient -->
-    <linearGradient id="jovianPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- Jovian Imperial Violet / Mathematical Gradient -->
+    <linearGradient id="mathPurple" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#FAF5FF" />
       <stop offset="20%" stop-color="#D8B4FE" />
       <stop offset="50%" stop-color="#9333EA" />
@@ -17,143 +17,220 @@
       <stop offset="100%" stop-color="#2E1065" />
     </linearGradient>
 
-    <!-- Alabaster Celestial Starlight Gradient -->
-    <linearGradient id="celestialStarlight" x1="0%" y1="0%" x2="0%" y2="100%">
+    <!-- Pure Alabaster Starlight Gradient -->
+    <linearGradient id="starlightWhite" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" stop-color="#FFFFFF" />
-      <stop offset="45%" stop-color="#FAF5FF" />
-      <stop offset="80%" stop-color="#E9D5FF" />
-      <stop offset="100%" stop-color="#C084FC" />
+      <stop offset="50%" stop-color="#F5F3FF" />
+      <stop offset="100%" stop-color="#DDD6FE" />
     </linearGradient>
 
-    <!-- Sagittarius A* Relativistic Accretion Disk / Photon Sphere Gradient -->
-    <radialGradient id="sgrAAccretion" cx="50%" cy="46%" r="50%">
+    <!-- Relativistic Accretion Gradient -->
+    <radialGradient id="accretionLensing" cx="50%" cy="46%" r="50%">
       <stop offset="0%" stop-color="#FFFFFF" />
       <stop offset="25%" stop-color="#FDF4FF" />
-      <stop offset="55%" stop-color="#D946EF" />
-      <stop offset="85%" stop-color="#7C3AED" />
+      <stop offset="60%" stop-color="#A855F7" />
+      <stop offset="85%" stop-color="#6B21A8" />
       <stop offset="100%" stop-color="#3B0764" stop-opacity="0" />
     </radialGradient>
 
-    <!-- Deep Event Horizon Black Hole Gradient (Schwarzschild Singularity) -->
-    <radialGradient id="eventHorizon" cx="50%" cy="48%" r="48%">
+    <!-- Event Horizon Singularity -->
+    <radialGradient id="singularityCore" cx="50%" cy="48%" r="48%">
       <stop offset="0%" stop-color="#000000" />
-      <stop offset="82%" stop-color="#08020F" />
-      <stop offset="96%" stop-color="#2E1065" />
+      <stop offset="80%" stop-color="#07010F" />
+      <stop offset="95%" stop-color="#2E1065" />
       <stop offset="100%" stop-color="#A855F7" />
     </radialGradient>
 
-    <!-- Jovian Auroral Storm Filter -->
-    <filter id="cosmicBloom" x="-35%" y="-35%" width="170%" height="170%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="glow1" />
-      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="glow2" />
+    <!-- Glow Filter for Vectors & Hotspots -->
+    <filter id="mathGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
       <feMerge>
-        <feMergeNode in="glow1" />
-        <feMergeNode in="glow2" />
+        <feMergeNode in="blur" />
         <feMergeNode in="SourceGraphic" />
       </feMerge>
     </filter>
 
-    <!-- Gravitational Lensing Shadow Filter -->
-    <filter id="gravitationalLensing" x="-25%" y="-25%" width="150%" height="150%">
-      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#000000" flood-opacity="0.95" />
-      <feDropShadow dx="0" dy="0" stdDeviation="32" flood-color="#9333EA" flood-opacity="0.4" />
+    <filter id="vectorDropShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="22" flood-color="#000000" flood-opacity="0.95" />
+      <feDropShadow dx="0" dy="0" stdDeviation="28" flood-color="#9333EA" flood-opacity="0.4" />
     </filter>
+
+    <!-- Marker definition for Vector Arrows -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#D8B4FE" />
+    </marker>
+    <marker id="arrowWhite" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FFFFFF" />
+    </marker>
   </defs>
 
-  <!-- ======================================================== -->
-  <!-- 1. DEEP SPACE CANVAS & SAGITTARIUS CONSTELLATION ASTERISM -->
-  <!-- ======================================================== -->
-  <rect width="512" height="512" rx="96" fill="url(#cosmicVoidBg)" />
+  <!-- Base Coordinate Surface -->
+  <rect width="512" height="512" rx="96" fill="url(#mathVoidBg)" />
 
-  <!-- Sagittarius "Teapot" & Archer's Bow Constellation Vector Lines (Faint Celestial Grids) -->
-  <g stroke="#9333EA" stroke-width="0.8" opacity="0.35" fill="none" stroke-dasharray="2 4">
-    <!-- The Archer's Bow (Kaus Borealis -> Kaus Media -> Kaus Australis) -->
-    <path d="M 125 150 L 155 210 L 140 280 L 115 340" />
-    <!-- The Arrow Path aiming directly toward Sagittarius A* Singularity (Center 256, 214) -->
-    <path d="M 85 245 L 235 220" stroke="#FAF5FF" stroke-width="1.2" stroke-dasharray="none" opacity="0.4" />
-    <!-- Teapot Handle and Lid lines -->
-    <path d="M 385 150 L 355 210 L 370 280 L 395 340" />
-    <path d="M 155 210 L 355 210" />
+  <!-- ======================================================== -->
+  <!-- 1. MATHEMATICAL TOPOLOGY: CARTESIAN & POLAR METRIC MESH  -->
+  <!-- ======================================================== -->
+
+  <!-- Coordinate Grid Lines (x, y axes & sub-divisions) -->
+  <g stroke="#3B0764" stroke-width="0.5" opacity="0.35">
+    <!-- Vertical coordinate lines -->
+    <line x1="64" y1="32" x2="64" y2="480" />
+    <line x1="128" y1="32" x2="128" y2="480" />
+    <line x1="192" y1="32" x2="192" y2="480" />
+    <line x1="320" y1="32" x2="320" y2="480" />
+    <line x1="384" y1="32" x2="384" y2="480" />
+    <line x1="448" y1="32" x2="448" y2="480" />
+
+    <!-- Horizontal coordinate lines -->
+    <line x1="32" y1="64" x2="480" y2="64" />
+    <line x1="32" y1="128" x2="480" y2="128" />
+    <line x1="32" y1="192" x2="480" y2="192" />
+    <line x1="32" y1="320" x2="480" y2="320" />
+    <line x1="32" y1="384" x2="480" y2="384" />
+    <line x1="32" y1="448" x2="480" y2="448" />
   </g>
 
-  <!-- Celestial Coordinate Orbital Meridian Rings -->
-  <circle cx="256" cy="245" r="220" fill="none" stroke="#3B0764" stroke-width="1.5" opacity="0.6" />
-  <circle cx="256" cy="245" r="212" fill="none" stroke="#FFFFFF" stroke-width="0.75" stroke-dasharray="4 10" opacity="0.4" />
-  <circle cx="256" cy="245" r="186" fill="none" stroke="#7E22CE" stroke-width="1.2" opacity="0.3" />
-
-  <!-- Constellation Major Stars (Nunki, Ascella, Kaus Australis, Kaus Borealis) -->
-  <g fill="#FFFFFF" opacity="0.9">
-    <!-- Kaus Borealis (Apex of Bow) -->
-    <circle cx="125" cy="150" r="3.2" filter="url(#cosmicBloom)" />
-    <!-- Nunki (Vane of the Arrow) -->
-    <circle cx="385" cy="150" r="3.2" filter="url(#cosmicBloom)" />
-    <!-- Kaus Australis (Base of Bow) -->
-    <circle cx="115" cy="340" r="2.8" />
-    <!-- Ascella -->
-    <circle cx="395" cy="340" r="2.8" />
-    <!-- Four Galilean Moon Puncta (Io, Europa, Ganymede, Callisto) orbiting Jovian horizon -->
-    <circle cx="256" cy="36" r="3.5" />
-    <circle cx="256" cy="454" r="3.5" />
-    <circle cx="46" cy="245" r="3" />
-    <circle cx="466" cy="245" r="3" />
+  <!-- Polar Coordinate Metric Rings centered on Sagittarius A* (256, 214) -->
+  <g stroke="#7E22CE" stroke-width="0.75" fill="none" opacity="0.45">
+    <circle cx="256" cy="214" r="50" stroke-dasharray="2 6" />
+    <circle cx="256" cy="214" r="100" stroke-dasharray="3 6" />
+    <circle cx="256" cy="214" r="150" stroke-dasharray="4 8" />
+    <circle cx="256" cy="214" r="200" stroke-dasharray="2 10" />
   </g>
 
-  <!-- Gravitational Lensing Relativistic Accretion Aura of Sagittarius A* -->
-  <circle cx="256" cy="218" r="135" fill="url(#sgrAAccretion)" opacity="0.8" />
+  <!-- Crosshairs on the Singularity (256, 214) -->
+  <g stroke="#A855F7" stroke-width="1" opacity="0.6">
+    <line x1="256" y1="190" x2="256" y2="175" />
+    <line x1="256" y1="238" x2="256" y2="253" />
+    <line x1="232" y1="214" x2="217" y2="214" />
+    <line x1="280" y1="214" x2="295" y2="214" />
+  </g>
+
+  <!-- Outer Precision Dial: 360° Angle Ticks & Radian Markers -->
+  <g stroke="#9333EA" stroke-width="1.2" opacity="0.6">
+    <!-- Cardinal Compass Ticks -->
+    <line x1="256" y1="32" x2="256" y2="42" />
+    <line x1="256" y1="470" x2="256" y2="480" />
+    <line x1="32" y1="245" x2="42" y2="245" />
+    <line x1="470" y1="245" x2="480" y2="245" />
+
+    <!-- 30° / 60° Precision Angle Ticks -->
+    <line x1="353" y1="88" x2="348" y2="97" />
+    <line x1="159" y1="88" x2="164" y2="97" />
+    <line x1="413" y1="148" x2="404" y2="153" />
+    <line x1="99" y1="148" x2="108" y2="153" />
+    <line x1="413" y1="342" x2="404" y2="337" />
+    <line x1="99" y1="342" x2="108" y2="337" />
+  </g>
 
   <!-- ======================================================== -->
-  <!-- 2. THE SOVEREIGN CHALICE & JOVIAN MAGNETOSPHERE WINGS    -->
-  <!-- Formed by dual sweeping mirrored Apostrophes (’)         -->
+  <!-- 2. VIETORIS-RIPS SIMPLICIAL GRAPH COMPLEX & VECTOR ARROWS -->
+  <!-- Constellation of Sagittarius Graph Topography            -->
   <!-- ======================================================== -->
-  <g filter="url(#gravitationalLensing)">
+  <g stroke="#C084FC" stroke-width="0.9" fill="none" opacity="0.5">
+    <!-- Simplicial Clique Edge Lines between Triangulated Nodes -->
+    <polygon points="120,150 155,210 135,280" stroke="#9333EA" stroke-dasharray="3 3" />
+    <polygon points="155,210 135,280 205,365" stroke="#9333EA" stroke-dasharray="3 3" />
+    <polygon points="392,150 357,210 377,280" stroke="#9333EA" stroke-dasharray="3 3" />
+    <polygon points="357,210 377,280 307,365" stroke="#9333EA" stroke-dasharray="3 3" />
 
-    <!-- Left Jovian Wing / Outer Apostrophe Sweeping Handle -->
+    <!-- Directional Trajectory Vector (The Archer's Arrow toward Singularity) -->
+    <line x1="75" y1="255" x2="215" y2="222" stroke="#FFFFFF" stroke-width="1.8" marker-end="url(#arrowWhite)" opacity="0.85" />
+    <line x1="437" y1="255" x2="297" y2="222" stroke="#FFFFFF" stroke-width="1.8" marker-end="url(#arrowWhite)" opacity="0.85" />
+
+    <!-- Metric Tangent Vectors along Chalice Rim -->
+    <path d="M 160 115 L 210 145" stroke="#D8B4FE" stroke-width="1.2" marker-end="url(#arrow)" />
+    <path d="M 352 115 L 302 145" stroke="#D8B4FE" stroke-width="1.2" marker-end="url(#arrow)" />
+  </g>
+
+  <!-- Graph Complex Topological Vertices / Nodes -->
+  <g fill="#FFFFFF">
+    <circle cx="120" cy="150" r="3" />
+    <circle cx="155" cy="210" r="2.5" />
+    <circle cx="135" cy="280" r="2.5" />
+    <circle cx="392" cy="150" r="3" />
+    <circle cx="357" cy="210" r="2.5" />
+    <circle cx="377" cy="280" r="2.5" />
+    <!-- Graph Node Labels (v1, v2, v3, v4) in monospace micro-text -->
+    <text x="105" y="145" fill="#D8B4FE" font-family="Courier New, monospace" font-size="8" opacity="0.8">v₁</text>
+    <text x="398" y="145" fill="#D8B4FE" font-family="Courier New, monospace" font-size="8" opacity="0.8">v₂</text>
+    <text x="75" y="270" fill="#FAF5FF" font-family="Courier New, monospace" font-size="8" opacity="0.8">∇Φ</text>
+  </g>
+
+  <!-- ======================================================== -->
+  <!-- 3. INSCRIBED MATHEMATICAL FORMULAS & INVARIANTS          -->
+  <!-- ======================================================== -->
+  <g fill="#E9D5FF" font-family="Courier New, monospace" opacity="0.65" text-anchor="middle">
+    <!-- Schwarzschild Metric & Gravitational Singularity Formula (Upper Arc) -->
+    <text x="256" y="58" font-size="9" letter-spacing="1.5">r_s = 2GM/c² • ds² = -(1 - r_s/r)c²dt² + (1 - r_s/r)⁻¹dr²</text>
+
+    <!-- Kuramoto Dynamical Phase-Locking Formula (Upper Mid Flanks) -->
+    <text x="125" y="98" font-size="7.5" transform="rotate(-18 125 98)">θ̇_i = ω_i + (K/N)Σ sin(θ_j - θ_i)</text>
+    <text x="387" y="98" font-size="7.5" transform="rotate(18 387 98)">R e^(iψ) = (1/N)Σ e^(iθ_j) [R &gt; 0.85]</text>
+
+    <!-- Metric Space Triangle Inequality & Gonzalez Sampling (Base Pedestal Flanks) -->
+    <text x="256" y="476" font-size="8.5" letter-spacing="1">d(u,v) ≤ d(u,w) + d(w,v) • R_gonzalez ≤ 2 · R_opt</text>
+    <text x="256" y="492" font-size="7.5" fill="#9333EA" letter-spacing="0.8">WHT: H_m = H₁ ⊗ H_m₋₁ • CHEBYSHEV: T_n(x) = cos(n arccos x)</text>
+  </g>
+
+  <!-- Accretion Relativistic Radiation Glow -->
+  <circle cx="256" cy="214" r="135" fill="url(#accretionLensing)" opacity="0.8" />
+
+  <!-- ======================================================== -->
+  <!-- 4. THE SOVEREIGN CHALICE & JOVIAN MAGNETOSPHERE WINGS    -->
+  <!-- Parametric Curves Evaluated with Golden Ratio φ = 1.618  -->
+  <!-- ======================================================== -->
+  <g filter="url(#vectorDropShadow)">
+
+    <!-- Left Jovian Wing Handle / Outer Parametric Apostrophe Arc -->
     <path d="M 174 122 
              C 96 122 72 214 94 280 
              C 112 332 158 362 198 367
              C 166 344 140 300 134 266
              C 128 230 140 164 180 148
              C 188 145 185 122 174 122 Z" 
-          fill="url(#celestialStarlight)" 
-          stroke="url(#jovianPurple)" 
+          fill="url(#starlightWhite)" 
+          stroke="url(#mathPurple)" 
           stroke-width="2.5" />
 
-    <!-- Right Jovian Wing / Mirrored Outer Apostrophe Sweeping Handle -->
+    <!-- Right Jovian Wing Handle / Mirrored Parametric Arc -->
     <path d="M 338 122 
              C 416 122 440 214 418 280 
              C 400 332 354 362 314 367
              C 346 344 372 300 378 266
              C 384 230 372 164 332 148
              C 324 145 327 122 338 122 Z" 
-          fill="url(#celestialStarlight)" 
-          stroke="url(#jovianPurple)" 
+          fill="url(#starlightWhite)" 
+          stroke="url(#mathPurple)" 
           stroke-width="2.5" />
 
-    <!-- Central Reliquary Chalice: Jovian Cloud Deck & Deep Void Interior -->
+    <!-- Central Reliquary Chalice: Deep Manifold Interior -->
     <path d="M 166 134
              C 166 266 208 336 256 362
              C 304 336 346 266 346 134
              C 310 152 284 158 256 158
              C 228 158 202 152 166 134 Z"
-          fill="url(#cosmicVoidBg)" 
-          stroke="url(#celestialStarlight)" 
+          fill="url(#mathVoidBg)" 
+          stroke="url(#starlightWhite)" 
           stroke-width="3" />
 
-    <!-- Jovian Great Red/Violet Spot Innuendo & Atmospheric Latitudinal Bands -->
-    <path d="M 188 185 Q 256 200 324 185" fill="none" stroke="#581C87" stroke-width="1.8" opacity="0.6" />
-    <path d="M 198 230 Q 256 248 314 230" fill="none" stroke="#7C3AED" stroke-width="2" opacity="0.5" />
-    <path d="M 215 275 Q 256 290 297 275" fill="none" stroke="#A855F7" stroke-width="1.8" opacity="0.5" />
+    <!-- Caliper / Dimension Lines for Golden Ratio Proportions (φ) -->
+    <g stroke="#C084FC" stroke-width="0.75" opacity="0.6">
+      <!-- Upper Chalice Chord -->
+      <line x1="166" y1="134" x2="346" y2="134" stroke-dasharray="2 3" />
+      <text x="256" y="128" fill="#FFFFFF" font-family="Courier New, monospace" font-size="8" text-anchor="middle">span = 2φ · r [180 px]</text>
+    </g>
 
-    <!-- Chalice Rim / Sovereign Crown Arc -->
+    <!-- Chalice Crown Lip Arc -->
     <path d="M 156 134 Q 256 166 356 134 Q 256 116 156 134 Z"
-          fill="url(#celestialStarlight)" />
+          fill="url(#starlightWhite)" />
 
     <!-- ======================================================== -->
-    <!-- 3. SAGITTARIUS A* SINGULARITY & SACRED APOSTROPHE FLAME   -->
-    <!-- The Event Horizon of Absolute Sovereign Custody          -->
+    <!-- 5. SAGITTARIUS A* SINGULARITY & SACRED APOSTROPHE FLAME   -->
+    <!-- The Event Horizon & Relativistic Photon Sphere           -->
     <!-- ======================================================== -->
-    <g filter="url(#cosmicBloom)">
-      <!-- The Ascending Apostrophe (’) Relativistic Cosmic Jet -->
+    <g filter="url(#mathGlow)">
+      <!-- The Ascending Apostrophe (’) Vector Flame -->
       <path d="M 256 166 
                C 284 166 304 188 304 216 
                C 304 246 280 276 250 306 
@@ -162,48 +239,46 @@
                C 230 294 244 270 246 256
                C 222 256 205 238 205 216
                C 205 188 226 166 256 166 Z" 
-            fill="url(#celestialStarlight)" />
+            fill="url(#starlightWhite)" />
 
-      <!-- Sagittarius A* Supermassive Black Hole Event Horizon (Center of Custody) -->
-      <!-- Black circular core inside the head of the Apostrophe -->
-      <circle cx="256" cy="214" r="17" fill="url(#eventHorizon)" />
-      
-      <!-- Relativistic Photon Ring: White-Hot Laser Lensing Ring around the Singularity -->
-      <circle cx="256" cy="214" r="18" fill="none" stroke="#FFFFFF" stroke-width="2.5" />
-      <circle cx="256" cy="214" r="25" fill="none" stroke="#E879F9" stroke-width="1.2" opacity="0.8" />
+      <!-- Sagittarius A* Event Horizon Singularity (Schwarzschild Core) -->
+      <circle cx="256" cy="214" r="17" fill="url(#singularityCore)" />
 
-      <!-- The Archer's Sovereign Arrow Star of Chiron (Apex of Directional Will) -->
+      <!-- Relativistic Photon Sphere: r = 3GM/c² -->
+      <circle cx="256" cy="214" r="19" fill="none" stroke="#FFFFFF" stroke-width="2.5" />
+      <circle cx="256" cy="214" r="26" fill="none" stroke="#E879F9" stroke-width="1.2" stroke-dasharray="4 4" opacity="0.85" />
+
+      <!-- Apex Star of Chiron (Vector Origin / Directional Pointer) -->
       <polygon points="256,88 259,98 270,98 261,105 264,115 256,109 248,115 251,105 242,98 253,98" 
                fill="#FFFFFF" />
     </g>
 
     <!-- ======================================================== -->
-    <!-- 4. JOVIAN TEMPLE ALTAR & THE IMMUTABLE SINGULARITY KEYHOLE -->
-    <!-- Physical Behind-the-Meter Custody Pedestal               -->
+    <!-- 6. APOSTOLIC ALTAR PEDESTAL & CRYPTOGRAPHIC KEYHOLE      -->
     <!-- ======================================================== -->
 
-    <!-- Monastic Chalice Stem -->
+    <!-- Chalice Stem with Hexagonal Fluting -->
     <path d="M 245 360 L 267 360 L 270 412 L 242 412 Z" 
-          fill="url(#celestialStarlight)" 
-          stroke="url(#jovianPurple)" 
+          fill="url(#starlightWhite)" 
+          stroke="url(#mathPurple)" 
           stroke-width="1.5" />
 
-    <!-- Jovian Equatorial Planetary Ring / Reliquary Knot on Stem -->
+    <!-- Stem Reliquary Ring / Jovian Orbit Ring -->
     <ellipse cx="256" cy="386" rx="28" ry="7" 
-             fill="url(#jovianPurple)" 
+             fill="url(#mathPurple)" 
              stroke="#FFFFFF" 
              stroke-width="1.5" />
 
-    <!-- Altar Pedestal Steps (Sacred Geometry Plinth) -->
-    <!-- Step 1: Upper Orbital Bevel -->
+    <!-- Altar Steps (Metric Foundation Plinth) -->
+    <!-- Step 1: Upper Bevel -->
     <path d="M 204 424 
              L 224 412 
              L 288 412 
              L 308 424 
              L 324 438
              L 188 438 Z" 
-          fill="url(#celestialStarlight)" 
-          stroke="url(#jovianPurple)" 
+          fill="url(#starlightWhite)" 
+          stroke="url(#mathPurple)" 
           stroke-width="1.5" />
 
     <!-- Step 2: Foundation Plinth in Jovian Deep Purple with Starlight Bevel -->
@@ -212,11 +287,11 @@
           stroke="#FFFFFF" 
           stroke-width="2.5" />
 
-    <!-- The Singularity Keyhole (Root of Trust / Gateway to the Event Horizon) -->
+    <!-- The Inlaid Alabaster Keyhole of Sovereign Custody -->
     <circle cx="256" cy="425" r="5.5" fill="#FFFFFF" />
     <polygon points="253,425 259,425 262,436 250,436" fill="#FFFFFF" />
 
-    <!-- Jovian Satellite Anchors (Callisto and Ganymede on Altar Edge) -->
+    <!-- Cardinal Coordinate Points on Plinth Base -->
     <circle cx="192" cy="448" r="2.5" fill="#FAF5FF" />
     <circle cx="320" cy="448" r="2.5" fill="#FAF5FF" />
   </g>
