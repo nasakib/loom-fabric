@@ -93,6 +93,17 @@ pytest tests/test_sovereign_tools.py tests/test_clothos_dual_track_boot.py tests
 
 ---
 
+## Ecosystem & Related Systems
+
+ClothOS and Loom Fabric interface directly with our open-source systems and compilation toolchain:
+
+- **[Universal JIT (`ujit`)](https://github.com/nasakib/universal-jit)**: Embeddable C99 JIT compiler synthesizing algorithmic pseudocode into native machine code (x86-64 / RV64GC) for distributed runtime acceleration.
+- **[Typemetric-JIT](https://github.com/nasakib/typemetric-jit)**: Metric type-space optimization, Gonzalez $k$-center geometric diversity pruning, and spectral Fourier optimization for polymorphic JIT dispatch.
+- **[MiniVM](https://github.com/nasakib/minivm)**: High-performance Lua virtual machine with Lazy Basic Block Versioning, RV64 backend, and formal SMT lowering verification.
+- **[Fourier's Library](https://github.com/nasakib/fouriersLibrary)**: Spectral signal processing, Fourier truth verification, and harmonic state-space simulation engine.
+
+---
+
 ## License & Community
 
 - **Community Core**: Licensed under the [GNU Affero General Public License v3 (AGPL-3.0)](LICENSE).
