@@ -1,9 +1,9 @@
 # Strategic Advisory & Capital Formation Playbook: Navigating Post Oak Group
-## Unifying BabelForge, Spotlight-Local (sL), and ClothOS under Apostrophe
+## Unifying BabelForge, Spotlight-Local (sL), and ClothOS under Apostrophie
 
 **CONFIDENTIAL STRATEGIC MEMORANDUM**  
 **To:** Najmos Sakib, Founder & Sovereign Architect (Ring P0)  
-**Entities:** Vector Core Holdings, LLC & Apostrophe  
+**Entities:** Vector Core Holdings, LLC & Apostrophie  
 **Target Counterparty:** Paul Clough, Senior Vice President of Capital Markets, The Post Oak Group  
 **Date:** November 2026  
 
@@ -11,7 +11,7 @@
 
 ## 1. The Core Strategic Question: 3 Projects vs. 1 Unified System?
 
-> **The Short Answer:** **You MUST present them as ONE unified, vertically integrated system under Apostrophe.** Never pitch them as three disparate projects.
+> **The Short Answer:** **You MUST present them as ONE unified, vertically integrated system under Apostrophie.** Never pitch them as three disparate projects.
 
 ### Why Institutional Investors Penalize "Three Projects":
 1. **The Distraction Red Flag:** Venture capital and private equity investors immediately discount founders pitching multiple separate projects. Their first questions are always:
@@ -25,7 +25,7 @@ BabelForge, Spotlight-Local (sL), and ClothOS are not three separate companies; 
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                        APOSTROPHE (THE UNIFIED SOVEREIGN PLATFORM)                     │
+│                        APOSTROPHIE (THE UNIFIED SOVEREIGN PLATFORM)                     │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │  LAYER 3: Spotlight-Local (sL) ── THE ECONOMIC NERVOUS SYSTEM                          │
 │  • Microsecond Compute Gas Metering ($1.00 USD = 1,000 Gas Units)                      │
@@ -52,7 +52,7 @@ BabelForge, Spotlight-Local (sL), and ClothOS are not three separate companies; 
 - **Spotlight-Local (sL) is the Economic Rail:** Without sL's micro-gas settlement and 1.0% tax, the mesh cannot pay host providers or self-fund its commercial dark fiber leases.
 
 ### The Pitch to Paul Clough:
-> *"Paul, I did not build three unrelated apps. I built the three layers of the next-generation decentralized computing paradigm. ClothOS is the physical operating engine; BabelForge is the mathematical compiler that coordinates the silicon; and Spotlight-Local is the sovereign economic rail that clears transactions and auto-funds the physical fiber leases. Under **Apostrophe**, they form a completely self-sustaining, self-funding cyber-physical network."*
+> *"Paul, I did not build three unrelated apps. I built the three layers of the next-generation decentralized computing paradigm. ClothOS is the physical operating engine; BabelForge is the mathematical compiler that coordinates the silicon; and Spotlight-Local is the sovereign economic rail that clears transactions and auto-funds the physical fiber leases. Under **Apostrophie**, they form a completely self-sustaining, self-funding cyber-physical network."*
 
 ---
 
@@ -76,7 +76,7 @@ To give institutional investors clean legal comfort while protecting your person
 │                                       │                                                │
 │                                       ▼ Majority Ownership & IP Licensing              │
 │                      ┌─────────────────────────────────┐                               │
-│                      │         APOSTROPHE INC.         │                               │
+│                      │         APOSTROPHIE INC.         │                               │
 │                      │   (Commercial Operating Entity) │ ◄── [ Post Oak Group /       │
 │                      │   • ClothOS Enterprise Sales    │       Institutional Capital ] │
 │                      │   • Fabric Modem Hardware       │                               │
@@ -89,7 +89,7 @@ To give institutional investors clean legal comfort while protecting your person
 1. **Vector Core Holdings, LLC (HoldCo):**
    - Retains the core patents, trademarks, proprietary algorithms (Kuramoto phase-locking, Base-12 Dozenal arithmetic, Base-16 DMA framing), and the Ring P0 root of trust.
    - Holds the `sl_treasury_vectorcore_holdings` account where the 1.0% infrastructure tax accumulates.
-2. **Apostrophe (OpCo / The Investment Vehicle):**
+2. **Apostrophie (OpCo / The Investment Vehicle):**
    - The commercial operating company into which Post Oak Group invests.
    - Holds exclusive worldwide commercial licenses to ClothOS, BabelForge, and Spotlight-Local.
    - Captures all hardware sales (Fabric Modem), enterprise SaaS/on-premise licenses (\$50k–\$500k/year), and merchant transaction fees.
@@ -132,16 +132,16 @@ Do not ask for a flat \$20M upfront in a single un-gated equity round—that cau
 
 Paul Clough and The Post Oak Group are based in Texas and have deep roots in **energy, capital markets, and physical infrastructure**. 
 
-To win them over, you must frame ClothOS/Apostrophe through the **Energy-to-Compute Thesis**:
+To win them over, you must frame ClothOS/Apostrophie through the **Energy-to-Compute Thesis**:
 
 ### 1. The Energy Transition Hook (The "Power-to-FLOPs Arbitrage")
 - **The Problem Post Oak Sees Daily:** Renewable generators (ERCOT wind in West Texas, solar farms) face severe negative pricing and grid curtailment because transmission lines cannot carry power to Dallas or Houston during off-peak hours.
-- **The Apostrophe Solution:** Instead of trying to build multi-million dollar transmission lines, deploy **ClothOS Edge Compute Pods** directly at the substation or generation site. 
+- **The Apostrophie Solution:** Instead of trying to build multi-million dollar transmission lines, deploy **ClothOS Edge Compute Pods** directly at the substation or generation site. 
 - ClothOS dynamically activates compute-intensive workloads (LLM training, genomic scoring, molecular simulation) when electricity is cheap or free, converting curtailed electrons into high-value Spotlight-Local gas revenue.
 
 ### 2. The Infrastructure Without Concrete Hook
 - Remind Paul that traditional data center funds have to spend \$10M to \$20M per megawatt on concrete, cooling towers, and diesel backup generators.
-- Apostrophe virtualizes existing residential, commercial, and enterprise silicon across leased dark fiber strands. **It captures cloud gross margins (80%+) with zero concrete CapEx on the balance sheet.**
+- Apostrophie virtualizes existing residential, commercial, and enterprise silicon across leased dark fiber strands. **It captures cloud gross margins (80%+) with zero concrete CapEx on the balance sheet.**
 
 ---
 
@@ -151,7 +151,7 @@ To win them over, you must frame ClothOS/Apostrophe through the **Energy-to-Comp
 > **Your Answer:**  
 > *"If you only build the OS (ClothOS), you have no compiler capable of coordinating heterogeneous chips without clock drift. If you only build the compiler (BabelForge), you have no operating system or physical transceivers to run on. If you only build the neobank (Spotlight-Local), you have no underlying compute utility to back the gas.  
 > 
-> Apple didn't just build iOS; they built the silicon, the OS, and the App Store together. By building all three layers under Apostrophe, we create an unbreakable economic and technological moat. Furthermore, our architecture is already built and verified across 59 automated test suites in production code—the R&D risk is already retired."*
+> Apple didn't just build iOS; they built the silicon, the OS, and the App Store together. By building all three layers under Apostrophie, we create an unbreakable economic and technological moat. Furthermore, our architecture is already built and verified across 59 automated test suites in production code—the R&D risk is already retired."*
 
 ### Question 2: *"Why would anyone use this instead of AWS or CoreWeave?"*
 > **Your Answer:**  
@@ -172,6 +172,6 @@ To win them over, you must frame ClothOS/Apostrophe through the **Energy-to-Comp
   1. [`executive_overview_paul_clough_post_oak_group.md`](file:///C:/Users/natsa/.gemini/antigravity/brain/e4d6aff4-af2c-488c-8bda-838a03249cdd/executive_overview_paul_clough_post_oak_group.md)
   2. [`white_paper_sl_babelforge_clothos_sovereign_mesh.md`](file:///C:/Users/natsa/.gemini/antigravity/brain/e4d6aff4-af2c-488c-8bda-838a03249cdd/white_paper_sl_babelforge_clothos_sovereign_mesh.md)
   3. [`executive_pitch_deck_and_capital_strategy.md`](file:///C:/Users/natsa/.gemini/antigravity/brain/e4d6aff4-af2c-488c-8bda-838a03249cdd/executive_pitch_deck_and_capital_strategy.md)
-- [ ] **Frame the Entity:** Always refer to the commercial company as **Apostrophe** (operating under parent **Vector Core Holdings, LLC**).
+- [ ] **Frame the Entity:** Always refer to the commercial company as **Apostrophie** (operating under parent **Vector Core Holdings, LLC**).
 - [ ] **Anchor the Ask:** Propose an initial **\$4.5M – \$5.0M growth round** at a **\$20M–\$25M pre-money valuation**, with an option to expand into the **\$15M infrastructure facility** post-pilot.
 - [ ] **Offer a Live Demo:** Offer to run a live demonstration of the heterogeneous node cluster (Node 1 RTX 3060 CUDA + Node 2 Ryzen 7 AMD Vulkan) executing live task sharding and microsecond Spotlight-Local gas settlement.
