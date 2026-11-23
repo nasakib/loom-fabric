@@ -46,6 +46,10 @@ try:
     import pandas as pd
 except ImportError:
     pass
+try:
+    from loom.clothos.ujit_engine import clothos_jit, ujit
+except ImportError:
+    pass
 """
         self.globals = {
             "__name__": "__main__",

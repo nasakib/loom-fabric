@@ -80,21 +80,37 @@ class ClothOSShell:
         if "|" in cmd_line:
             return self._execute_pipeline(cmd_line)
 
-        # 2. Handle Redirection (> and >>)
+        # 2. Handle Redirection (> and >>) outside of quotes and not part of '->'
         append_mode = False
         redirect_file = None
         clean_cmd = cmd_line
 
-        if ">>" in cmd_line:
-            parts = cmd_line.split(">>", 1)
-            clean_cmd = parts[0].strip()
-            redirect_file = parts[1].strip()
-            append_mode = True
-        elif ">" in cmd_line:
-            parts = cmd_line.split(">", 1)
-            clean_cmd = parts[0].strip()
-            redirect_file = parts[1].strip()
-            append_mode = False
+        in_quote = None
+        redir_pos = -1
+        is_append = False
+        for i, char in enumerate(cmd_line):
+            if char in ('"', "'"):
+                if in_quote == char:
+                    in_quote = None
+                elif in_quote is None:
+                    in_quote = char
+            elif in_quote is None:
+                if char == ">":
+                    if i > 0 and cmd_line[i - 1] == "-":
+                        continue
+                    if i + 1 < len(cmd_line) and cmd_line[i + 1] == ">":
+                        redir_pos = i
+                        is_append = True
+                        break
+                    else:
+                        redir_pos = i
+                        is_append = False
+                        break
+
+        if redir_pos != -1:
+            clean_cmd = cmd_line[:redir_pos].strip()
+            redirect_file = cmd_line[redir_pos + (2 if is_append else 1):].strip()
+            append_mode = is_append
 
         res = self._execute_single(clean_cmd)
 
@@ -215,6 +231,7 @@ class ClothOSShell:
             "keys": self._cmd_keys,
             "delegate": self._cmd_delegate,
             "projects": self._cmd_projects,
+            "ujit": self._cmd_ujit,
         }
 
         if cmd in handlers:
@@ -1581,6 +1598,102 @@ class ClothOSShell:
 
         lines.append("=======================================================================\n")
         return ShellResult(stdout="\n".join(lines), cwd=self.cwd)
+
+    def _cmd_ujit(self, args: List[str], stdin: str) -> ShellResult:
+        """Universal JIT bare-metal pseudocode compiler and kernel executor."""
+        try:
+            from loom.clothos.ujit_engine import clothos_jit
+            import ujit
+        except Exception as exc:
+            return ShellResult(stderr=f"clothsh: ujit: failed to initialize JIT runtime: {exc}\n", exit_code=1, cwd=self.cwd)
+
+        if not args or args[0] in ("-h", "--help"):
+            out = (
+                "ClothOS Universal JIT (ujit) Bare-Metal Kernel Engine\n"
+                "Compiles algorithmic pseudocode directly into native machine code (67 ns/call).\n\n"
+                "Usage:\n"
+                "  ujit list                                    List pre-compiled resident kernels\n"
+                "  ujit run <file.pseudo> [func] [args...]      Compile and run a pseudocode file\n"
+                "  ujit eval \"<code>\" [func] [args...]          Compile and evaluate inline pseudocode\n"
+                "  ujit bench [kernel_name] [iterations]        Benchmark native execution throughput\n"
+            )
+            return ShellResult(stdout=out, cwd=self.cwd)
+
+        subcmd = args[0].lower()
+
+        if subcmd == "list":
+            kernels = clothos_jit.list_kernels()
+            lines = [
+                "ClothOS Active Native JIT Kernels Resident in Executable Pages:",
+            ]
+            for name, target in kernels.items():
+                lines.append(f"  * {name:<24} [{target}]")
+            lines.append(f"Total: {len(kernels)} bare-metal kernels mapped.")
+            return ShellResult(stdout="\n".join(lines) + "\n", cwd=self.cwd)
+
+        elif subcmd == "eval":
+            if len(args) < 2:
+                return ShellResult(stderr="clothsh: ujit eval: missing code argument\n", exit_code=1, cwd=self.cwd)
+            code = args[1]
+            fn_name = args[2] if len(args) > 2 else "main"
+            fn_args = [int(a) for a in args[3:]]
+            try:
+                fn = clothos_jit.compile_kernel(fn_name, code)
+                res = fn(*fn_args)
+                return ShellResult(stdout=f"{res}\n", cwd=self.cwd)
+            except Exception as exc:
+                return ShellResult(stderr=f"clothsh: ujit eval error: {exc}\n", exit_code=1, cwd=self.cwd)
+
+        elif subcmd == "run":
+            if len(args) < 2:
+                return ShellResult(stderr="clothsh: ujit run: missing file argument\n", exit_code=1, cwd=self.cwd)
+            filepath = args[1]
+            code = ""
+            if self.fs.exists(filepath):
+                code = self.fs.read_file(filepath).decode("utf-8", errors="replace")
+            elif Path(filepath).exists():
+                code = Path(filepath).read_text(encoding="utf-8", errors="replace")
+            else:
+                return ShellResult(stderr=f"clothsh: ujit run: file not found '{filepath}'\n", exit_code=1, cwd=self.cwd)
+
+            fn_name = args[2] if len(args) > 2 else "main"
+            fn_args = [int(a) for a in args[3:]]
+            try:
+                fn = clothos_jit.compile_kernel(fn_name, code)
+                res = fn(*fn_args)
+                return ShellResult(stdout=f"{res}\n", cwd=self.cwd)
+            except Exception as exc:
+                return ShellResult(stderr=f"clothsh: ujit run error: {exc}\n", exit_code=1, cwd=self.cwd)
+
+        elif subcmd == "bench":
+            kernel_name = args[1] if len(args) > 1 else "grid_arbitrage"
+            iters = int(args[2]) if len(args) > 2 else 1000000
+            import time
+            t0 = time.perf_counter()
+            if kernel_name == "grid_arbitrage":
+                for _ in range(iters):
+                    clothos_jit.dispatch("grid_arbitrage", 1000, 15, 1)
+            elif kernel_name == "kuramoto_phase_step":
+                for _ in range(iters):
+                    clothos_jit.dispatch("kuramoto_phase_step", 512, 12, 45, 10)
+            elif kernel_name == "ternary_mac":
+                for _ in range(iters):
+                    clothos_jit.dispatch("ternary_mac", 100, -1, 5)
+            else:
+                return ShellResult(stderr=f"clothsh: ujit bench: unknown kernel '{kernel_name}'\n", exit_code=1, cwd=self.cwd)
+            elapsed = time.perf_counter() - t0
+            ns_per_call = (elapsed / iters) * 1e9
+            out = (
+                f"ClothOS Universal JIT Benchmark: '{kernel_name}'\n"
+                f"  Iterations: {iters:,}\n"
+                f"  Elapsed:    {elapsed:.4f} s\n"
+                f"  Throughput: {ns_per_call:.2f} ns/call ({int(iters/elapsed):,} calls/sec)\n"
+                f"  Target:     Bare-Metal x86-64 Machine Code\n"
+            )
+            return ShellResult(stdout=out, cwd=self.cwd)
+
+        else:
+            return ShellResult(stderr=f"clothsh: ujit: unknown subcommand '{subcmd}'. Run 'ujit --help'.\n", exit_code=1, cwd=self.cwd)
 
     def _cmd_host_fallback(self, cmd_line: str) -> ShellResult:
         """Sovereign host command execution with Keys to the Kingdom privileges."""
