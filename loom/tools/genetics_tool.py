@@ -35,17 +35,40 @@ class SoftwareGeneticsSuite:
     """
 
     def __init__(self):
-        from loom.genetics.compiler import GeneticCompiler
-        from loom.genetics.recombination import SyntacticRecombinationEngine
-        from loom.genetics.selection import EpistemicNaturalSelection
-        from loom.genetics.crispr import CrisprImmuneMemory
-
-        self.compiler = GeneticCompiler()
-        self.recombination = SyntacticRecombinationEngine()
-        self.selection = EpistemicNaturalSelection(compiler=self.compiler)
-        self.crispr = CrisprImmuneMemory()
+        self._compiler = None
+        self._recombination = None
+        self._selection = None
+        self._crispr = None
         self.generations_run: int = 0
         self.active_population: List[Genome] = []
+
+    @property
+    def compiler(self):
+        if self._compiler is None:
+            from loom.genetics.compiler import GeneticCompiler
+            self._compiler = GeneticCompiler()
+        return self._compiler
+
+    @property
+    def recombination(self):
+        if self._recombination is None:
+            from loom.genetics.recombination import SyntacticRecombinationEngine
+            self._recombination = SyntacticRecombinationEngine()
+        return self._recombination
+
+    @property
+    def selection(self):
+        if self._selection is None:
+            from loom.genetics.selection import EpistemicNaturalSelection
+            self._selection = EpistemicNaturalSelection(compiler=self.compiler)
+        return self._selection
+
+    @property
+    def crispr(self):
+        if self._crispr is None:
+            from loom.genetics.crispr import CrisprImmuneMemory
+            self._crispr = CrisprImmuneMemory()
+        return self._crispr
 
     def create_seed_genome(self, genome_id: str = "GENOME_SEED_ALPHA") -> Genome:
         """
