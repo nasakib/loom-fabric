@@ -46,6 +46,7 @@ from loom.fabric.unified_gpu_mesh import unified_gpu_mesh
 from loom.tools.toolbox import toolbox
 from loom.torque.enclave import TorqueEnclave
 from loom.clothos.agent_controller import agent_controller
+from loom.clothos.useful_work_engine import WorkerProcessLock, useful_work_engine
 
 logger = logging.getLogger("continuous_worker")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] [ContinuousWorker]: %(message)s")
@@ -200,10 +201,10 @@ class ContinuousComputeWorker:
             pass
 
     def is_user_active(self) -> bool:
-        """Detects if an interactive user query is executing on the Fabric Gateway (:8002) or Shuttle (:5555)."""
+        """Detects if an interactive user query is executing on the unified ClothOS Master Hub (:8087)."""
         try:
             with httpx.Client(timeout=1.0) as client:
-                r = client.get("http://127.0.0.1:8002/health")
+                r = client.get("http://127.0.0.1:8087/health")
                 if r.status_code == 200:
                     data = r.json()
                     if data.get("active_stream", False):
@@ -306,31 +307,33 @@ class ContinuousComputeWorker:
                         critique_note = audit_res.get("critique", "Consensus verified.")
                         axiom_id = f"MOLT_CONFIRMED_{pending_hyp['id']}_{int(time.time())}"
                         proof_summary = f"[{submolt_label}] {pending_hyp['claim']} | Node 2 Audit: {critique_note}"
-                        self.toolbox.ratchet.click(
+                        clicked = self.toolbox.ratchet.click(
                             axiom_id=axiom_id,
                             claim=proof_summary,
                             proof_payload=json.dumps({"measurements": measurements, "audit": audit_res}),
                             confidence=0.98,
                             node_origin=f"DualNode-skyTech-{audit_res.get('auditor_model', 'Node2')}",
+                            deduplicate_claim=True,
                         )
-                        self.toolbox.hammer.rivet(
-                            identifier=f"RIVET_MOLT_{pending_hyp['id']}",
-                            payload={"axiom": axiom_id, "measurements": measurements, "audit": audit_res},
-                        )
-                        self.stats["invariants_mined_node1"] += 1
-                        self.stats["total_invariants_mined"] = self.stats["invariants_mined_node1"] + self.stats["invariants_mined_node2"]
-                        self.stats["ratchet_teeth_locked"] = self.toolbox.ratchet.tooth_count
-                        self.stats["hammer_rivets_locked"] = self.toolbox.hammer.rivets_driven
+                        if clicked:
+                            self.toolbox.hammer.rivet(
+                                identifier=f"RIVET_MOLT_{pending_hyp['id']}",
+                                payload={"axiom": axiom_id, "measurements": measurements, "audit": audit_res},
+                            )
+                            self.stats["invariants_mined_node1"] += 1
+                            self.stats["total_invariants_mined"] = self.stats["invariants_mined_node1"] + self.stats["invariants_mined_node2"]
+                            self.stats["ratchet_teeth_locked"] = self.toolbox.ratchet.tooth_count
+                            self.stats["hammer_rivets_locked"] = self.toolbox.hammer.rivets_driven
 
                     logger.info(
                         f"⚡ [GPU 1 Runner]: Evaluated Hyp #{pending_hyp['id']} [{submolt_label}] ➔ {verdict.upper()} "
                         f"in {exp_result.get('duration_s', 0)}s on RX 580"
                     )
+                    time.sleep(1.5)
                 else:
-                    # High-density background sweep on Ellesmere to keep compute saturated
-                    self.stats["gpu1_status"] = "DENSE_KURAMOTO_SWEEP"
-                    self.rx580.step_sweep(steps=2500, k_coupling=2.6)
-                    time.sleep(0.05)
+                    # Standby gracefully instead of burning GPU power when queue is empty
+                    self.stats["gpu1_status"] = "IDLE_STANDBY"
+                    time.sleep(3.0)
 
             except Exception as e:
                 logger.debug(f"GPU 1 Runner error: {e}")
@@ -342,10 +345,21 @@ class ContinuousComputeWorker:
     # Main Orchestrator & Synthesis Loop
     # -------------------------------------------------------------------------
     def run_loop(self) -> None:
+        lock = WorkerProcessLock(owner_name="continuous_worker")
+        acquired, other_pid = lock.acquire()
+        if not acquired:
+            logger.warning(f"Another 24/7 worker daemon is already active (PID {other_pid}). Exiting duplicate process.")
+            return
+
         self.stats["is_running"] = True
         self.stats["started_at_epoch"] = time.time()
         self._persist_state()
-        logger.info("⚡ 24/7 Sovereign Dual-GPU Engine ACTIVE (GPU 0 Generator ⇄ GPU 1 Interpreter).")
+        logger.info("⚡ 24/7 Sovereign Dual-GPU Engine ACTIVE (GPU 0 Generator ⇄ GPU 1 Interpreter + Useful Work Engine).")
+
+        try:
+            self.hypothesis_store.reset_stale_running(max_age_s=600.0)
+        except Exception:
+            pass
 
         # Start concurrent threads
         self._gpu0_thread = threading.Thread(target=self._run_gpu0_generator, daemon=True)
@@ -353,122 +367,152 @@ class ContinuousComputeWorker:
         self._gpu0_thread.start()
         self._gpu1_thread.start()
 
-        cycle_interval_for_synth = 5
-        cycle_since_synth = 0
+        try:
+            while not self.stop_event.is_set():
+                user_active = self.is_user_active()
+                if user_active:
+                    self.stats["last_active_tier"] = "Preempted (User Active)"
+                    self.stats["last_preemption_epoch"] = time.time()
+                    self.preempt_event.set()
+                    self.toolbox.ratchet.preemption_catch(
+                        cycle=self.stats["total_cycles_completed"],
+                        oscillator_offset=0,
+                        payload={"reason": "User query active"},
+                    )
+                    self._persist_state()
+                    time.sleep(5.0)
+                    continue
+                else:
+                    self.preempt_event.clear()
 
-        while not self.stop_event.is_set():
-            if self.is_user_active():
-                self.stats["last_active_tier"] = "Preempted (User Active)"
-                self.stats["last_preemption_epoch"] = time.time()
-                self.preempt_event.set()
-                self.toolbox.ratchet.preemption_catch(
-                    cycle=self.stats["total_cycles_completed"],
-                    oscillator_offset=0,
-                    payload={"reason": "User query active"},
-                )
-                self._persist_state()
-                time.sleep(2.0)
-                continue
-            else:
-                self.preempt_event.clear()
+                try:
+                    cycle_start = time.time()
+                    self.stats["total_cycles_completed"] += 1
+                    cur_cycle = self.stats["total_cycles_completed"]
 
-            try:
-                cycle_start = time.time()
-                self.stats["total_cycles_completed"] += 1
-                cur_cycle = self.stats["total_cycles_completed"]
-                self.stats["last_active_tier"] = "Dual-GPU Full Mesh (RTX 3060 CUDA + RX 580 OpenCL)"
-
-                # Periodically sync Node 2 over ethernet
-                if cur_cycle % 5 == 0:
-                    self._step_node2_ryzen_compute()
-
-                # Periodically synthesize empirical research deliverables
-                cycle_since_synth += 1
-                if self.synthesizer.should_synthesize(min_new_experiments=5) or (cycle_since_synth >= 12):
-                    del_path = self.synthesizer.compile_deliverable(cycle_range=f"Concurrent Cycles #{cur_cycle - cycle_since_synth}..#{cur_cycle}")
-                    if del_path:
-                        self.stats["latest_deliverable"] = del_path.name
-                        cycle_since_synth = 0
-
-                # Periodically scan for and ratify verified 'Aha!' system evolutions
-                if cur_cycle % 10 == 0:
-                    aha_ratified = self.aha_engine.process_and_ratify_opportunities()
-                    if aha_ratified:
-                        logger.info(f"✨ [Aha! Optimization Ratified]: {len(aha_ratified)} updates applied to system configuration.")
-                        self.stats["ratchet_teeth_locked"] = self.toolbox.ratchet.tooth_count
-                        self.stats["hammer_rivets_locked"] = self.toolbox.hammer.rivets_driven
-
-                # Step Unified Subsystems (Task Queue, Skill Crystallization, Distillation)
-                if self.unified_engine:
-                    if cur_cycle % 3 == 0:
-                        self.unified_engine.step_phase1_drain_tasks(max_tasks=1)
+                    # Periodically sync Node 2 over ethernet
                     if cur_cycle % 5 == 0:
-                        self.unified_engine.step_phase5_skill_crystallization()
-                    if cur_cycle % 10 == 0:
-                        self.unified_engine.step_phase6_model_adaptation()
+                        self._step_node2_ryzen_compute()
 
-                # Periodically generate creative mathematical art & notify user
-                art_piece = agent_controller.step_periodic_art_if_due()
-                if art_piece:
-                    self.stats["latest_art"] = art_piece["title"]
+                    # Step Unified Subsystems (Task Queue drain, Skill Crystallization, Distillation)
+                    tasks_drained = 0
+                    if self.unified_engine:
+                        tasks_drained = self.unified_engine.step_phase1_drain_tasks(max_tasks=3)
+                        if cur_cycle % 5 == 0:
+                            self.unified_engine.step_phase5_skill_crystallization()
+                        if cur_cycle % 10 == 0:
+                            self.unified_engine.step_phase6_model_adaptation()
+
+                    # Run real useful 24/7 workloads (rotating pytest, AST audit, GPU/JIT benchmarks, hygiene, verified LLM)
+                    uw_res = useful_work_engine.run_useful_cycle(
+                        hypothesis_store=self.hypothesis_store,
+                        task_runner=None,
+                        agent_engine=None,
+                        rx580_engine=self.rx580,
+                        user_active=False,
+                    )
+                    u_state = useful_work_engine.state
+                    gpu0 = u_state.get("hardware_benchmarks", {}).get("gpu0_nvidia", {})
+                    self.stats.update({
+                        "workload_mode": uw_res.get("mode", "AUTO"),
+                        "last_active_tier": f"Dual-GPU + Useful Work ({uw_res.get('mode', 'AUTO')})",
+                        "real_tests_passed": u_state.get("real_tests_passed", 0),
+                        "real_tests_failed": u_state.get("real_tests_failed", 0),
+                        "real_test_pass_rate_pct": u_state.get("real_test_pass_rate_pct", 100.0),
+                        "code_syntax_errors": len(u_state.get("code_audit", {}).get("syntax_errors", [])),
+                        "code_files_checked": u_state.get("code_audit", {}).get("files_checked", 0),
+                        "tasks_drained_total": u_state.get("tasks_drained_total", 0) + tasks_drained,
+                        "gpu0_temp_c": gpu0.get("temp_c"),
+                        "gpu0_vram_used_mb": gpu0.get("vram_used_mb"),
+                        "verified_distillation_passed": u_state.get("distillation", {}).get("verified_passed", 0),
+                        "verified_distillation_attempted": u_state.get("distillation", {}).get("attempted", 0),
+                    })
+
+                    # Synthesize empirical research deliverable ONLY when genuinely new experiments accumulate
+                    if self.synthesizer.should_synthesize(min_new_experiments=20, min_interval_s=900.0):
+                        del_path = self.synthesizer.compile_deliverable(cycle_range=f"Concurrent Cycle ..#{cur_cycle}")
+                        if del_path:
+                            self.stats["latest_deliverable"] = del_path.name
+
+                    # Periodically scan for and ratify verified 'Aha!' system evolutions
+                    if cur_cycle % 10 == 0:
+                        aha_ratified = self.aha_engine.process_and_ratify_opportunities()
+                        if aha_ratified:
+                            logger.info(f"✨ [Aha! Optimization Ratified]: {len(aha_ratified)} updates applied to system configuration.")
+                            self.stats["ratchet_teeth_locked"] = self.toolbox.ratchet.tooth_count
+                            self.stats["hammer_rivets_locked"] = self.toolbox.hammer.rivets_driven
+
+                    # Periodically generate creative mathematical art (throttled >= 30m in 24/7 background)
+                    if agent_controller.state.get("art_cadence_seconds", 120) < 900:
+                        agent_controller.state["art_cadence_seconds"] = 1800
+                    art_piece = agent_controller.step_periodic_art_if_due()
+                    if art_piece:
+                        self.stats["latest_art"] = art_piece["title"]
+                        self.zmq_bus.publish(
+                            topic="clothos.agent.art",
+                            source_node="skyTech-Worker",
+                            raw_payload={
+                                "id": art_piece["id"],
+                                "title": art_piece["title"],
+                                "style": art_piece["style"],
+                                "svg_file": art_piece["svg_file"],
+                            },
+                        )
+
+                    # Always update the live executive briefing
+                    brief_path = useful_work_engine.synthesize_briefing(worker_stats=self.stats)
+                    self.stats["latest_briefing"] = str(brief_path)
+
+                    # QCT Routing & ZeroMQ Telemetry Broadcast
+                    route_decision = self.router.route_query(
+                        prompt=f"ClothOS Dual-GPU Concurrent Cycle {cur_cycle}",
+                        vram_margin_mb=12918,
+                    )
+
                     self.zmq_bus.publish(
-                        topic="clothos.agent.art",
+                        topic="fabric.worker.cycle",
                         source_node="skyTech-Worker",
                         raw_payload={
-                            "id": art_piece["id"],
-                            "title": art_piece["title"],
-                            "style": art_piece["style"],
-                            "svg_file": art_piece["svg_file"],
+                            "cycle": cur_cycle,
+                            "mode": self.stats.get("workload_mode"),
+                            "tier": route_decision.tier,
+                            "gpu0_status": self.stats["gpu0_status"],
+                            "gpu1_status": self.stats["gpu1_status"],
+                            "real_tests_passed": self.stats.get("real_tests_passed", 0),
+                            "real_tests_failed": self.stats.get("real_tests_failed", 0),
+                            "hypotheses_indexed": self.stats["moltbook_hypotheses_indexed"],
+                            "experiments_evaluated": self.stats["experiments_evaluated"],
+                            "hypotheses_confirmed": self.stats["hypotheses_confirmed"],
+                            "hypotheses_refuted": self.stats["hypotheses_refuted"],
+                            "deliverables_published": self.stats["deliverables_published"],
+                            "ratchet_teeth": self.stats["ratchet_teeth_locked"],
+                            "hammer_rivets": self.stats["hammer_rivets_locked"],
                         },
                     )
 
-                # QCT Routing & ZeroMQ Telemetry Broadcast
-                route_decision = self.router.route_query(
-                    prompt=f"ClothOS Dual-GPU Concurrent Cycle {cur_cycle}",
-                    vram_margin_mb=12918,
-                )
+                    elapsed = round(time.time() - cycle_start, 2)
+                    msg = (
+                        f"Cycle #{cur_cycle:,} ({elapsed}s) [{self.stats.get('workload_mode')}] | "
+                        f"Tests: {self.stats.get('real_tests_passed', 0)}P/{self.stats.get('real_tests_failed', 0)}F | "
+                        f"Tasks: {tasks_drained} | Tested: {self.stats['experiments_evaluated']} | "
+                        f"GPU0: {gpu0.get('temp_c', '?')}C"
+                    )
+                    self.stats["last_log_message"] = msg
+                    logger.info(msg)
 
-                self.zmq_bus.publish(
-                    topic="fabric.worker.cycle",
-                    source_node="skyTech-Worker",
-                    raw_payload={
-                        "cycle": cur_cycle,
-                        "tier": route_decision.tier,
-                        "gpu0_status": self.stats["gpu0_status"],
-                        "gpu1_status": self.stats["gpu1_status"],
-                        "hypotheses_indexed": self.stats["moltbook_hypotheses_indexed"],
-                        "experiments_evaluated": self.stats["experiments_evaluated"],
-                        "hypotheses_confirmed": self.stats["hypotheses_confirmed"],
-                        "hypotheses_refuted": self.stats["hypotheses_refuted"],
-                        "deliverables_published": self.stats["deliverables_published"],
-                        "ratchet_teeth": self.stats["ratchet_teeth_locked"],
-                        "hammer_rivets": self.stats["hammer_rivets_locked"],
-                    },
-                )
+                    self._persist_state()
+                    sleep_s = float(uw_res.get("recommended_sleep_s", 15.0))
+                    self.stop_event.wait(timeout=max(5.0, sleep_s))
 
-                elapsed = round(time.time() - cycle_start, 2)
-                msg = (
-                    f"Cycle #{cur_cycle:,} ({elapsed}s) | "
-                    f"GPU 0: {self.stats['gpu0_status']} | "
-                    f"GPU 1: {self.stats['gpu1_status']} | "
-                    f"Tested: {self.stats['experiments_evaluated']} "
-                    f"({self.stats['hypotheses_confirmed']} conf, {self.stats['hypotheses_refuted']} ref) | "
-                    f"Deliverables: {self.stats['deliverables_published']}"
-                )
-                self.stats["last_log_message"] = msg
-                logger.info(msg)
-
-                self._persist_state()
-                time.sleep(1.0)
-
-            except Exception as e:
-                logger.error(f"Error in orchestrator loop: {e}", exc_info=True)
-                time.sleep(2.0)
-
-        self.stats["is_running"] = False
-        self.stats["last_active_tier"] = "Stopped"
-        self._persist_state()
-        logger.info("Continuous Sovereign Research Engine stopped gracefully.")
+                except Exception as e:
+                    logger.error(f"Error in orchestrator loop: {e}", exc_info=True)
+                    self.stop_event.wait(timeout=5.0)
+        finally:
+            self.stats["is_running"] = False
+            self.stats["last_active_tier"] = "Stopped"
+            self._persist_state()
+            lock.release()
+            logger.info("Continuous Sovereign Research Engine stopped gracefully.")
 
     def _step_node1_babel_kuramoto(self, *args, **kwargs) -> Dict[str, Any]:
         """Backward-compatible helper for GUI manual sweeps."""

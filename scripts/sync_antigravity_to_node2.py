@@ -91,12 +91,12 @@ if agent_script.exists():
     if res_agent.stderr:
         safe_print(res_agent.stderr)
 
-# 4. Verify GUI server on port 8090 on Node 2
-safe_print(">>> [Node 2] Checking GUI server on port 8090...")
+# 4. Verify Unified ClothOS Master server on single port 8087 (/guis mounted natively)
+safe_print(">>> [Node 2] Checking Unified Master GUI server on single port 8087...")
 import urllib.request
 try:
-    with urllib.request.urlopen("http://localhost:8090/index.html", timeout=3.0) as r:
-        safe_print(f">>> [Node 2] Local GUI server responded: HTTP {r.status}")
+    with urllib.request.urlopen("http://localhost:8087/guis/index.html", timeout=3.0) as r:
+        safe_print(f">>> [Node 2] Unified Master GUI server responded: HTTP {r.status}")
 except Exception as e:
     safe_print(f">>> [Node 2] Local GUI server note: {e}")
 

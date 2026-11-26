@@ -7,7 +7,7 @@ Provides continuous zero-drift code, model, and configuration synchronization
 between Node 1 (SkyTech 100.85.230.105) and Node 2 (Pure AMD Ryzen 7 100.74.98.21):
 - Hash-verified differential syncing across Tailscale WireGuard mesh.
 - Dynamic in-memory Python module hot-reloading (zero-downtime evolution).
-- Vector Core Holdings & Apostrophie asset and codebase sovereignty.
+- Vector Core Holdings & ClothOS asset and codebase sovereignty.
 """
 
 from __future__ import annotations

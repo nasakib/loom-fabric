@@ -27,6 +27,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -34,7 +35,9 @@ logger = logging.getLogger("loom.clothos.skill_evolver")
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 SKILLS_DIR = WORKSPACE_ROOT / "clothos_root" / "skills"
+SKILLS_INDEX_FILE = SKILLS_DIR / ".skills_index.json"
 PATTERNS_FILE = WORKSPACE_ROOT / ".clothos_learned_patterns.json"
+MAX_LEGACY_SPAM_LOAD = 25
 
 
 @dataclass
@@ -95,33 +98,66 @@ class SkillEvolver:
 
     _skills_cache: Dict[str, ClothOSSkill] = {}
     _initialized: bool = False
+    _lock = threading.RLock()
+
+    @classmethod
+    def _save_index(cls) -> None:
+        try:
+            SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+            payload = {sid: asdict(sk) for sid, sk in cls._skills_cache.items()}
+            SKILLS_INDEX_FILE.write_text(json.dumps(payload), encoding="utf-8")
+        except Exception as exc:
+            logger.debug(f"Could not write skills index: {exc}")
 
     @classmethod
     def initialize(cls) -> None:
-        """Loads and indexes all skills from the persistent skills directory."""
-        if cls._initialized:
-            return
+        """Loads and indexes all skills from the persistent skills directory cleanly and fast."""
+        with cls._lock:
+            if cls._initialized:
+                return
 
-        SKILLS_DIR.mkdir(parents=True, exist_ok=True)
-        cls._skills_cache.clear()
+            SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+            cls._skills_cache.clear()
 
-        # Seed foundational skills if empty
-        cls._seed_foundational_skills()
+            loaded_from_index = False
+            if SKILLS_INDEX_FILE.exists():
+                try:
+                    raw = json.loads(SKILLS_INDEX_FILE.read_text(encoding="utf-8"))
+                    if isinstance(raw, dict) and raw:
+                        for sid, data in raw.items():
+                            try:
+                                cls._skills_cache[sid] = ClothOSSkill(**data)
+                            except Exception:
+                                continue
+                        loaded_from_index = len(cls._skills_cache) > 0
+                except Exception as exc:
+                    logger.warning(f"Skills index load warning: {exc}")
 
-        # Load existing skills from disk
-        for skill_folder in SKILLS_DIR.iterdir():
-            if skill_folder.is_dir():
-                meta_file = skill_folder / "skill.json"
-                if meta_file.exists():
-                    try:
-                        data = json.loads(meta_file.read_text(encoding="utf-8"))
-                        skill = ClothOSSkill(**data)
-                        cls._skills_cache[skill.skill_id] = skill
-                    except Exception as exc:
-                        logger.warning(f"Failed to load skill {skill_folder.name}: {exc}")
+            if not loaded_from_index:
+                legacy_molt_loaded = 0
+                for skill_folder in SKILLS_DIR.iterdir():
+                    if not skill_folder.is_dir():
+                        continue
+                    # Prevent scanning/loading 10k+ legacy skill_molt_* boilerplate folders on boot
+                    if skill_folder.name.startswith("skill_molt_"):
+                        if legacy_molt_loaded >= MAX_LEGACY_SPAM_LOAD:
+                            continue
+                        legacy_molt_loaded += 1
+                    meta_file = skill_folder / "skill.json"
+                    if meta_file.exists():
+                        try:
+                            data = json.loads(meta_file.read_text(encoding="utf-8"))
+                            skill = ClothOSSkill(**data)
+                            cls._skills_cache[skill.skill_id] = skill
+                        except Exception as exc:
+                            logger.warning(f"Failed to load skill {skill_folder.name}: {exc}")
 
-        cls._initialized = True
-        logger.info(f"SkillEvolver initialized with {len(cls._skills_cache)} active skills.")
+            # Seed foundational skills if missing (without rewriting unchanged ones)
+            cls._seed_foundational_skills()
+            cls._save_index()
+
+            cls._initialized = True
+            logger.info(f"SkillEvolver initialized with {len(cls._skills_cache)} active skills.")
 
     @classmethod
     def _seed_foundational_skills(cls) -> None:
@@ -204,26 +240,28 @@ class SkillEvolver:
         ]
 
         for skill in foundational:
-            cls.save_skill(skill)
+            if skill.skill_id not in cls._skills_cache:
+                cls.save_skill(skill, update_index=False)
 
     @classmethod
-    def save_skill(cls, skill: ClothOSSkill) -> Path:
+    def save_skill(cls, skill: ClothOSSkill, update_index: bool = True) -> Path:
         """Persists a skill to disk with SKILL.md, skill.json, and test_skill.py."""
-        folder = SKILLS_DIR / skill.skill_id
-        folder.mkdir(parents=True, exist_ok=True)
+        with cls._lock:
+            folder = SKILLS_DIR / skill.skill_id
+            folder.mkdir(parents=True, exist_ok=True)
 
-        # Write skill.json
-        meta_file = folder / "skill.json"
-        meta_file.write_text(json.dumps(asdict(skill), indent=2), encoding="utf-8")
+            # Write skill.json
+            meta_file = folder / "skill.json"
+            meta_file.write_text(json.dumps(asdict(skill), indent=2), encoding="utf-8")
 
-        # Write SKILL.md
-        md_file = folder / "SKILL.md"
-        md_file.write_text(skill.to_markdown(), encoding="utf-8")
+            # Write SKILL.md
+            md_file = folder / "SKILL.md"
+            md_file.write_text(skill.to_markdown(), encoding="utf-8")
 
-        # Write test script
-        if skill.verification_test:
-            test_file = folder / "test_skill.py"
-            test_content = f"""# Autonomous verification test for {skill.skill_id} ({skill.version})
+            # Write test script
+            if skill.verification_test:
+                test_file = folder / "test_skill.py"
+                test_content = f"""# Autonomous verification test for {skill.skill_id} ({skill.version})
 import sys
 from pathlib import Path
 
@@ -234,10 +272,12 @@ if __name__ == '__main__':
     run_test()
     print('PASS')
 """
-            test_file.write_text(test_content, encoding="utf-8")
+                test_file.write_text(test_content, encoding="utf-8")
 
-        cls._skills_cache[skill.skill_id] = skill
-        return folder
+            cls._skills_cache[skill.skill_id] = skill
+            if update_index and cls._initialized:
+                cls._save_index()
+            return folder
 
     @classmethod
     def list_skills(cls) -> List[ClothOSSkill]:

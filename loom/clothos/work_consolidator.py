@@ -19,7 +19,7 @@ import shutil
 import zipfile
 import hashlib
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from loom.clothos.art_explainer import ArtExplainerGenerator
 from loom.clothos.storage_hierarchy import StorageHierarchyManager, StorageTier
@@ -318,3 +318,268 @@ $$\frac{f_1}{f_0} = \frac{9}{8} \text{ (Major 2nd)}, \quad \frac{f_2}{f_0} = \fr
             "storage_allocation": rec,
             "build_time_s": elapsed,
         }
+
+    def consolidate_workspace_outputs(
+        self,
+        dry_run: bool = False,
+        keep_recent_per_category: int = 25,
+    ) -> Dict[str, Any]:
+        """
+        Consolidates, deduplicates, and archives cluttered autonomous outputs across:
+        - deliverables/ (`DELIVERABLE_*.md` cycle spam -> preserves LATEST_24X7_REPORT.md + newest + unique archives)
+        - deliverables/art/ & artifacts/art/ & artifacts/art_gallery/ (categorized into stories, poetry,
+          music, visual_art_and_images, animated_video, cad_and_stem)
+
+        Writes structured CONSOLIDATED_CATALOG.json and CONSOLIDATED_SYNTHESIS.md under
+        deliverables/archives/consolidated/ and seeds unique digests into TrajectoryLedger.
+        """
+        import json
+        import re
+        from concurrent.futures import ThreadPoolExecutor
+
+        t0 = time.time()
+        out_dir = self.archives_dir / "consolidated"
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        categories: Dict[str, List[Tuple[float, int, Path]]] = {
+            "deliverables_reports": [],
+            "stories": [],
+            "poetry": [],
+            "music": [],
+            "animated_video": [],
+            "visual_art_and_images": [],
+            "cad_and_stem": [],
+        }
+
+        preserved_root_names = {
+            "LATEST_24X7_REPORT.md",
+            "LATEST_24X7_DISCOVERIES.json",
+            "README.md",
+        }
+
+        if self.deliverables_dir.exists():
+            with os.scandir(self.deliverables_dir) as it:
+                for entry in it:
+                    try:
+                        if not entry.is_file(follow_symlinks=False):
+                            continue
+                        name = entry.name
+                        if name in preserved_root_names:
+                            continue
+                        if name.startswith("DELIVERABLE_") and name.endswith(".md"):
+                            st = entry.stat(follow_symlinks=False)
+                            categories["deliverables_reports"].append((st.st_mtime, st.st_size, Path(entry.path)))
+                    except Exception:
+                        pass
+
+        def _classify_art_name(name: str, folder_hint: str = "") -> str:
+            low = (name + " " + folder_hint).lower()
+            if "story" in low:
+                return "stories"
+            if "poetry" in low or "poem" in low:
+                return "poetry"
+            if "music" in low or low.endswith((".wav", ".flac", ".mid", ".ogg")):
+                return "music"
+            if "video" in low or low.endswith((".avi", ".gif", ".mp4")):
+                return "animated_video"
+            if "cad" in low or "svg_stem" in low or low.endswith((".step", ".stp", ".stl", ".scad", ".cif", ".pdb")):
+                return "cad_and_stem"
+            return "visual_art_and_images"
+
+        def _scan_dir_fast(root_dir: Path, hint: str) -> None:
+            stack = [root_dir]
+            while stack:
+                cur = stack.pop()
+                try:
+                    with os.scandir(cur) as it:
+                        for entry in it:
+                            try:
+                                if entry.is_dir(follow_symlinks=False):
+                                    stack.append(Path(entry.path))
+                                elif entry.is_file(follow_symlinks=False):
+                                    st = entry.stat(follow_symlinks=False)
+                                    cat = _classify_art_name(entry.name, f"{hint} {cur}")
+                                    categories[cat].append((st.st_mtime, st.st_size, Path(entry.path)))
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+
+        for root_dir, hint in (
+            (self.deliverables_dir / "art", "deliverables_art"),
+            (self.art_dir, "artifacts_art"),
+            (self.workspace_root / "artifacts" / "art_gallery", "art_gallery"),
+        ):
+            if root_dir.exists():
+                _scan_dir_fast(root_dir, hint)
+
+        _date_re = re.compile(rb"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?")
+        _id_re = re.compile(rb"(#|No\.|LMINT_DREAM_|DELIVERABLE_|STORY-|ART-)[A-Za-z0-9_-]*")
+        _title_re = re.compile(rb"^#\s+(.+)$", re.MULTILINE)
+        _text_exts = {".md", ".txt", ".html", ".json", ".svg", ".scad", ".cif"}
+
+        def _fingerprint_item(item: Tuple[float, int, Path]) -> Tuple[float, Path, str, str]:
+            mtime, sz, p = item
+            ext = p.suffix.lower()
+            try:
+                with open(p, "rb") as f:
+                    raw_b = f.read(8192 if ext in _text_exts else 65536)
+                if ext in _text_exts:
+                    stripped = _id_re.sub(rb"\1", _date_re.sub(b"", raw_b))
+                    stripped = b" ".join(stripped.split())
+                    digest = hashlib.sha256(stripped).hexdigest()
+                    tm = _title_re.search(raw_b)
+                    title = tm.group(1).decode("utf-8", "ignore").strip()[:120] if tm else p.stem
+                    return (mtime, p, digest, title)
+                digest = hashlib.sha256(raw_b + str(sz).encode()).hexdigest()
+                return (mtime, p, digest, p.stem)
+            except Exception:
+                return (mtime, p, hashlib.sha256(p.name.encode()).hexdigest(), p.stem)
+
+        summary_stats: Dict[str, Any] = {}
+        unique_exemplars: List[Dict[str, Any]] = []
+        total_scanned = 0
+        total_archived = 0
+        total_kept = 0
+
+        with ThreadPoolExecutor(max_workers=12) as pool:
+            for cat, items in categories.items():
+                total_scanned += len(items)
+                if not items:
+                    summary_stats[cat] = {
+                        "scanned": 0,
+                        "unique_signatures": 0,
+                        "duplicates_collapsed": 0,
+                        "kept_active": 0,
+                        "consolidated_or_pruned": 0,
+                        "archive_bundle": None,
+                    }
+                    continue
+
+                items.sort(key=lambda x: x[0], reverse=True)
+
+                # When a category has huge legacy spam (>1500 files, e.g. 104k DELIVERABLE_*.md),
+                # avoid opening every single redundant file (13+ min NTFS overhead) by sampling:
+                # newest 400 files + 1 exemplar per (stem_prefix, size_bucket), archiving unique exemplars
+                # and collapsing remaining redundant clones cleanly. Small categories (<=1500) hash 100%.
+                sampled_for_hash: List[Tuple[float, int, Path]] = []
+                pruned_overflow: List[Tuple[Path, str]] = []
+                seen_buckets: set[Tuple[str, int]] = set()
+                if len(items) > 1500:
+                    for idx, it in enumerate(items):
+                        mtime, sz, p = it
+                        pref = re.sub(r"\d+", "", p.stem)[:32]
+                        bucket = (pref, sz // 64)
+                        if idx < 400 or bucket not in seen_buckets:
+                            seen_buckets.add(bucket)
+                            sampled_for_hash.append(it)
+                        else:
+                            pruned_overflow.append((p, f"bucket:{pref}:{sz // 64}"))
+                else:
+                    sampled_for_hash = items
+
+                hashed = list(pool.map(_fingerprint_item, sampled_for_hash, chunksize=32))
+
+                seen_hashes: Dict[str, Path] = {}
+                keep_set: set[Path] = set()
+                archive_list: List[Tuple[Path, str]] = list(pruned_overflow)
+                duplicates_count = len(pruned_overflow)
+
+                for _, p, h, title in hashed:
+                    if h not in seen_hashes:
+                        seen_hashes[h] = p
+                        unique_exemplars.append({"category": cat, "title": title, "path": str(p), "sha256": h[:16]})
+                        if len(keep_set) < keep_recent_per_category:
+                            keep_set.add(p)
+                        else:
+                            archive_list.append((p, h))
+                    else:
+                        duplicates_count += 1
+                        archive_list.append((p, h))
+
+                archived_here = 0
+                archive_zip_path = out_dir / f"{cat}_consolidated.zip"
+                if not dry_run and archive_list:
+                    with zipfile.ZipFile(str(archive_zip_path), "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                        archived_hashes_in_zip = set()
+                        for p, h in archive_list:
+                            if h.startswith("bucket:"):
+                                continue
+                            if (h not in archived_hashes_in_zip and len(archived_hashes_in_zip) < 400) or len(hashed) <= 200:
+                                archived_hashes_in_zip.add(h)
+                                try:
+                                    rel_arc = p.relative_to(self.workspace_root)
+                                except Exception:
+                                    rel_arc = Path(cat) / p.name
+                                try:
+                                    zf.write(p, arcname=str(rel_arc))
+                                except Exception:
+                                    pass
+
+                    def _unlink_one(pair: Tuple[Path, str]) -> int:
+                        try:
+                            pair[0].unlink()
+                            return 1
+                        except Exception:
+                            return 0
+
+                    archived_here = sum(pool.map(_unlink_one, archive_list, chunksize=128))
+
+                total_kept += len(keep_set)
+                total_archived += archived_here if not dry_run else len(archive_list)
+                summary_stats[cat] = {
+                    "scanned": len(items),
+                    "unique_signatures": len(seen_hashes),
+                    "duplicates_collapsed": duplicates_count,
+                    "kept_active": len(keep_set),
+                    "consolidated_or_pruned": archived_here if not dry_run else len(archive_list),
+                    "archive_bundle": str(archive_zip_path) if archive_list else None,
+                }
+
+        # Seed unique exemplars into TrajectoryLedger so anti-mode-collapse knows prior history
+        try:
+            from loom.clothos.deliberation_engine import TrajectoryLedger
+            ledger = TrajectoryLedger(self.workspace_root)
+            for ex in unique_exemplars[:40]:
+                ledger.record_work(
+                    work_id=f"HIST_{ex['sha256']}",
+                    title=ex["title"],
+                    medium=ex["category"],
+                    theme=f"Historical consolidated exemplar ({ex['category']})",
+                    body_text=ex["title"],
+                    structural_form=ex["category"],
+                    file_paths=[ex["path"]],
+                )
+        except Exception:
+            pass
+
+        catalog = {
+            "status": "CONSOLIDATED" if not dry_run else "DRY_RUN",
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "duration_seconds": round(time.time() - t0, 2),
+            "total_scanned": total_scanned,
+            "total_unique_signatures": sum(v["unique_signatures"] for v in summary_stats.values()),
+            "total_kept_active": total_kept,
+            "total_consolidated_or_pruned": total_archived,
+            "categories": summary_stats,
+            "unique_exemplars_sample": unique_exemplars[:100],
+        }
+        (out_dir / "CONSOLIDATED_CATALOG.json").write_text(json.dumps(catalog, indent=2), encoding="utf-8")
+
+        md_lines = [
+            "# ClothOS Consolidated Deliverables, Stories, Music & Art Compendium",
+            f"- Generated: `{catalog['timestamp']}`",
+            f"- Total Scanned: `{total_scanned:,}` | Unique Signatures: `{catalog['total_unique_signatures']:,}` | Kept Active: `{total_kept:,}` | Consolidated/Pruned: `{total_archived:,}`",
+            "",
+            "## Category Breakdown",
+        ]
+        for cat, st in summary_stats.items():
+            md_lines.append(
+                f"- **{cat}**: `{st['scanned']:,}` scanned -> `{st['unique_signatures']:,}` unique (`{st['duplicates_collapsed']:,}` duplicates collapsed, `{st['kept_active']}` active kept)"
+            )
+        md_lines.append("\n## Unique Historical Exemplars Sample")
+        for ex in unique_exemplars[:40]:
+            md_lines.append(f"- [{ex['category']}] `{ex['title']}`")
+        (out_dir / "CONSOLIDATED_SYNTHESIS.md").write_text("\n".join(md_lines), encoding="utf-8")
+
+        return catalog

@@ -9,6 +9,9 @@ objective verdicts (confirmed vs. refuted).
 from __future__ import annotations
 
 import logging
+import math
+from pathlib import Path
+import py_compile
 import time
 from typing import Any, Dict, Optional, Tuple
 import numpy as np
@@ -94,8 +97,17 @@ class ExperimentationEngine:
             elif exp_type == "crystallized_memory_hopfield":
                 measurements, verdict = self._run_crystallized_memory_experiment(params)
                 method = "Modern Continuous Hopfield Dense Associative Memory (Exponential Capacity)"
+            elif exp_type == "code_invariant_audit":
+                measurements, verdict = self._run_code_invariant_audit(params)
+                method = "ClothOS AST / Syntax & Invariant Codebase Auditor"
+            elif exp_type == "jit_kernel_benchmark":
+                measurements, verdict = self._run_jit_kernel_benchmark(params)
+                method = "Universal JIT x86-64 Machine Code Kernel Benchmark"
+            elif exp_type == "z3_smt_verification":
+                measurements, verdict = self._run_z3_smt_verification(params)
+                method = "Microsoft Z3 Formal SMT Constraint Verifier"
             else:
-                measurements = {"status": "unsupported_experiment_type"}
+                measurements = {"status": "unsupported_experiment_type", "experiment_type": exp_type}
                 verdict = "inconclusive"
                 method = "unknown"
 
@@ -559,4 +571,90 @@ class ExperimentationEngine:
         res = tool.retrieve_pattern(query=query, memory_matrix=mem_mat, beta=beta)
         verdict = "confirmed" if res["converged"] and res["energy_monotonic_decrease"] else "refuted"
         return res, verdict
+
+    def _run_code_invariant_audit(self, params: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
+        """Audits real Python modules in the workspace for syntax, compilation, and safety invariants."""
+        repo_root = Path(__file__).resolve().parents[2]
+        target_rel = str(params.get("target_path", "loom/clothos"))
+        target_dir = (repo_root / target_rel).resolve()
+        max_files = int(params.get("max_files", 25))
+
+        compiled_ok = 0
+        failed_files = []
+        scanned = 0
+        if target_dir.exists():
+            py_files = sorted(target_dir.rglob("*.py"))[:max_files]
+            for pf in py_files:
+                scanned += 1
+                try:
+                    py_compile.compile(str(pf), doraise=True)
+                    compiled_ok += 1
+                except Exception as exc:
+                    failed_files.append({"file": str(pf.relative_to(repo_root)), "error": str(exc)})
+
+        measurements = {
+            "target_path": target_rel,
+            "files_scanned": scanned,
+            "files_compiled": compiled_ok,
+            "compile_failures": len(failed_files),
+            "sample_failures": failed_files[:3],
+        }
+        verdict = "confirmed" if scanned > 0 and len(failed_files) == 0 else "refuted"
+        return measurements, verdict
+
+    def _run_jit_kernel_benchmark(self, params: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
+        """Benchmarks native Universal JIT x86-64 kernels for real execution speed and correctness."""
+        iterations = int(params.get("iterations", 2000))
+        try:
+            from loom.clothos.ujit_engine import clothos_jit
+            t0 = time.perf_counter()
+            out_val = 0
+            for _ in range(iterations):
+                out_val = clothos_jit.dispatch("grid_arbitrage", 1000, 15, 1)
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+            ok = (out_val == 9750)
+            measurements = {
+                "kernel_name": "grid_arbitrage",
+                "iterations": iterations,
+                "result": out_val,
+                "expected": 9750,
+                "elapsed_ms": round(elapsed_ms, 3),
+                "calls_per_sec": round(iterations / max(elapsed_ms / 1000.0, 1e-6), 1),
+            }
+            return measurements, ("confirmed" if ok else "refuted")
+        except Exception as exc:
+            return {"error": str(exc)}, "inconclusive"
+
+    def _run_z3_smt_verification(self, params: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
+        """Verifies RISC-V NAPOT PMP or thermodynamic resource bounds via Z3 SMT solver."""
+        enclave_size_kb = int(params.get("enclave_size_kb", 64))
+        alignment = int(params.get("alignment", 4096))
+        try:
+            import z3
+            s = z3.Solver()
+            s.set("timeout", 2000)
+            base = z3.BitVec("base_addr", 64)
+            size = z3.BitVec("region_size", 64)
+            req_bytes = enclave_size_kb * 1024
+            s.add(size == req_bytes)
+            s.add(base >= 0x80000000)
+            s.add((base & (alignment - 1)) == 0)
+            s.add((base & (size - 1)) == 0)
+            sat = (s.check() == z3.sat)
+            model = str(s.model()) if sat else "UNSAT"
+            measurements = {
+                "enclave_size_kb": enclave_size_kb,
+                "alignment": alignment,
+                "z3_sat": sat,
+                "model_sample": model[:180],
+            }
+            return measurements, ("confirmed" if sat else "refuted")
+        except ImportError:
+            # Pure bitwise verification fallback
+            size_bytes = enclave_size_kb * 1024
+            is_pow2 = size_bytes >= 8 and (size_bytes & (size_bytes - 1)) == 0
+            aligned = (0x80000000 & (alignment - 1)) == 0 and (0x80000000 & (size_bytes - 1)) == 0
+            measurements = {"enclave_size_kb": enclave_size_kb, "is_pow2": is_pow2, "aligned": aligned}
+            return measurements, ("confirmed" if (is_pow2 and aligned) else "refuted")
+
 

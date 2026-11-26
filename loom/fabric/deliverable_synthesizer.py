@@ -32,21 +32,21 @@ class DeliverableSynthesizer:
         self.deliverables_dir.mkdir(parents=True, exist_ok=True)
         self.store = store or HypothesisStore()
 
-    def should_synthesize(self, min_new_experiments: int = 5) -> bool:
-        """Determines if enough empirical experiments have completed to justify a new deliverable."""
-        stats = self.store.get_statistics()
-        total_exp = stats["total_experiments"]
-        total_del = stats["total_deliverables"]
-        if total_exp == 0:
+    def should_synthesize(self, min_new_experiments: int = 20, min_interval_s: float = 900.0) -> bool:
+        """Determines if enough genuinely NEW empirical experiments have completed since the last deliverable."""
+        new_exp = self.store.get_experiments_since_last_deliverable()
+        if new_exp == 0:
             return False
-        # If no deliverable yet, synthesize after first 3 experiments; otherwise every 5
-        threshold = 3 if total_del == 0 else (total_del * min_new_experiments)
-        return total_exp >= threshold
+        last_ts = self.store.get_last_deliverable_timestamp()
+        if last_ts == 0.0:
+            return new_exp >= min(3, min_new_experiments)
+        return new_exp >= min_new_experiments and (time.time() - last_ts) >= min_interval_s
 
-    def compile_deliverable(self, cycle_range: str = "") -> Optional[Path]:
+    def compile_deliverable(self, cycle_range: str = "", force_snapshot: bool = False) -> Optional[Path]:
         """
         Compiles an empirical research report from recently tested hypotheses,
-        saves the deliverable to disk and SQLite, and syncs status.
+        records it in SQLite first (preventing orphan file spam on DB lock),
+        updates the rolling LATEST_24X7_REPORT.md, and optionally emits a dated snapshot.
         """
         findings = self.store.get_findings_for_deliverable(limit=25)
         if not findings:
@@ -129,12 +129,76 @@ class DeliverableSynthesizer:
             f"across {len(findings)} Moltbook-derived experiments."
         )
 
-        # Write to file
-        filename = f"DELIVERABLE_{timestamp_str}.md"
-        out_path = self.deliverables_dir / filename
-        out_path.write_text(full_content, encoding="utf-8")
+        # Evaluate Logos Sieve truthfulness + Target Forge harmonization + Trajectory novelty
+        novelty_ok = True
+        novelty_reason = "novel"
+        try:
+            from loom.clothos.deliberation_engine import TrajectoryLedger
+            from loom.clothos.simplex_substrate import TargetForgeHarmonizer
+            harmonized = TargetForgeHarmonizer().harmonize_multimodal_batch(
+                text_summary=full_content[:2000],
+                visual_seed=max(1, len(findings)),
+            )
+            full_content += (
+                "\n\n## 5. Logos Sieve & Target Forge Verification\n"
+                f"- **Cross-Modal Coherence**: `{harmonized['cross_modal_coherence']}`\n"
+                f"- **Active Inference Precision**: `{harmonized['active_inference']['precision']}` | Free Energy: `{harmonized['active_inference']['free_energy']}`\n"
+                f"- **Logos Passed**: `{harmonized['wdm_lanes']['lane_1_logos']['passed']}`\n"
+            )
+            ledger = TrajectoryLedger(self.workspace_root)
+            novelty_ok, novelty_reason, _ = ledger.check_novelty(
+                title=title,
+                body_text=full_content,
+                medium="deliverable",
+                similarity_threshold=0.72,
+            )
+            if novelty_ok:
+                from loom.clothos.deliberation_engine import DeliberationPlan
+                plan = DeliberationPlan(
+                    dream_num=ledger.allocate_dream_num(),
+                    medium="deliverable",
+                    title=title,
+                    theme="Empirical Research Discovery & Synthesis",
+                    stem_domain="Distributed Scientific Synthesis",
+                    structural_form="Research Deliverable Markdown+JSON",
+                    thesis_or_arc=summary,
+                )
+                ledger.record_work(
+                    work_id=f"DELIV_{timestamp_str}",
+                    title=title,
+                    medium="deliverable",
+                    theme=summary,
+                    body_text=full_content[:2500],
+                    structural_form="empirical_synthesis",
+                )
+        except Exception as exc:
+            logger.debug(f"Deliverable verification hook notice: {exc}")
 
-        # Save to SQLite
+        # Save structured JSON discovery catalog alongside Markdown
+        try:
+            json_report_path = self.deliverables_dir / "LATEST_24X7_DISCOVERIES.json"
+            json_report_path.write_text(
+                json.dumps(
+                    {
+                        "title": title,
+                        "timestamp": now.isoformat(),
+                        "cycle_range": cycle_range,
+                        "summary": summary,
+                        "confirmed_count": len(confirmed),
+                        "refuted_count": len(refuted),
+                        "findings": findings,
+                        "novelty_passed": novelty_ok,
+                        "novelty_reason": novelty_reason,
+                    },
+                    indent=2,
+                    default=str,
+                ),
+                encoding="utf-8",
+            )
+        except Exception:
+            pass
+
+        # Save to SQLite first so DB errors never leave orphan markdown spam
         covered_ids = [f["id"] for f in findings]
         self.store.save_deliverable(
             title=title,
@@ -144,12 +208,26 @@ class DeliverableSynthesizer:
             hypotheses_covered=covered_ids,
         )
 
+        # Always refresh rolling report cleanly; emit dated file only when novel and on hourly boundary or forced
+        rolling_path = self.deliverables_dir / "LATEST_24X7_REPORT.md"
+        rolling_path.write_text(full_content, encoding="utf-8")
+
+        hourly_pattern = f"DELIVERABLE_{now.strftime('%Y%m%d_%H')}*.md"
+        existing_hourly = list(self.deliverables_dir.glob(hourly_pattern))
+        if (force_snapshot or (not existing_hourly and novelty_ok)):
+            filename = f"DELIVERABLE_{timestamp_str}.md"
+            out_path = self.deliverables_dir / filename
+            out_path.write_text(full_content, encoding="utf-8")
+        else:
+            out_path = rolling_path
+
         logger.info(f"Published empirical deliverable: {out_path.name}")
 
         # Keep interpretations/MASTER_SUMMARY.md continuously synchronized
         try:
             interp_dir = self.workspace_root / "interpretations"
             if interp_dir.exists():
+                import sys
                 sys_path = str(self.workspace_root)
                 if sys_path not in sys.path:
                     sys.path.insert(0, sys_path)

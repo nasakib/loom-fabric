@@ -28,28 +28,18 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 PORT_FILE = WORKSPACE_ROOT / ".loom_dashboard_port"
 PID_FILE = WORKSPACE_ROOT / ".loom_dashboard_pid"
 
-# Dedicated ClothOS Port Taxonomy
+# Dedicated Single-Port ClothOS Architecture (:8087)
 CLOTHOS_PRIMARY_PORT = 8087
-CLOTHOS_REACT_NATIVE_PORT = 8086
-CLOTHOS_CANDIDATE_PORTS = [8087, 8088, 8089, 8090, 8085]
+CLOTHOS_REACT_NATIVE_PORT = 8087
+CLOTHOS_CANDIDATE_PORTS = [8087]
 
 # Known Port Registry with Ownership & Conflict Risk
 PORT_REGISTRY = {
-    # Node 1 Managed Services
-    8087: {"name": "ClothOS Command Center (Primary Dedicated)", "node": "Node 1", "role": "CLOTHOS_CORE", "safe_to_clean": True},
-    8086: {"name": "ClothOS Universal React Native App", "node": "Node 1 / Node 2", "role": "CLOTHOS_REACT_NATIVE", "safe_to_clean": False},
-    8085: {"name": "ClothOS Command Center (Alt / Legacy)", "node": "Node 1", "role": "CLOTHOS_CORE", "safe_to_clean": True},
-    8088: {"name": "ClothOS Dash Secondary", "node": "Node 1", "role": "CLOTHOS_CORE", "safe_to_clean": True},
-    8089: {"name": "ClothOS Dash Tertiary", "node": "Node 1", "role": "CLOTHOS_CORE", "safe_to_clean": True},
-    8090: {"name": "ClothOS Quaternary Port", "node": "Node 1", "role": "CLOTHOS_CORE", "safe_to_clean": True},
-    5559: {"name": "ZeroMQ Telemetry Bus", "node": "Node 1", "role": "CLOTHOS_IPC", "safe_to_clean": False},
-    5555: {"name": "Shuttle Peer Sync", "node": "Node 1", "role": "CLOTHOS_IPC", "safe_to_clean": False},
-    8002: {"name": "Loom GW", "node": "Node 1", "role": "CLOTHOS_GW", "safe_to_clean": True},
+    # Single Unified ClothOS Master Application (UI + Gateway + GUIs + Sentinel + APIs)
+    8087: {"name": "ClothOS Unified Master Hub (:8087)", "node": "Node 1", "role": "CLOTHOS_MASTER_SINGLE_PORT", "safe_to_clean": True},
     # External Third-Party Services (NEVER kill or hijack)
     11434: {"name": "Ollama LLM Server", "node": "Node 1 / Node 2", "role": "EXTERNAL_LLM", "safe_to_clean": False},
     18789: {"name": "OpenClaw Gateway", "node": "Node 1", "role": "EXTERNAL_SERVICE", "safe_to_clean": False},
-    8080: {"name": "Standard HTTP Alt / Dev Server", "node": "Host OS", "role": "EXTERNAL_DEV", "safe_to_clean": False},
-    3000: {"name": "Node / React Webpack Dev", "node": "Host OS", "role": "EXTERNAL_DEV", "safe_to_clean": False},
     # Node 2 Remote Managed Services (100.74.98.21 / 192.168.99.2)
     8265: {"name": "Ray Cluster Dashboard", "node": "Node 2", "role": "REMOTE_COMPUTE", "safe_to_clean": False},
     6379: {"name": "Ray Redis GCS", "node": "Node 2", "role": "REMOTE_COMPUTE", "safe_to_clean": False},
@@ -244,13 +234,15 @@ class ClothOSPortManager:
             except Exception:
                 pass
 
-        # Use netstat to identify only processes on CLOTHOS candidate ports without popping console windows
+        # Clean legacy secondary ports alongside 8087 only when explicitly requested
+        legacy_ports = [8000, 8002, 8081, 8085, 8086, 8087, 8088, 8089, 8090, 5555]
+        # Use netstat to identify only stale ClothOS/legacy processes without popping console windows
         try:
             out = subprocess.check_output("netstat -ano", shell=True, text=True, stderr=subprocess.DEVNULL, creationflags=no_win, timeout=5.0)
             for line in out.splitlines():
                 if "LISTENING" not in line:
                     continue
-                for p in CLOTHOS_CANDIDATE_PORTS:
+                for p in legacy_ports:
                     if f":{p} " in line:
                         parts = line.split()
                         try:

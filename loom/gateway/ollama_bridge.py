@@ -166,7 +166,7 @@ async def ollama_chat(req: Request):
 
     async with httpx.AsyncClient(timeout=300.0) as client:
         if not stream:
-            res = await client.post("http://127.0.0.1:8002/v1/chat/completions", json=payload)
+            res = await client.post("http://127.0.0.1:8087/v1/chat/completions", json=payload)
             if res.status_code != 200:
                 return JSONResponse(status_code=res.status_code, content={"error": res.text})
             openai_resp = res.json()
@@ -183,7 +183,7 @@ async def ollama_chat(req: Request):
             }
 
         async def _stream_ollama() -> AsyncIterator[str]:
-            async with client.stream("POST", "http://127.0.0.1:8002/v1/chat/completions", json=payload) as r:
+            async with client.stream("POST", "http://127.0.0.1:8087/v1/chat/completions", json=payload) as r:
                 async for chunk in r.aiter_lines():
                     if not chunk or not chunk.startswith("data: "):
                         continue
@@ -217,7 +217,7 @@ async def ollama_chat(req: Request):
 @router.get("/join.ps1", response_class=PlainTextResponse)
 def get_windows_join_script(request: Request) -> str:
     """Returns a 1-click Windows PowerShell onboarding script for OpenClaw users."""
-    host = request.headers.get("host", "127.0.0.1:8002")
+    host = request.headers.get("host", "127.0.0.1:8087")
     protocol = "https" if "https" in str(request.url) else "http"
     gateway_url = f"{protocol}://{host}"
 
@@ -308,7 +308,7 @@ Write-Host "==========================================================" -Foregro
 @router.get("/join.sh", response_class=PlainTextResponse)
 def get_unix_join_script(request: Request) -> str:
     """Returns a 1-click macOS/Linux onboarding script for OpenClaw users."""
-    host = request.headers.get("host", "127.0.0.1:8002")
+    host = request.headers.get("host", "127.0.0.1:8087")
     protocol = "https" if "https" in str(request.url) else "http"
     gateway_url = f"{protocol}://{host}"
 
@@ -373,7 +373,7 @@ echo "=========================================================="
 @router.get("/join", response_class=HTMLResponse)
 def get_join_portal_ui(request: Request) -> str:
     """Interactive visual portal for joining Loom Fabric as a Consumer or Provider."""
-    host = request.headers.get("host", "127.0.0.1:8002")
+    host = request.headers.get("host", "127.0.0.1:8087")
     protocol = "https" if "https" in str(request.url) else "http"
     gateway_url = f"{protocol}://{host}"
 

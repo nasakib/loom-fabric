@@ -616,10 +616,22 @@ class StemCadEngine:
         seed: Optional[DifferentialSeed] = None,
         archetype: Optional[str] = None,
         title: Optional[str] = None,
+        freq_mhz: Optional[float] = None,
+        symmetry_r: Optional[float] = None,
+        scale_mm: float = 1.0,
+        resolution: int = 16,
+        use_freecad: bool = False,
     ) -> Dict[str, Any]:
         """
-        Synthesizes a 3D CAD model based on the differential seed and exports .py, .step, .stl, and .svg.
+        Synthesizes a real 3D parametric CAD model based on the differential seed
+        or operator parameters and exports .py, faceted AP214 .step, binary .stl, and .svg.
         """
+        from loom.clothos.cad_kernel import (
+            generate_archetype_mesh,
+            write_binary_stl,
+            write_step_ap214,
+        )
+
         target_arch = archetype
         if not target_arch or target_arch not in self.ARCHETYPES:
             if seed:
@@ -630,8 +642,8 @@ class StemCadEngine:
         timestamp_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         uid = f"CAD_{int(time.time())}_{random.randint(1000, 9999)}"
 
-        f_0 = seed.next_target_freq if seed else 2450.0  # MHz
-        sym_r = seed.next_target_symmetry if seed else 0.88
+        f_0 = float(freq_mhz) if freq_mhz is not None else (seed.next_target_freq if seed else 2450.0)
+        sym_r = float(symmetry_r) if symmetry_r is not None else (seed.next_target_symmetry if seed else 0.88)
         h_entropy = seed.next_target_entropy if seed else 3.8
 
         script_code, meta = self._build_freecad_script(
@@ -641,6 +653,21 @@ class StemCadEngine:
             symmetry_r=sym_r,
             entropy=h_entropy,
         )
+        mesh_data = generate_archetype_mesh(
+            archetype=target_arch,
+            freq_mhz=f_0,
+            symmetry_r=sym_r,
+            scale_mm=scale_mm,
+            resolution=resolution,
+        )
+        # Anchor CAD metadata directly to measured triangulated BREP mesh quantities
+        meta["volume_mm3"] = mesh_data["volume_mm3"]
+        meta["surface_area_mm2"] = mesh_data["surface_area_mm2"]
+        meta["face_count"] = mesh_data["triangle_count"]
+        meta["vertex_count"] = mesh_data["vertex_count"]
+        meta["bounds"] = mesh_data["bounds"]
+        if scale_mm != 1.0:
+            meta["dimensions"] = {**meta.get("dimensions", {}), "scale_mm": scale_mm}
 
         model_title = title or meta["title"]
 
@@ -661,7 +688,7 @@ class StemCadEngine:
         py_path.write_text(script_code, encoding="utf-8")
 
         fc_success = False
-        if self.freecad_bin and os.path.exists(self.freecad_bin):
+        if use_freecad and self.freecad_bin and os.path.exists(self.freecad_bin):
             try:
                 cmd = [self.freecad_bin, str(py_path.resolve())]
                 res = subprocess.run(
@@ -675,13 +702,11 @@ class StemCadEngine:
                 logger.info(f"[StemCadEngine] FreeCAD compilation code {res.returncode}, step_exists={fc_success}")
             except Exception as e:
                 logger.warning(f"[StemCadEngine] FreeCAD execution failed: {e}")
-        else:
-            logger.warning("[StemCadEngine] FreeCAD binary not found. Generating mock parametric geometry.")
 
         if not step_path.exists():
-            self._write_fallback_step(step_path, model_title, meta)
+            write_step_ap214(step_path, mesh_data, title=model_title)
         if not stl_path.exists():
-            self._write_fallback_stl(stl_path, meta)
+            write_binary_stl(stl_path, mesh_data)
 
         svg_content = self._generate_technical_svg_drawing(
             meta=meta,
@@ -990,64 +1015,16 @@ sys.exit(0)
             return code, meta
 
     def _write_fallback_step(self, path: Path, title: str, meta: Dict[str, Any]) -> None:
-        """Writes a compliant ISO 10303-21 STEP exchange file."""
-        ts = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-        content = f"""ISO-10303-21;
-HEADER;
-FILE_DESCRIPTION(('ClothOS Sovereign STEM CAD Solid Model', '2;1'), '1');
-FILE_NAME('{path.name}', '{ts}', ('Loom Sovereign Atelier'), ('ClothOS Multimodal Core'), 'FreeCAD 1.1 Parametric Kernel', 'OpenCASCADE 7.7.0', '');
-FILE_SCHEMA(('CONFIG_CONTROL_DESIGN'));
-ENDSEC;
-DATA;
-#1 = APPLICATION_CONTEXT('mechanical design');
-#2 = APPLICATION_PROTOCOL_DEFINITION('international standard', 'config_control_design', 1994, #1);
-#3 = PRODUCT_DEFINITION_CONTEXT('part definition', #1, 'design');
-#4 = PRODUCT('{meta.get("archetype", "STEM_SOLID")}', '{title}', '', (#3));
-#5 = PRODUCT_DEFINITION_FORMATION('1.0', 'ClothOS Autonomous Synthesis', #4);
-#6 = PRODUCT_DEFINITION('design', '', #5, #3);
-#7 = PRODUCT_DEFINITION_SHAPE('Shape Representation', '', #6);
-#8 = CARTESIAN_POINT('Origin', (0.0, 0.0, 0.0));
-#9 = DIRECTION('Z-Axis', (0.0, 0.0, 1.0));
-#10 = DIRECTION('X-Axis', (1.0, 0.0, 0.0));
-#11 = AXIS2_PLACEMENT_3D('Placement', #8, #9, #10);
-#12 = SHAPE_REPRESENTATION('Solid Shape', (#11), #3);
-ENDSEC;
-END-ISO-10303-21;
-"""
-        path.write_text(content, encoding="utf-8")
+        """Writes a geometrically populated ISO 10303-21 FACETED_BREP STEP exchange file."""
+        from loom.clothos.cad_kernel import generate_archetype_mesh, write_step_ap214
+        mesh = generate_archetype_mesh(archetype=meta.get("archetype", "MICROWAVE_CAVITY_FILTER"))
+        write_step_ap214(path, mesh, title=title)
 
     def _write_fallback_stl(self, path: Path, meta: Dict[str, Any]) -> None:
-        """Writes a clean binary STL triangulated mesh."""
-        header = f"ClothOS STEM CAD: {meta.get('title', 'Parametric Solid')}".encode("ascii")[:80].ljust(80, b" ")
-        triangles: List[Tuple[Tuple[float, float, float], Tuple[float, float, float], Tuple[float, float, float], Tuple[float, float, float]]] = []
-        s = 20.0
-        corners = [
-            (0.0, 0.0, 0.0), (s, 0.0, 0.0), (s, s, 0.0), (0.0, s, 0.0),
-            (0.0, 0.0, s), (s, 0.0, s), (s, s, s), (0.0, s, s),
-        ]
-        faces_idx = [
-            (0, 1, 2), (0, 2, 3),
-            (4, 6, 5), (4, 7, 6),
-            (0, 5, 1), (0, 4, 5),
-            (2, 7, 3), (2, 6, 7),
-            (0, 3, 7), (0, 7, 4),
-            (1, 5, 6), (1, 6, 2),
-        ]
-        for f in faces_idx:
-            p1, p2, p3 = corners[f[0]], corners[f[1]], corners[f[2]]
-            normal = (0.0, 0.0, 1.0)
-            triangles.append((normal, p1, p2, p3))
-
-        import struct
-        data = bytearray(header)
-        data.extend(struct.pack("<I", len(triangles)))
-        for norm, p1, p2, p3 in triangles:
-            data.extend(struct.pack("<3f", *norm))
-            data.extend(struct.pack("<3f", *p1))
-            data.extend(struct.pack("<3f", *p2))
-            data.extend(struct.pack("<3f", *p3))
-            data.extend(struct.pack("<H", 0))
-        path.write_bytes(data)
+        """Writes a parametric binary STL triangulated mesh with computed outward normals."""
+        from loom.clothos.cad_kernel import generate_archetype_mesh, write_binary_stl
+        mesh = generate_archetype_mesh(archetype=meta.get("archetype", "MICROWAVE_CAVITY_FILTER"))
+        write_binary_stl(path, mesh)
 
     def _generate_technical_svg_drawing(
         self,

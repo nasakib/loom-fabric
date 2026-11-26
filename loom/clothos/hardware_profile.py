@@ -1,4 +1,4 @@
-﻿"""
+"""
 ClothOS Silicon Hardware Telemetry & Capability Scanner
 File: loom/clothos/hardware_profile.py
 

@@ -63,29 +63,55 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 
 
 def load_live_telemetry() -> Dict[str, Any]:
-    """Loads real-time metrics from the persistent worker state file."""
+    """Loads real-time metrics from the persistent worker state file and useful work telemetry."""
+    useful_file = Path.home() / ".loom" / "24x7_useful_state.json"
+    useful: Dict[str, Any] = {}
+    if useful_file.exists():
+        try:
+            useful = json.loads(useful_file.read_text(encoding="utf-8"))
+        except Exception:
+            useful = {}
+
+    useful_gpu0_temp = (
+        useful.get("hardware_benchmarks", {}).get("gpu0_nvidia", {}).get("temp_c", 0)
+        if isinstance(useful, dict) else 0
+    )
+
     state_file = Path.home() / ".loom" / "continuous_worker_state.json"
     if not state_file.exists():
         state_file = WORKSPACE_ROOT / ".loom_worker_state.json"
     if state_file.exists():
         try:
-            return json.loads(state_file.read_text(encoding="utf-8"))
+            data = json.loads(state_file.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                if useful:
+                    data.setdefault("last_test_passed", useful.get("real_tests_passed", 0))
+                    data.setdefault("last_test_failed", useful.get("real_tests_failed", 0))
+                    data.setdefault("workload_mode", useful.get("workload_mode", "AUTO"))
+                    data.setdefault("tasks_drained_total", useful.get("tasks_drained_total", 0))
+                    data.setdefault("gpu0_temp_c", useful_gpu0_temp)
+                return data
         except Exception:
             pass
     return {
-        "total_cycles_completed": 202155,
+        "total_cycles_completed": 0,
         "sovereign_coherence_index": 92.5,
-        "moltbook_hypotheses_indexed": 42767,
-        "experiments_evaluated": 43042,
-        "hypotheses_confirmed": 40842,
-        "hypotheses_refuted": 1913,
-        "ratchet_teeth_locked": 217141,
-        "hammer_rivets_locked": 96,
-        "total_invariants_mined": 53125,
+        "moltbook_hypotheses_indexed": 0,
+        "experiments_evaluated": 0,
+        "hypotheses_confirmed": 0,
+        "hypotheses_refuted": 0,
+        "ratchet_teeth_locked": 0,
+        "hammer_rivets_locked": 0,
+        "total_invariants_mined": 0,
         "gpu0_status": "SYNTHESIZING_HYPOTHESIS",
-        "gpu1_status": "EVALUATING_HYP_42765",
-        "latest_deliverable": "DELIVERABLE_20261029.md",
-        "latest_art": "Minted Dream #61: STEM Blueprint",
+        "gpu1_status": "IDLE",
+        "latest_deliverable": "LATEST_24X7_REPORT.md",
+        "latest_art": "ClothOS Useful Telemetry",
+        "last_test_passed": useful.get("real_tests_passed", 0),
+        "last_test_failed": useful.get("real_tests_failed", 0),
+        "workload_mode": useful.get("workload_mode", "AUTO"),
+        "tasks_drained_total": useful.get("tasks_drained_total", 0),
+        "gpu0_temp_c": useful_gpu0_temp,
     }
 
 
@@ -132,6 +158,11 @@ class FactoryFloorVisualizer:
         sci = telem.get("sovereign_coherence_index", 92.5)
         gpu0_st = telem.get("gpu0_status", "ACTIVE")
         gpu1_st = telem.get("gpu1_status", "EVALUATING")
+        real_pass = telem.get("real_tests_passed", 0)
+        real_fail = telem.get("real_tests_failed", 0)
+        w_mode = telem.get("workload_mode", "AUTO")
+        tasks_tot = telem.get("tasks_drained_total", 0)
+        gpu0_temp = telem.get("gpu0_temp_c", "?")
 
         # Hammer strike impact effect
         hammer_striking = (frame_idx % 6) == 0
@@ -169,7 +200,7 @@ class FactoryFloorVisualizer:
   │  Landauer Heat: [bold green]OPTIMAL[/bold green]                │  │  Zero-Zombie Process Guarantee: [bold green]PASS[/bold green] │  │  [italic]{telem.get('latest_art', 'Harmonic Blueprint')[:23]}[/italic] │
   ╰───────────────────────────────────────╯  ╰────────────────────────────────────────╯  ╰────────────────────────────╯
 
-  [bold #64748b]HUD Telemetry:[/bold #64748b] Total Cycles: [bold white]{cycles:,}[/bold white] │ Confirmed: [bold green]{confirmed:,}[/bold green] │ Refuted: [bold red]{refuted:,}[/bold red] │ Dual VRAM: [bold cyan]20.0 GB (12GB+8GB)[/bold cyan] │ Status: [bold #00ff7f]FABRIC ONLINE[/bold #00ff7f]"""
+  [bold #64748b]HUD Telemetry:[/bold #64748b] Cycles: [bold white]{cycles:,}[/bold white] │ Mode: [bold cyan]{w_mode}[/bold cyan] │ Pytest: [bold green]{real_pass}P[/bold green]/[bold red]{real_fail}F[/bold red] │ Tasks: [bold white]{tasks_tot}[/bold white] │ GPU0: [bold yellow]{gpu0_temp}°C[/bold yellow] │ Confirmed: [bold green]{confirmed:,}[/bold green]"""
 
         return Panel(
             canvas,

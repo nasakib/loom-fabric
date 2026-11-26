@@ -24,6 +24,9 @@ if /i "%~1"=="/?" goto SHOW_HELP
 if /i "%~1"=="--status" goto SHOW_STATUS
 if /i "%~1"=="-s" goto SHOW_STATUS
 if /i "%~1"=="status" goto SHOW_STATUS
+if /i "%~1"=="--briefing" goto SHOW_BRIEFING
+if /i "%~1"=="-b" goto SHOW_BRIEFING
+if /i "%~1"=="briefing" goto SHOW_BRIEFING
 if /i "%~1"=="--factory" goto SHOW_FACTORY
 if /i "%~1"=="-f" goto SHOW_FACTORY
 if /i "%~1"=="factory" goto SHOW_FACTORY
@@ -48,16 +51,17 @@ if errorlevel 1 (
 :: Banner
 cls
 echo ============================================================================
-echo   CLOTHOS SOVEREIGN 24/7 AUTONOMOUS COMPUTE FABRIC (SELF-EVOLUTION ENGINE)
+echo   CLOTHOS SOVEREIGN 24/7 USEFUL COMPUTE FABRIC (GRID-AWARE ORCHESTRATOR)
 echo ============================================================================
-echo   [ENGINE]:   ClothOS Continuous 24x7 Orchestrator + Unified Autonomous Engine
-echo   [BRANCH]:   clothos/autonomous-evolution (Unbounded Self-Improvement)
-echo   [RESEARCH]: Reddit (/r/osdev, /r/kernel) + GitHub Operating Systems
-echo   [LIBRARY]:  deliverables\research_library\OS_RESEARCH_CITATIONS.md
-echo   [SILICON]:  Node 1: RTX 3060 12GB CUDA + RX 580 8GB OpenCL/Vulkan
-echo               Node 2: AMD Ryzen 7 7730U (16T AVX2 Mesh @ 192.168.99.2)
-echo   [PIPELINE]: Research Harvester -^> babelForge Invariants -^> Self-Evolution -^> Ratchet
-echo   [AIR-GAP]:  Sovereign Cluster Substrate -- Zero Cloud Leakage
+echo   [ENGINE]:    ClothOS Continuous 24x7 Orchestrator + UsefulComputeWorkEngine
+echo   [WORKLOADS]: 1. Drain .clothos_task_queue.jsonl engineering tasks
+echo                2. Rotate real multi-repo pytest suites ^& Python AST audits
+echo                3. Live GPU/OpenCL/JIT/Ollama cluster benchmarks ^& telemetry
+echo                4. Execution-verified LLM coding distillation (Ollama sandbox)
+echo                5. Log rotation, stale lock recovery ^& actionable briefings
+echo   [SILICON]:   Node 1: RTX 3060 12GB CUDA + RX 580 8GB OpenCL
+echo                Node 2: AMD Ryzen 7 7730U (16T Mesh @ 192.168.99.2)
+echo   [BRIEFING]:  deliverables\LATEST_24X7_REPORT.md
 echo ============================================================================
 echo   Controls: Press [Ctrl+C] to halt the supervisor loop gracefully.
 echo ============================================================================
@@ -126,7 +130,14 @@ if exist "%LOOM_DIR%\.venv\Scripts\python.exe" set "PY_EXE=%LOOM_DIR%\.venv\Scri
 if not defined PY_EXE if exist "C:\Users\natsa\AppData\Local\Programs\FreeCAD 1.1\FreeCAD_1.1.3-Windows-x86_64-py311\bin\python.exe" set "PY_EXE=C:\Users\natsa\AppData\Local\Programs\FreeCAD 1.1\FreeCAD_1.1.3-Windows-x86_64-py311\bin\python.exe"
 if not defined PY_EXE set "PY_EXE=python"
 echo [ClothOS] Querying 24/7 Compute Worker Telemetry...
-"%PY_EXE%" -c "import json, pathlib; p = pathlib.Path.home() / '.loom' / 'continuous_worker_state.json'; print(json.dumps(json.loads(p.read_text(encoding='utf-8')), indent=2)) if p.exists() else print('No worker state found.')"
+"%PY_EXE%" -c "import json, pathlib; p = pathlib.Path.home() / '.loom' / 'continuous_worker_state.json'; print(json.dumps(json.loads(p.read_text(encoding='utf-8')), indent=2)) if p.exists() else print('No worker state found.'); u = pathlib.Path.home() / '.loom' / '24x7_useful_state.json'; print('\n--- Useful Work Summary ---\n' + json.dumps({k: v for k, v in json.loads(u.read_text(encoding='utf-8')).items() if k in ('workload_mode','real_tests_passed','real_tests_failed','real_test_pass_rate_pct','tasks_drained_total','recent_actions')}, indent=2)) if u.exists() else None"
+exit /b 0
+
+:SHOW_BRIEFING
+set "PY_EXE="
+if exist "%LOOM_DIR%\.venv\Scripts\python.exe" set "PY_EXE=%LOOM_DIR%\.venv\Scripts\python.exe"
+if not defined PY_EXE set "PY_EXE=python"
+"%PY_EXE%" -m loom.clothos.continuous_24x7_orchestrator --briefing
 exit /b 0
 
 :SHOW_HELP
@@ -137,13 +148,17 @@ echo Usage:
 echo   Start-24-7-Compute.bat [OPTIONS]
 echo.
 echo Options:
-echo   --status, -s        Display current 24/7 telemetry and metrics without launching
+echo   --status, -s        Display current 24/7 telemetry and useful work metrics
+echo   --briefing, -b      Print the latest 24/7 executive briefing markdown
 echo   --factory, -f       Launch animated ASCII cognitive factory floor in terminal
 echo   --all-cylinders     Ignite all 8 ClothOS cylinders before continuous loop
 echo   --once              Execute a single supervised cycle and exit
+echo   --mode ^<m^>          Workload mode: auto, night, day, maintenance
 echo   --help, -h, /?      Display this help dialog
 echo.
-echo Telemetry File:
+echo Telemetry Files:
 echo   ~/.loom/continuous_worker_state.json
+echo   ~/.loom/24x7_useful_state.json
+echo   deliverables/LATEST_24X7_REPORT.md
 echo ============================================================================
 exit /b 0

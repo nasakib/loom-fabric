@@ -57,7 +57,7 @@ CLR_TEXT = "#f0fdf4"          # Pure Spring White
 CLR_MUTED = "#bbf7d0"         # Pale Foliage Muted Text
 
 MASTER_TOKEN = "G-GzcZEzqteW241i720XeH5UNT73T6qk"
-MANAGED_PORTS = [8000, 8002, 8080, 8088, 5555, 18789, 6379, 8265]
+MANAGED_PORTS = [8000, 8002, 8080, 8081, 8085, 8086, 8087, 8088, 8089, 8090, 5555]
 
 
 class CrossPlatformClusterController:
@@ -385,29 +385,18 @@ class CrossPlatformClusterController:
                     log_name="ollama.log",
                 )
 
-        # 2. The Shuttle / Stitch Bridge (:5555)
-        if not self.is_port_open("127.0.0.1", 5555) and (self.stitch_dir / "bridge" / "server.py").exists() and self._can_spawn_port(5555, force=force):
-            stitch_py = self.resolve_python(for_stitch=True)
-            self.log("[Auto-Heal] Starting The Shuttle (:5555) silently in background...")
-            self.spawn_background_service(
-                [stitch_py, "-m", "uvicorn", "bridge.server:app", "--host", "0.0.0.0", "--port", "5555"],
-                cwd=self.stitch_dir,
-                env={"PYTHONPATH": str(self.stitch_dir)},
-                log_name="stitch_bridge.log",
-            )
-
-        # 3. Loom Fabric Gateway (:8002)
-        if not self.is_port_open("127.0.0.1", 8002) and self._can_spawn_port(8002, force=force):
+        # 2. Unified ClothOS Master Application (:8087 — Dashboard, Gateway, GUIs, Sentinel, VFS)
+        if not self.is_port_open("127.0.0.1", 8087) and self._can_spawn_port(8087, force=force):
             loom_py = self.resolve_python(for_stitch=False)
-            self.log("[Auto-Heal] Starting Loom Fabric Gateway (:8002) silently in background...")
+            self.log("[Auto-Heal] Starting Unified ClothOS Master App (:8087) silently in background...")
             self.spawn_background_service(
-                [loom_py, "-m", "uvicorn", "loom.gateway.app:app", "--host", "0.0.0.0", "--port", "8002"],
+                [loom_py, "-m", "uvicorn", "loom.fabric.dashboard_server:app", "--host", "0.0.0.0", "--port", "8087"],
                 cwd=self.loom_dir,
-                env={"PYTHONPATH": str(self.loom_dir), "PYTHONIOENCODING": "utf-8"},
-                log_name="loom_gateway.log",
+                env={"PYTHONPATH": str(self.loom_dir), "PYTHONIOENCODING": "utf-8", "CLOTHOS_PORT": "8087"},
+                log_name="clothos_master_8087.log",
             )
 
-        # 4. OpenClaw Gateway (:18789)
+        # 3. OpenClaw Gateway (:18789)
         if not self.is_port_open("127.0.0.1", 18789) and self._can_spawn_port(18789, force=force):
             node_bin = shutil.which("node")
             if not node_bin and self.sys_name == "windows":
@@ -479,12 +468,12 @@ class CrossPlatformClusterController:
         return False
 
     def start_local_all(self, separate_gateway_window: bool = False) -> None:
-        """Sanitizes stale ports and starts all services silently in the background (zero terminal windows)."""
-        self.log(f"=== Sanitizing & Starting All Services Silently on {self.hostname} ({self.self_ip}) ===")
-        self.sanitize_local_ports(ports=[8000, 8002, 8080, 5555, 18789])
+        """Sanitizes legacy ports and starts unified single-port ClothOS (:8087) silently."""
+        self.log(f"=== Sanitizing Legacy Ports & Starting Unified Master (:8087) on {self.hostname} ({self.self_ip}) ===")
+        self.sanitize_local_ports(ports=[8000, 8002, 8080, 8081, 8085, 8086, 8088, 8089, 8090, 5555])
         time.sleep(0.6)
         self.ensure_local_services_alive(force=True)
-        self.log(f"All services running headless in background on {self.hostname} (zero terminal windows).")
+        self.log(f"Unified ClothOS Master Hub (:8087) running headless on {self.hostname}.")
 
     def trigger_peer_action(self, action: str = "restart") -> bool:
         """Dispatches remote headless Start/Restart or Stop/Sanitize to the peer machine."""

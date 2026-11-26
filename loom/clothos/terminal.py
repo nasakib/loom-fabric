@@ -77,8 +77,53 @@ try:
     HAS_PROMPT_TOOLKIT = True
 
 except ImportError:
-
     HAS_PROMPT_TOOLKIT = False
+    Completer = object
+    Document = Any
+
+    class HTML:
+        def __init__(self, value: str = "") -> None:
+            self.value = value
+        def __str__(self) -> str:
+            return self.value
+
+    def to_formatted_text(value: Any) -> Any:
+        return value
+
+    class Style:
+        @staticmethod
+        def from_dict(mapping: Dict[str, str]) -> Dict[str, str]:
+            return dict(mapping)
+
+    class KeyBindings:
+        def add(self, *args: Any, **kwargs: Any):
+            def _decorator(fn: Any) -> Any:
+                return fn
+            return _decorator
+
+    class PromptSession:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            pass
+        def prompt(self, message: Any = "", **kwargs: Any) -> str:
+            return input(getattr(message, "value", str(message)))
+
+    class FileHistory:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            pass
+
+    class AutoSuggestFromHistory:
+        pass
+
+    class Completion:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            self.args = args
+            self.kwargs = kwargs
+
+    class PathCompleter:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            pass
+        def get_completions(self, *args: Any, **kwargs: Any) -> Iterable[Any]:
+            return []
 
 
 
@@ -159,6 +204,13 @@ console = Console(legacy_windows=False)
 # ── Available Slash Commands & Descriptions for Autocompletion ───────────────
 
 SLASH_COMMAND_DOCS = {
+    "/nexus": "Unified Sovereign Nexus 10-project mesh, Ratchet chain & deliberate mode",
+    "/mesh": "Display Unified Sovereign Nexus mesh telemetry",
+    "/deceit": "Scan text/prompt for adversarial deceit & injection vectors",
+    "/verify": "Formal Z3/Kirchhoff + Active Inference + Typemetric Q12 Kuramoto verify",
+    "/ujit": "Compile and run bare-metal Universal JIT native kernel",
+    "/tmsync": "Typemetric Dozenal Q12 Kuramoto phase-lock synchronization",
+    "/anthropic": "Mount or query Sovereign Anthropic :8002/v1/messages (zero API key)",
     "/tpu": "Inspect hardware systolic array & TPU MXU telemetry",
     "/toolbox": "Inspect live status across all 11 precision machine tools",
     "/weave": "Execute top-level cognitive weave across Loom harness",

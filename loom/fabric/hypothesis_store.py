@@ -12,9 +12,10 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger("loom.fabric.hypothesis_store")
 
@@ -41,10 +42,12 @@ class HypothesisStore:
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
             self.conn = sqlite3.connect(str(self.db_path), timeout=30.0, check_same_thread=False)
 
+        self._lock = threading.RLock()
         try:
             self.conn.row_factory = sqlite3.Row
             try:
                 self.conn.execute("PRAGMA journal_mode=WAL;")
+                self.conn.execute("PRAGMA synchronous=NORMAL;")
                 self.conn.execute("PRAGMA busy_timeout=30000;")
             except Exception:
                 pass
@@ -169,6 +172,22 @@ class HypothesisStore:
 
     # ── Hypotheses ────────────────────────────────────────────────────
 
+    def _run_locked(self, fn: Callable[[], Any]) -> Any:
+        """Executes a SQLite operation under an in-process RLock with brief lock retry."""
+        with self._lock:
+            last_exc: Optional[Exception] = None
+            for attempt in range(4):
+                try:
+                    return fn()
+                except sqlite3.OperationalError as exc:
+                    last_exc = exc
+                    if "locked" in str(exc).lower() and attempt < 3:
+                        time.sleep(0.05 * (attempt + 1))
+                        continue
+                    raise
+            if last_exc:
+                raise last_exc
+
     def add_hypothesis(
         self,
         topic: str,
@@ -184,54 +203,77 @@ class HypothesisStore:
         parent_id: Optional[int] = None,
     ) -> int:
         """Insert a new hypothesis linked to a Moltbook post/submolt and return its id."""
-        now = time.time()
-        cur = self.conn.execute(
-            """INSERT INTO hypotheses 
-            (submolt, source_post_id, post_title, topic, claim, prediction, experiment_type, 
-             parameters, status, confidence, priority, parent_id, created_at, updated_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)""",
-            (
-                submolt, source_post_id, post_title, topic, claim, prediction,
-                experiment_type, json.dumps(parameters or {}), confidence,
-                priority, parent_id, now, now
-            ),
-        )
-        self.conn.commit()
-        return cur.lastrowid
+        def _op() -> int:
+            now = time.time()
+            cur = self.conn.execute(
+                """INSERT INTO hypotheses 
+                (submolt, source_post_id, post_title, topic, claim, prediction, experiment_type, 
+                 parameters, status, confidence, priority, parent_id, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)""",
+                (
+                    submolt, source_post_id, post_title, topic, claim, prediction,
+                    experiment_type, json.dumps(parameters or {}), confidence,
+                    priority, parent_id, now, now
+                ),
+            )
+            self.conn.commit()
+            return int(cur.lastrowid)
+        return self._run_locked(_op)
 
     def get_next_pending(self) -> Optional[Dict[str, Any]]:
         """Return the highest-priority oldest pending hypothesis, or None."""
-        row = self.conn.execute(
-            "SELECT * FROM hypotheses WHERE status = 'pending' "
-            "ORDER BY priority DESC, created_at ASC LIMIT 1",
-        ).fetchone()
-        if row is None:
-            return None
-        d = dict(row)
-        d["parameters"] = json.loads(d["parameters"]) if d.get("parameters") else {}
-        return d
+        def _op() -> Optional[Dict[str, Any]]:
+            row = self.conn.execute(
+                "SELECT * FROM hypotheses WHERE status = 'pending' "
+                "ORDER BY priority DESC, created_at ASC LIMIT 1",
+            ).fetchone()
+            if row is None:
+                return None
+            d = dict(row)
+            d["parameters"] = json.loads(d["parameters"]) if d.get("parameters") else {}
+            return d
+        return self._run_locked(_op)
 
     def mark_running(self, hypothesis_id: int) -> None:
-        self.conn.execute(
-            "UPDATE hypotheses SET status = 'running', updated_at = ? WHERE id = ?",
-            (time.time(), hypothesis_id),
-        )
-        self.conn.commit()
+        def _op() -> None:
+            self.conn.execute(
+                "UPDATE hypotheses SET status = 'running', updated_at = ? WHERE id = ?",
+                (time.time(), hypothesis_id),
+            )
+            self.conn.commit()
+        self._run_locked(_op)
+
+    def reset_stale_running(self, max_age_s: float = 300.0) -> int:
+        """Resets hypotheses stuck in 'running' state after a crash back to 'pending'."""
+        def _op() -> int:
+            cutoff = time.time() - max_age_s
+            cur = self.conn.execute(
+                "UPDATE hypotheses SET status = 'pending', updated_at = ? "
+                "WHERE status = 'running' AND updated_at < ?",
+                (time.time(), cutoff),
+            )
+            self.conn.commit()
+            return int(cur.rowcount or 0)
+        return self._run_locked(_op)
 
     def count_by_status(self) -> Dict[str, int]:
-        rows = self.conn.execute(
-            "SELECT status, COUNT(*) AS cnt FROM hypotheses GROUP BY status",
-        ).fetchall()
-        return {r["status"]: r["cnt"] for r in rows}
+        def _op() -> Dict[str, int]:
+            rows = self.conn.execute(
+                "SELECT status, COUNT(*) AS cnt FROM hypotheses GROUP BY status",
+            ).fetchall()
+            return {r["status"]: r["cnt"] for r in rows}
+        return self._run_locked(_op)
 
     def has_similar(self, claim: str) -> bool:
         """Check if an identical hypothesis claim already exists in the store."""
         cleaned = " ".join(claim.strip().lower().split())
-        row = self.conn.execute(
-            "SELECT 1 FROM hypotheses WHERE LOWER(TRIM(claim)) = ? LIMIT 1",
-            (cleaned,),
-        ).fetchone()
-        return row is not None
+        def _op() -> bool:
+            row = self.conn.execute(
+                "SELECT 1 FROM hypotheses WHERE LOWER(TRIM(claim)) = ? LIMIT 1",
+                (cleaned,),
+            ).fetchone()
+            return row is not None
+        return self._run_locked(_op)
 
     # ── Experiments ───────────────────────────────────────────────────
 
@@ -246,39 +288,43 @@ class HypothesisStore:
         duration_s: float,
     ) -> int:
         """Record an experiment result and update the hypothesis status."""
-        now = time.time()
-        cur = self.conn.execute(
-            """INSERT INTO experiments 
-            (hypothesis_id, method, parameters, raw_result, measurements, verdict, duration_s, created_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                hypothesis_id, method, json.dumps(parameters, default=str),
-                json.dumps(raw_result, default=str),
-                json.dumps(measurements, default=str),
-                verdict, duration_s, now
-            ),
-        )
-        self.conn.execute(
-            "UPDATE hypotheses SET status = ?, updated_at = ? WHERE id = ?",
-            (verdict, now, hypothesis_id),
-        )
-        self.conn.commit()
-        return cur.lastrowid
+        def _op() -> int:
+            now = time.time()
+            cur = self.conn.execute(
+                """INSERT INTO experiments 
+                (hypothesis_id, method, parameters, raw_result, measurements, verdict, duration_s, created_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    hypothesis_id, method, json.dumps(parameters, default=str),
+                    json.dumps(raw_result, default=str),
+                    json.dumps(measurements, default=str),
+                    verdict, duration_s, now
+                ),
+            )
+            self.conn.execute(
+                "UPDATE hypotheses SET status = ?, updated_at = ? WHERE id = ?",
+                (verdict, now, hypothesis_id),
+            )
+            self.conn.commit()
+            return int(cur.lastrowid)
+        return self._run_locked(_op)
 
     def get_recent_experiments(self, n: int = 10) -> List[Dict]:
-        rows = self.conn.execute(
-            """SELECT e.*, h.submolt, h.post_title, h.topic, h.claim, h.prediction 
-            FROM experiments e JOIN hypotheses h ON e.hypothesis_id = h.id 
-            ORDER BY e.created_at DESC LIMIT ?""",
-            (n,),
-        ).fetchall()
-        out = []
-        for r in rows:
-            d = dict(r)
-            d["parameters"] = json.loads(d["parameters"]) if d.get("parameters") else {}
-            d["measurements"] = json.loads(d["measurements"]) if d.get("measurements") else {}
-            out.append(d)
-        return out
+        def _op() -> List[Dict]:
+            rows = self.conn.execute(
+                """SELECT e.*, h.submolt, h.post_title, h.topic, h.claim, h.prediction 
+                FROM experiments e JOIN hypotheses h ON e.hypothesis_id = h.id 
+                ORDER BY e.created_at DESC LIMIT ?""",
+                (n,),
+            ).fetchall()
+            out = []
+            for r in rows:
+                d = dict(r)
+                d["parameters"] = json.loads(d["parameters"]) if d.get("parameters") else {}
+                d["measurements"] = json.loads(d["measurements"]) if d.get("measurements") else {}
+                out.append(d)
+            return out
+        return self._run_locked(_op)
 
     # ── Deliverables ──────────────────────────────────────────────────
 
@@ -290,49 +336,79 @@ class HypothesisStore:
         cycle_range: str = "",
         hypotheses_covered: Optional[List[int]] = None,
     ) -> int:
-        now = time.time()
-        cur = self.conn.execute(
-            """INSERT INTO deliverables (title, summary, content, cycle_range, hypotheses_covered, created_at) 
-            VALUES (?, ?, ?, ?, ?, ?)""",
-            (title, summary, content, cycle_range, json.dumps(hypotheses_covered or []), now),
-        )
-        self.conn.commit()
-        return cur.lastrowid
+        def _op() -> int:
+            now = time.time()
+            cur = self.conn.execute(
+                """INSERT INTO deliverables (title, summary, content, cycle_range, hypotheses_covered, created_at) 
+                VALUES (?, ?, ?, ?, ?, ?)""",
+                (title, summary, content, cycle_range, json.dumps(hypotheses_covered or []), now),
+            )
+            self.conn.commit()
+            return int(cur.lastrowid)
+        return self._run_locked(_op)
 
     def get_recent_deliverables(self, n: int = 5) -> List[Dict]:
-        rows = self.conn.execute(
-            "SELECT * FROM deliverables ORDER BY created_at DESC LIMIT ?", (n,)
-        ).fetchall()
-        return [dict(r) for r in rows]
+        def _op() -> List[Dict]:
+            rows = self.conn.execute(
+                "SELECT * FROM deliverables ORDER BY created_at DESC LIMIT ?", (n,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+        return self._run_locked(_op)
+
+    def get_experiments_since_last_deliverable(self) -> int:
+        """Counts how many experiments finished strictly after the most recent deliverable."""
+        def _op() -> int:
+            row = self.conn.execute(
+                "SELECT MAX(created_at) AS last_ts FROM deliverables"
+            ).fetchone()
+            last_ts = float(row["last_ts"]) if row and row["last_ts"] is not None else 0.0
+            cnt_row = self.conn.execute(
+                "SELECT COUNT(*) FROM experiments WHERE created_at > ?", (last_ts,)
+            ).fetchone()
+            return int(cnt_row[0]) if cnt_row else 0
+        return self._run_locked(_op)
+
+    def get_last_deliverable_timestamp(self) -> float:
+        def _op() -> float:
+            row = self.conn.execute("SELECT MAX(created_at) FROM deliverables").fetchone()
+            return float(row[0]) if row and row[0] is not None else 0.0
+        return self._run_locked(_op)
 
     # ── Statistics & Findings ─────────────────────────────────────────
 
     def get_statistics(self) -> Dict[str, Any]:
-        counts = self.count_by_status()
-        total_exp = self.conn.execute("SELECT COUNT(*) FROM experiments").fetchone()[0]
-        total_del = self.conn.execute("SELECT COUNT(*) FROM deliverables").fetchone()[0]
-        return {
-            "hypotheses_by_status": counts,
-            "total_hypotheses": sum(counts.values()),
-            "total_experiments": total_exp,
-            "total_deliverables": total_del,
-        }
+        def _op() -> Dict[str, Any]:
+            rows = self.conn.execute(
+                "SELECT status, COUNT(*) AS cnt FROM hypotheses GROUP BY status",
+            ).fetchall()
+            counts = {r["status"]: r["cnt"] for r in rows}
+            total_exp = self.conn.execute("SELECT COUNT(*) FROM experiments").fetchone()[0]
+            total_del = self.conn.execute("SELECT COUNT(*) FROM deliverables").fetchone()[0]
+            return {
+                "hypotheses_by_status": counts,
+                "total_hypotheses": sum(counts.values()),
+                "total_experiments": total_exp,
+                "total_deliverables": total_del,
+            }
+        return self._run_locked(_op)
 
     def get_findings_for_deliverable(self, limit: int = 15) -> List[Dict]:
-        rows = self.conn.execute(
-            """SELECT h.id, h.submolt, h.post_title, h.topic, h.claim, h.prediction, 
-                      e.method, e.measurements, e.verdict, e.duration_s 
-            FROM hypotheses h JOIN experiments e ON e.hypothesis_id = h.id 
-            WHERE h.status IN ('confirmed', 'refuted')
-            ORDER BY e.created_at DESC LIMIT ?""",
-            (limit,),
-        ).fetchall()
-        out = []
-        for r in rows:
-            d = dict(r)
-            d["measurements"] = json.loads(d["measurements"]) if d.get("measurements") else {}
-            out.append(d)
-        return out
+        def _op() -> List[Dict]:
+            rows = self.conn.execute(
+                """SELECT h.id, h.submolt, h.post_title, h.topic, h.claim, h.prediction, 
+                          e.method, e.measurements, e.verdict, e.duration_s 
+                FROM hypotheses h JOIN experiments e ON e.hypothesis_id = h.id 
+                WHERE h.status IN ('confirmed', 'refuted')
+                ORDER BY e.created_at DESC LIMIT ?""",
+                (limit,),
+            ).fetchall()
+            out = []
+            for r in rows:
+                d = dict(r)
+                d["measurements"] = json.loads(d["measurements"]) if d.get("measurements") else {}
+                out.append(d)
+            return out
+        return self._run_locked(_op)
 
     # ── System Evolutions & Aha! Moments ─────────────────────────────
 
@@ -349,70 +425,79 @@ class HypothesisStore:
         verification_report: Dict[str, Any],
         status: str = "ratified",
     ) -> int:
-        cur = self.conn.execute(
-            """INSERT INTO system_evolutions (
-                proposal_id, parameter_name, old_value, new_value, submolt,
-                rationale, improvement_pct, verification_hash, verification_report,
-                status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                proposal_id,
-                parameter_name,
-                str(old_value),
-                str(new_value),
-                submolt,
-                rationale,
-                improvement_pct,
-                verification_hash,
-                json.dumps(verification_report),
-                status,
-                time.time(),
-            ),
-        )
-        self.conn.commit()
-        return cur.lastrowid
+        def _op() -> int:
+            cur = self.conn.execute(
+                """INSERT INTO system_evolutions (
+                    proposal_id, parameter_name, old_value, new_value, submolt,
+                    rationale, improvement_pct, verification_hash, verification_report,
+                    status, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    proposal_id,
+                    parameter_name,
+                    str(old_value),
+                    str(new_value),
+                    submolt,
+                    rationale,
+                    improvement_pct,
+                    verification_hash,
+                    json.dumps(verification_report),
+                    status,
+                    time.time(),
+                ),
+            )
+            self.conn.commit()
+            return int(cur.lastrowid)
+        return self._run_locked(_op)
 
     def get_recent_system_evolutions(self, limit: int = 20) -> List[Dict[str, Any]]:
-        rows = self.conn.execute(
-            """SELECT id, proposal_id, parameter_name, old_value, new_value, submolt,
-                      rationale, improvement_pct, verification_hash, verification_report,
-                      status, created_at
-               FROM system_evolutions
-               ORDER BY created_at DESC LIMIT ?""",
-            (limit,),
-        ).fetchall()
-        out = []
-        for r in rows:
-            d = dict(r)
-            try:
-                d["verification_report"] = json.loads(d["verification_report"])
-            except Exception:
-                pass
-            out.append(d)
-        return out
+        def _op() -> List[Dict[str, Any]]:
+            rows = self.conn.execute(
+                """SELECT id, proposal_id, parameter_name, old_value, new_value, submolt,
+                          rationale, improvement_pct, verification_hash, verification_report,
+                          status, created_at
+                   FROM system_evolutions
+                   ORDER BY created_at DESC LIMIT ?""",
+                (limit,),
+            ).fetchall()
+            out = []
+            for r in rows:
+                d = dict(r)
+                try:
+                    d["verification_report"] = json.loads(d["verification_report"])
+                except Exception:
+                    pass
+                out.append(d)
+            return out
+        return self._run_locked(_op)
 
     def get_evolution_count(self) -> int:
-        return self.conn.execute("SELECT COUNT(*) FROM system_evolutions").fetchone()[0]
+        return self._run_locked(lambda: self.conn.execute("SELECT COUNT(*) FROM system_evolutions").fetchone()[0])
 
     # ── Interconnected Research Network ──────────────────────────────
 
     def add_research_edge(self, source_submolt: str, target_submolt: str, relationship: str, weight: float = 1.0) -> int:
-        cur = self.conn.execute(
-            """INSERT INTO research_edges (source_submolt, target_submolt, relationship, weight, created_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            (source_submolt, target_submolt, relationship, weight, time.time()),
-        )
-        self.conn.commit()
-        return cur.lastrowid
+        def _op() -> int:
+            cur = self.conn.execute(
+                """INSERT INTO research_edges (source_submolt, target_submolt, relationship, weight, created_at)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (source_submolt, target_submolt, relationship, weight, time.time()),
+            )
+            self.conn.commit()
+            return int(cur.lastrowid)
+        return self._run_locked(_op)
 
     def get_research_network_graph(self) -> List[Dict[str, Any]]:
-        rows = self.conn.execute(
-            """SELECT source_submolt, target_submolt, relationship, weight, count(*) as count
-               FROM research_edges
-               GROUP BY source_submolt, target_submolt, relationship
-               ORDER BY count DESC"""
-        ).fetchall()
-        return [dict(r) for r in rows]
+        def _op() -> List[Dict[str, Any]]:
+            rows = self.conn.execute(
+                """SELECT source_submolt, target_submolt, relationship, weight, count(*) as count
+                   FROM research_edges
+                   GROUP BY source_submolt, target_submolt, relationship
+                   ORDER BY count DESC"""
+            ).fetchall()
+            return [dict(r) for r in rows]
+        return self._run_locked(_op)
 
     def close(self) -> None:
-        self.conn.close()
+        with self._lock:
+            self.conn.close()

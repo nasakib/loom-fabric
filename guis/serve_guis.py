@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-ClothOS // Loom Fabric — Multi-GUI Daemon Server
-Serves the Antigravity Universal GUI Suite on port 8090 and reverse-proxies
-bicameral API endpoints to the active ClothOS daemon on port 8087.
+ClothOS // Loom Fabric — Multi-GUI Compatibility Server
+Serves the Antigravity Universal GUI Suite and reverse-proxies API endpoints to port 8087.
+(Primary entry point is unified single-port Master App on http://localhost:8087/guis/)
 """
 
 import sys
@@ -13,7 +13,7 @@ import urllib.error
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import json
 
-DEFAULT_PORT = 8090
+DEFAULT_PORT = 8087
 CLOTHOS_DAEMON_URL = "http://localhost:8087"
 
 class AntigravityGUIHandler(SimpleHTTPRequestHandler):

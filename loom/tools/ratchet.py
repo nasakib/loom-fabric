@@ -20,11 +20,16 @@ import json
 import logging
 import os
 from pathlib import Path
+import shutil
+import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("loom.tools.ratchet")
+
+MAX_IN_MEMORY_AXIOMS = 500
+COMPACT_THRESHOLD_BYTES = 2 * 1024 * 1024  # 2 MiB automatic archive compaction threshold
 
 
 class RatchetAxiom(BaseModel, frozen=True):
@@ -59,15 +64,24 @@ class RatchetEngine:
         home_ledger: Optional[Path] = None,
         catch_file: Optional[Path] = None,
     ):
+        self._lock = threading.RLock()
         self.workspace_root = workspace_root or Path(__file__).resolve().parents[2]
         self.ledger_file = ledger_file or (self.workspace_root / ".loom_ratchet_axioms.json")
+        self.log_file = self.ledger_file.with_suffix(".jsonl")
         self.catch_file = catch_file or (self.workspace_root / ".loom_ratchet_catch.json")
         self.home_ledger = home_ledger or (Path.home() / ".loom" / "ratchet_axioms.json")
+        self.home_log_file = self.home_ledger.with_suffix(".jsonl")
         self.tooth_count: int = 0
         self.current_root_key: str = hashlib.sha256(b"CLOTHOS_INITIAL_RATCHET_SEED_2026").hexdigest()
         self.axioms: Dict[str, RatchetAxiom] = {}
+        self._seen_claim_hashes: Set[str] = set()
         fallback_to_home = (workspace_root is None or home_ledger is not None)
         self._load_ledger(fallback_to_home=fallback_to_home)
+
+    @staticmethod
+    def _claim_digest(claim: str) -> str:
+        norm = " ".join(str(claim).strip().lower().split())
+        return hashlib.sha256(norm.encode("utf-8", errors="ignore")).hexdigest()[:16]
 
     def _load_ledger(self, fallback_to_home: bool = True) -> None:
         if self.ledger_file.exists():
@@ -78,32 +92,75 @@ class RatchetEngine:
             return
 
         try:
+            file_size = target.stat().st_size
             data = json.loads(target.read_text(encoding="utf-8"))
-            self.tooth_count = data.get("tooth_count", 0)
+            self.tooth_count = int(data.get("tooth_count", 0))
             self.current_root_key = data.get("current_root_key", self.current_root_key)
-            for item in data.get("axioms", []):
+            raw_axioms = data.get("axioms", [])
+            recent_axioms = raw_axioms[-MAX_IN_MEMORY_AXIOMS:] if len(raw_axioms) > MAX_IN_MEMORY_AXIOMS else raw_axioms
+            for item in recent_axioms:
                 ax = RatchetAxiom(**item)
                 self.axioms[ax.axiom_id] = ax
+                self._seen_claim_hashes.add(self._claim_digest(ax.claim))
+
+            for ch in data.get("recent_claim_hashes", [])[-2000:]:
+                self._seen_claim_hashes.add(str(ch))
+
+            # Auto-compact legacy multi-MB monolithic ledgers while preserving tooth_count & archive
+            if file_size > COMPACT_THRESHOLD_BYTES:
+                archive_path = target.with_name(f"{target.stem}.archive{target.suffix}")
+                try:
+                    if not archive_path.exists():
+                        shutil.copy2(target, archive_path)
+                except Exception:
+                    pass
+                logger.info(
+                    "Compacted oversized Ratchet ledger %s (%.1f MB -> tail %d of %d teeth).",
+                    target.name,
+                    file_size / (1024 * 1024),
+                    len(self.axioms),
+                    self.tooth_count,
+                )
+                self._persist_ledger()
         except Exception as e:
             logger.warning(f"Could not load Ratchet ledger: {e}")
 
-    def _persist_ledger(self) -> None:
-        data = {
-            "tooth_count": self.tooth_count,
-            "current_root_key": self.current_root_key,
-            "axioms": [ax.model_dump() for ax in self.axioms.values()],
-            "last_updated": time.time(),
-        }
-        serialized = json.dumps(data, indent=2)
-        try:
-            self.ledger_file.write_text(serialized, encoding="utf-8")
-        except Exception:
-            pass
-        try:
-            self.home_ledger.parent.mkdir(parents=True, exist_ok=True)
-            self.home_ledger.write_text(serialized, encoding="utf-8")
-        except Exception:
-            pass
+    def _persist_ledger(self, new_axiom: Optional[RatchetAxiom] = None) -> None:
+        with self._lock:
+            # Keep memory bounded so long-running daemons never leak RAM
+            if len(self.axioms) > MAX_IN_MEMORY_AXIOMS:
+                overflow = len(self.axioms) - MAX_IN_MEMORY_AXIOMS
+                for old_key in list(self.axioms.keys())[:overflow]:
+                    self.axioms.pop(old_key, None)
+
+            if new_axiom is not None:
+                line = new_axiom.model_dump_json() + "\n"
+                for log_p in (self.log_file, self.home_log_file):
+                    try:
+                        log_p.parent.mkdir(parents=True, exist_ok=True)
+                        with open(log_p, "a", encoding="utf-8") as lf:
+                            lf.write(line)
+                    except Exception:
+                        pass
+
+            data = {
+                "tooth_count": self.tooth_count,
+                "current_root_key": self.current_root_key,
+                "axioms": [ax.model_dump() for ax in list(self.axioms.values())[-MAX_IN_MEMORY_AXIOMS:]],
+                "recent_claim_hashes": list(self._seen_claim_hashes)[-2000:],
+                "last_updated": time.time(),
+            }
+            serialized = json.dumps(data, indent=2)
+            try:
+                self.ledger_file.parent.mkdir(parents=True, exist_ok=True)
+                self.ledger_file.write_text(serialized, encoding="utf-8")
+            except Exception:
+                pass
+            try:
+                self.home_ledger.parent.mkdir(parents=True, exist_ok=True)
+                self.home_ledger.write_text(serialized, encoding="utf-8")
+            except Exception:
+                pass
 
     def click(
         self,
@@ -112,37 +169,46 @@ class RatchetEngine:
         proof_payload: str,
         confidence: float = 1.0,
         node_origin: str = "skyTech-Worker",
+        deduplicate_claim: bool = False,
     ) -> bool:
         """
         Advances the Ratchet by exactly one tooth, cementing an invariant forever.
         Rejects any attempt to regress or overwrite an already clicked axiom.
         """
-        if axiom_id in self.axioms:
-            # Monotonic invariance: already proven theorems cannot be overwritten
-            return False
+        with self._lock:
+            if axiom_id in self.axioms:
+                # Monotonic invariance: already proven theorems cannot be overwritten
+                return False
 
-        if confidence < 0.80:
-            logger.debug(f"[Ratchet Pawl Slip]: Invariant {axiom_id} confidence {confidence:.2f} < 0.80 threshold.")
-            return False
+            claim_digest = self._claim_digest(claim)
+            if deduplicate_claim and claim_digest in self._seen_claim_hashes:
+                return False
 
-        self.tooth_count += 1
-        proof_hash = hashlib.sha256(proof_payload.encode("utf-8")).hexdigest()
+            if confidence < 0.80:
+                logger.debug(f"[Ratchet Pawl Slip]: Invariant {axiom_id} confidence {confidence:.2f} < 0.80 threshold.")
+                return False
 
-        axiom = RatchetAxiom(
-            tooth_index=self.tooth_count,
-            axiom_id=axiom_id,
-            claim=claim,
-            proof_hash=proof_hash,
-            confidence=confidence,
-            timestamp_epoch=time.time(),
-            node_origin=node_origin,
-        )
-        self.axioms[axiom_id] = axiom
-        self.rotate_key(salt=proof_hash.encode("utf-8")[:16])
-        self._persist_ledger()
+            self.tooth_count += 1
+            proof_hash = hashlib.sha256(proof_payload.encode("utf-8")).hexdigest()
 
-        logger.info(f"⚙ [Ratchet Click]: Tooth #{self.tooth_count} locked: {axiom_id} ({claim[:50]}...)")
-        return True
+            axiom = RatchetAxiom(
+                tooth_index=self.tooth_count,
+                axiom_id=axiom_id,
+                claim=claim,
+                proof_hash=proof_hash,
+                confidence=confidence,
+                timestamp_epoch=time.time(),
+                node_origin=node_origin,
+            )
+            self.axioms[axiom_id] = axiom
+            self._seen_claim_hashes.add(claim_digest)
+            if len(self._seen_claim_hashes) > 5000:
+                self._seen_claim_hashes = set(list(self._seen_claim_hashes)[-2500:])
+            self.rotate_key(salt=proof_hash.encode("utf-8")[:16])
+            self._persist_ledger(new_axiom=axiom)
+
+            logger.info(f"⚙ [Ratchet Click]: Tooth #{self.tooth_count} locked: {axiom_id} ({claim[:50]}...)")
+            return True
 
     def rotate_key(self, salt: bytes = b"") -> str:
         """Rotates the forward-secrecy HKDF key forward by 1 tick; destroys past decryptability."""

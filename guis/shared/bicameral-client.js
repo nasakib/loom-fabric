@@ -6,78 +6,57 @@
 
 class BicameralClient {
     constructor(options = {}) {
-        this.node1Url = options.node1Url || 'http://localhost:8087';
+        const origin = (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http'))
+            ? window.location.origin
+            : 'http://localhost:8087';
+        this.node1Url = options.node1Url || origin;
         this.node2Url = options.node2Url || 'http://100.74.98.21:8087';
         this.activePlane = options.activePlane || 'UNIFIED'; // 'UNIFIED' | 'THINKER' | 'DECIDER'
         this.listeners = new Set();
         this.streamEventSource = null;
-        this.pollIntervalMs = options.pollIntervalMs || 2500;
+        this.pollIntervalMs = options.pollIntervalMs || 2000;
         this.pollTimer = null;
-        
-        // Coherent internal state cache
+
+        // Live state populated from /api/bicameral/status and /api/telemetry/snapshot
         this.state = {
-            dyadStatus: 'SYNCHRONIZED',
-            resonance: 0.984,
-            coherence: 0.992,
-            cycleCount: 1420,
-            lastStepMs: 1.24,
+            dyadStatus: 'CONNECTING',
+            resonance: 0.0,
+            coherence: 0.0,
+            cycleCount: 0,
+            lastStepMs: 0.0,
             node1: {
                 name: 'skyTech-Worker',
                 role: 'PROJECTOR_THINKER',
                 endpoint: this.node1Url,
-                status: 'ONLINE',
-                coreCount: 32,
-                load: 28.4,
-                memoryUsedMb: 6144,
-                memoryTotalMb: 32768,
-                currentHypothesis: 'Thermodynamic Landauer Entropic Lower Bound Optimization (ΔS < 1000J)',
-                activeProjects: 4,
-                entropyDeltaS: 412.5,
-                belforgeFormulas: 89
+                status: 'CONNECTING',
+                coreCount: 16,
+                load: 0.0,
+                hostCores: [],
+                memoryUsedMb: 0,
+                memoryTotalMb: 0,
+                currentHypothesis: 'Awaiting live telemetry from Master Hub...',
+                activeProjects: 0,
+                entropyDeltaS: 0.0,
+                belforgeFormulas: 0
             },
             node2: {
                 name: 'Ryzen7-Head',
                 role: 'DECIDER',
                 endpoint: this.node2Url,
-                status: 'ONLINE',
+                status: 'CHECKING',
                 coreCount: 16,
-                load: 34.2,
-                memoryUsedMb: 5210,
-                memoryTotalMb: 32768,
+                load: 0.0,
+                node2Cores: [],
+                memoryUsedMb: 0,
+                memoryTotalMb: 0,
                 ad017Status: 'ARMED_PROTECTIVE',
                 fiduciaryFealty: 1.0,
-                pendingDeliberations: 1,
+                pendingDeliberations: 0,
                 tribunalQuorum: '4/4 UNANIMOUS',
-                verdictsDelivered: 348
+                verdictsDelivered: 0
             },
-            proposals: [
-                {
-                    id: 'PROP-2026-089',
-                    title: 'Quantum Vacuum Casimir Cavity Resonance Shaper',
-                    domain: 'cad_geometry',
-                    status: 'RATIFIED',
-                    projectorHypothesis: 'Non-symmetric boundary curvature suppresses negative-energy decoherence by 14.8%',
-                    verdict: 'APPROVED_UNANIMOUS',
-                    votes: { the_judge: 'PASS', grief_ad017: 'SAFE', fiduciary: 'RATIONAL', landauer: 'PASS_340J' },
-                    timestamp: '2026-10-17 17:58:20'
-                },
-                {
-                    id: 'PROP-2026-090',
-                    title: 'BabelForge Nanoscale Peptide Self-Assembly Mesh',
-                    domain: 'biochem_synthesis',
-                    status: 'PENDING_VERDICT',
-                    projectorHypothesis: 'Chiral symmetry breaking in α-helical crosslinks maximizes tensile elastic modulus',
-                    verdict: 'IN_DELIBERATION',
-                    votes: { the_judge: 'PASS', grief_ad017: 'ANALYZING', fiduciary: 'PENDING', landauer: 'PASS_680J' },
-                    timestamp: '2026-10-17 18:02:44'
-                }
-            ],
-            logs: [
-                { id: 1, time: '18:00:12', sender: 'skyTech-Worker', tag: 'THINKER', text: 'Synthesized CAD topological manifold #89. Emitted tensor representation.' },
-                { id: 2, time: '18:00:13', sender: 'Ryzen7-Head', tag: 'DECIDER', text: 'Tribunal evaluated proposal #89. Grief AD-017 passed. Ratified.' },
-                { id: 3, time: '18:02:44', sender: 'skyTech-Worker', tag: 'THINKER', text: 'Deliberation packet #90 dispatched across Tailscale mesh to 100.74.98.21:8087.' },
-                { id: 4, time: '18:03:01', sender: 'Ryzen7-Head', tag: 'DECIDER', text: 'Quorum convened on node 2. Landauer dissipation calculated at 680 Joules (<= 1000J limit).' }
-            ]
+            proposals: [],
+            logs: []
         };
 
         this.init();
@@ -114,58 +93,123 @@ class BicameralClient {
     }
 
     async fetchStatus() {
+        const t0 = (typeof performance !== 'undefined') ? performance.now() : Date.now();
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000);
-            
-            const response = await fetch(`${this.node1Url}/api/bicameral/status`, {
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
+            const timeoutId = setTimeout(() => controller.abort(), 2500);
 
-            if (response.ok) {
-                const data = await response.json();
-                this.state.dyadStatus = 'SYNCHRONIZED';
-                this.state.cycleCount = data.cycle_count || (this.state.cycleCount + 1);
-                this.state.resonance = data.resonance || 0.984;
-                this.state.coherence = data.coherence || 0.992;
-                if (data.node1) Object.assign(this.state.node1, data.node1);
-                if (data.node2) Object.assign(this.state.node2, data.node2);
-                if (data.proposals) this.state.proposals = data.proposals;
-            } else {
-                this.simulateMicroPulse();
+            const [bicamRes, snapRes] = await Promise.allSettled([
+                fetch(`${this.node1Url}/api/bicameral/status`, { signal: controller.signal }),
+                fetch(`${this.node1Url}/api/taskmgr/snapshot`, { signal: controller.signal }),
+            ]);
+            clearTimeout(timeoutId);
+            const t1 = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+            this.state.lastStepMs = +(t1 - t0).toFixed(2);
+
+            let anyLive = false;
+            if (bicamRes.status === 'fulfilled' && bicamRes.value.ok) {
+                const data = await bicamRes.value.json();
+                anyLive = true;
+                this.state.dyadStatus = data.peer_online ? 'SYNCHRONIZED' : 'LOCAL_PRIMARY';
+                this.state.cycleCount = data.active_ratchet_index ?? this.state.cycleCount;
+                this.state.resonance = data.kuramoto_synchrony ?? 0.0;
+                this.state.coherence = data.kuramoto_synchrony ?? 0.0;
+                this.state.node1.status = 'ONLINE';
+                this.state.node2.verdictsDelivered = data.total_approved_verdicts ?? 0;
+
+                if (Array.isArray(data.recent_dialogue) && data.recent_dialogue.length > 0) {
+                    const recent = [...data.recent_dialogue].reverse();
+                    this.state.proposals = recent.slice(0, 12).map((item) => {
+                        const th = item.thought || {};
+                        const vd = item.verdict || {};
+                        const approved = vd.decision === 'APPROVED';
+                        return {
+                            id: th.thought_id || vd.verdict_id || 'THOUGHT',
+                            title: th.title || 'Bicameral Deliberation',
+                            domain: th.category || 'HYPOTHESIS',
+                            status: approved ? 'RATIFIED' : (vd.decision || 'PENDING'),
+                            projectorHypothesis: (th.details && th.details.hypothesis) || (th.details && th.details.description) || vd.rationale || '',
+                            verdict: vd.decision || 'DELIBERATING',
+                            votes: {
+                                the_judge: approved ? 'PASS' : 'VETO',
+                                grief_ad017: vd.grief_boundary_status || 'PASS',
+                                fiduciary: `FEALTY_${vd.fiduciary_score ?? 1.0}`,
+                                landauer: `${vd.landauer_dissipation_joules ?? 0}J`
+                            },
+                            timestamp: vd.timestamp ? new Date(vd.timestamp * 1000).toLocaleTimeString() : ''
+                        };
+                    });
+                    if (this.state.logs.length === 0) {
+                        this.state.logs = recent.slice(0, 20).map((item, idx) => {
+                            const th = item.thought || {};
+                            const vd = item.verdict || {};
+                            return {
+                                id: idx + 1,
+                                time: vd.timestamp ? new Date(vd.timestamp * 1000).toLocaleTimeString() : '',
+                                sender: vd.decider_node || th.origin_node || 'Dyad',
+                                tag: vd.decision === 'APPROVED' ? 'DECIDER' : 'THINKER',
+                                text: `${th.title || th.thought_id} -> ${vd.decision} (Ratchet #${vd.ratchet_index ?? '?'})`
+                            };
+                        });
+                    }
+                }
+            }
+
+            if (snapRes.status === 'fulfilled' && snapRes.value.ok) {
+                const snap = await snapRes.value.json();
+                anyLive = true;
+                const cpu = snap.cpu || {};
+                const mem = snap.memory || {};
+                this.state.node1.status = 'ONLINE';
+                this.state.node1.load = +(cpu.overall_percent || 0).toFixed(1);
+                this.state.node1.hostCores = Array.isArray(cpu.host_cores) ? cpu.host_cores : [];
+                this.state.node1.coreCount = this.state.node1.hostCores.length || 16;
+                this.state.node1.memoryUsedMb = Math.round((mem.host_used_gb || 0) * 1024);
+                this.state.node1.memoryTotalMb = Math.round((mem.host_total_gb || 0) * 1024);
+                this.state.node1.currentHypothesis = snap.cadence_label
+                    ? `Active Host Sampling @ ${snap.cadence_label} (${cpu.processes_count || 0} OS procs)`
+                    : this.state.node1.currentHypothesis;
+
+                this.state.node2.status = snap.node2_live ? 'ONLINE' : 'OFFLINE';
+                this.state.node2.load = snap.node2_live ? +(cpu.node2_cpu_pct || 0).toFixed(1) : 0.0;
+                this.state.node2.node2Cores = Array.isArray(cpu.node2_cores) ? cpu.node2_cores : [];
+                this.state.node2.memoryUsedMb = snap.node2_live ? Math.round((mem.node2_used_gb || 0) * 1024) : 0;
+                this.state.node2.memoryTotalMb = snap.node2_live ? Math.round((mem.node2_total_gb || 0) * 1024) : 0;
+            }
+
+            if (!anyLive) {
+                this.markOffline();
             }
         } catch (e) {
-            // Daemon is simulated/fallback mode for offline or standalone static preview
-            this.simulateMicroPulse();
+            this.markOffline();
         }
         this.notify();
     }
 
-    simulateMicroPulse() {
-        this.state.cycleCount++;
-        this.state.resonance = Math.min(0.999, Math.max(0.950, this.state.resonance + (Math.random() - 0.49) * 0.006));
-        this.state.coherence = Math.min(0.999, Math.max(0.970, this.state.coherence + (Math.random() - 0.49) * 0.004));
-        this.state.node1.load = +(24 + Math.random() * 12).toFixed(1);
-        this.state.node2.load = +(30 + Math.random() * 10).toFixed(1);
+    markOffline() {
+        this.state.dyadStatus = 'OFFLINE';
+        this.state.node1.status = 'OFFLINE';
+        this.state.node2.status = 'OFFLINE';
+        this.state.node1.load = 0.0;
+        this.state.node2.load = 0.0;
     }
 
     initSSE() {
         if (typeof window === 'undefined' || !window.EventSource) return;
         try {
-            this.streamEventSource = new EventSource(`${this.node1Url}/api/bicameral/stream`);
+            this.streamEventSource = new EventSource(`${this.node1Url}/api/telemetry/sse?interval=1.0`);
             this.streamEventSource.onmessage = (event) => {
                 try {
-                    const parsed = JSON.parse(event.data);
-                    this.state.logs.unshift({
-                        id: Date.now(),
-                        time: new Date().toLocaleTimeString(),
-                        sender: parsed.sender || 'Bicameral Dyad',
-                        tag: parsed.tag || 'SYSTEM',
-                        text: parsed.text || JSON.stringify(parsed)
-                    });
-                    if (this.state.logs.length > 50) this.state.logs.pop();
-                    this.notify();
+                    const snap = JSON.parse(event.data);
+                    if (snap && snap.cpu) {
+                        this.state.node1.status = 'ONLINE';
+                        this.state.node1.load = +(snap.cpu.overall_percent || 0).toFixed(1);
+                        this.state.node1.hostCores = Array.isArray(snap.cpu.host_cores) ? snap.cpu.host_cores : this.state.node1.hostCores;
+                        this.state.node2.status = snap.node2_live ? 'ONLINE' : 'OFFLINE';
+                        this.state.node2.load = snap.node2_live ? +(snap.cpu.node2_cpu_pct || 0).toFixed(1) : 0.0;
+                        this.state.node2.node2Cores = Array.isArray(snap.cpu.node2_cores) ? snap.cpu.node2_cores : this.state.node2.node2Cores;
+                        this.notify();
+                    }
                 } catch (e) {
                     console.warn('[BicameralClient] SSE parse error:', e);
                 }
@@ -173,13 +217,11 @@ class BicameralClient {
             this.streamEventSource.onerror = () => {
                 this.streamEventSource.close();
             };
-        } catch (e) {
-            // Ignore SSE failure in disconnected environments
-        }
+        } catch (e) {}
     }
 
     async projectHypothesis(title, domain, hypothesis) {
-        const id = 'PROP-' + Math.floor(1000 + Math.random() * 9000);
+        const id = 'PROP-' + String(Date.now()).slice(-6);
         const proposal = {
             id,
             title,
@@ -187,12 +229,12 @@ class BicameralClient {
             hypothesis,
             status: 'PENDING_VERDICT',
             projectorHypothesis: hypothesis,
-            verdict: 'IN_DELIBERATION',
+            verdict: 'SUBMITTED',
             votes: {
-                the_judge: 'ANALYZING',
-                grief_ad017: 'SAFEGUARD_SCAN',
+                the_judge: 'EVALUATING',
+                grief_ad017: 'CHECKING',
                 fiduciary: 'EVALUATING',
-                landauer: 'CALCULATING_ENTROPY'
+                landauer: 'MEASURING'
             },
             timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19)
         };
@@ -207,54 +249,83 @@ class BicameralClient {
         });
         this.notify();
 
-        // Remote request attempt
         try {
-            await fetch(`${this.node1Url}/api/bicameral/project`, {
+            const cat = domain && domain.toUpperCase().includes('CAD') ? 'CAD_SOLID' : 'HYPOTHESIS';
+            const res = await fetch(`${this.node1Url}/api/bicameral/step`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(proposal)
+                body: JSON.stringify({
+                    category: cat,
+                    title,
+                    details: { domain, hypothesis }
+                })
             });
-        } catch (e) {}
-
-        // Autonomous Tribunal Deliberation simulation (if offline or immediate response)
-        setTimeout(() => {
-            proposal.status = 'RATIFIED';
-            proposal.verdict = 'APPROVED_UNANIMOUS';
-            proposal.votes = {
-                the_judge: 'PASS_OPTIMAL',
-                grief_ad017: 'SAFE_ZERO_RISK',
-                fiduciary: 'FEALTY_CONFIRMED',
-                landauer: `PASS_${Math.floor(200 + Math.random() * 600)}J`
-            };
-            this.state.node2.verdictsDelivered++;
-            this.state.logs.unshift({
-                id: Date.now(),
-                time: new Date().toLocaleTimeString(),
-                sender: 'Ryzen7-Head',
-                tag: 'DECIDER',
-                text: `Proposal ${id} ("${title}") RATIFIED by 4/4 unanimous tribunal quorum.`
-            });
-            this.notify();
-        }, 3200);
-
+            if (res.ok) {
+                const data = await res.json();
+                const vd = data.verdict || {};
+                const th = data.thought || {};
+                proposal.id = th.thought_id || proposal.id;
+                proposal.status = vd.decision === 'APPROVED' ? 'RATIFIED' : (vd.decision || 'RATIFIED');
+                proposal.verdict = vd.decision === 'APPROVED' ? 'APPROVED_UNANIMOUS' : (vd.decision || 'LOGGED');
+                proposal.votes = {
+                    the_judge: vd.decision === 'APPROVED' ? 'PASS' : 'VETO',
+                    grief_ad017: vd.grief_boundary_status || 'INVIOLABLE_PASS',
+                    fiduciary: `FEALTY_${vd.fiduciary_score ?? 1.0}`,
+                    landauer: `${vd.landauer_dissipation_joules ?? 120}J`
+                };
+                this.state.logs.unshift({
+                    id: Date.now() + 1,
+                    time: new Date().toLocaleTimeString(),
+                    sender: vd.decider_node || 'Ryzen7-Head',
+                    tag: 'DECIDER',
+                    text: `Proposal ${proposal.id} evaluated -> ${proposal.verdict} (Ratchet #${data.ratchet_index || '?'})`
+                });
+                await this.fetchStatus();
+                return proposal;
+            } else {
+                proposal.status = 'ERROR';
+                proposal.verdict = `HTTP_${res.status}`;
+            }
+        } catch (e) {
+            proposal.status = 'OFFLINE';
+            proposal.verdict = 'NODE_UNREACHABLE';
+        }
+        this.notify();
         return proposal;
     }
 
     async stepDyad() {
-        this.state.cycleCount++;
-        this.state.lastStepMs = +(0.8 + Math.random() * 0.9).toFixed(2);
+        const t0 = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+        try {
+            const res = await fetch(`${this.node1Url}/api/bicameral/step`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category: 'HYPOTHESIS' })
+            });
+            const t1 = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+            this.state.lastStepMs = +(t1 - t0).toFixed(2);
+            if (res.ok) {
+                const data = await res.json();
+                this.state.cycleCount++;
+                this.state.logs.unshift({
+                    id: Date.now(),
+                    time: new Date().toLocaleTimeString(),
+                    sender: 'Dyad Core',
+                    tag: 'HARMONY',
+                    text: `Live bicameral step executed in ${this.state.lastStepMs}ms (Ratchet #${data.ratchet_index || this.state.cycleCount}).`
+                });
+                await this.fetchStatus();
+                return;
+            }
+        } catch (e) {}
         this.state.logs.unshift({
             id: Date.now(),
             time: new Date().toLocaleTimeString(),
             sender: 'Dyad Core',
-            tag: 'HARMONY',
-            text: `Forced discrete bicameral harmonic step. Cycle ${this.state.cycleCount} executed in ${this.state.lastStepMs}ms.`
+            tag: 'OFFLINE',
+            text: `Bicameral step aborted: Master Hub unreachable at ${this.node1Url}.`
         });
         this.notify();
-
-        try {
-            await fetch(`${this.node1Url}/api/bicameral/step`, { method: 'POST' });
-        } catch (e) {}
     }
 }
 

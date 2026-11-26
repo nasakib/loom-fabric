@@ -1,4 +1,4 @@
-﻿"""
+"""
 ClothOS Dynamic Zero-Config Mesh Discovery & Beacon Daemon
 File: loom/clothos/mesh_discovery.py
 """

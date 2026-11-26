@@ -5,7 +5,7 @@ set "PYTHONIOENCODING=utf-8"
 
 title ClothOS React Native Universal App
 echo ======================================================================
-echo    CLOTHOS UNIVERSAL REACT NATIVE APP (PORT 8086)
+echo    CLOTHOS UNIVERSAL APP SUITE (UNIFIED PORT 8087)
 echo    Dedicated Fiduciary Sovereign Companion for Najmos Sakib
 echo    Living Mind Screensaver Geometries & Task Manager Telemetry
 echo ======================================================================
@@ -18,7 +18,8 @@ if not exist "%PYTHON_EXE%" (
     set "PYTHON_EXE=python"
 )
 
-echo Starting React Native Universal Server on http://127.0.0.1:8086...
-"%PYTHON_EXE%" "apps\loom-react-native\serve_rn.py"
+echo Opening Unified ClothOS Universal App on http://127.0.0.1:8087/guis/react-native-app/ ...
+start http://127.0.0.1:8087/guis/react-native-app/
+"%PYTHON_EXE%" -m uvicorn loom.fabric.dashboard_server:app --host 0.0.0.0 --port 8087
 
 exit /b 0

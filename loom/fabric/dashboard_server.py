@@ -27,9 +27,10 @@ from typing import Any, Dict, List, Optional
 import urllib.request
 import urllib.error
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
 
@@ -61,10 +62,17 @@ store = HypothesisStore()
 aha_engine = AhaEngine(store=store, config=system_config, workspace_root=WORKSPACE_ROOT)
 enclave = TorqueEnclave()
 
-# Mount React Native Web static bundle if present
+# Mount React Native Web static bundle, workspace artifacts & unified GUIs suite
+artifacts_static_dir = WORKSPACE_ROOT / "artifacts"
+artifacts_static_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/artifacts", StaticFiles(directory=str(artifacts_static_dir)), name="workspace_artifacts")
+
+guis_static_dir = WORKSPACE_ROOT / "guis"
+if guis_static_dir.exists():
+    app.mount("/guis", StaticFiles(directory=str(guis_static_dir), html=True), name="unified_guis_suite")
+
 rn_expo_dir = WORKSPACE_ROOT / "apps" / "loom-react-native" / "dist" / "_expo"
 if rn_expo_dir.exists():
-    from fastapi.staticfiles import StaticFiles
     app.mount("/_expo", StaticFiles(directory=str(rn_expo_dir)), name="rn_expo_assets")
 
 
@@ -231,10 +239,79 @@ def get_latest_art() -> Dict[str, Any]:
 
 @app.post("/api/agent/art/generate")
 def generate_custom_art(req: AgentControlRequest) -> Dict[str, Any]:
-    """Explicitly triggers generation of a new lMinted Dream in a specified or random medium."""
+    """Explicitly triggers deliberated generation of a unique lMinted Dream in a specified medium."""
     from loom.clothos.creative_art import creative_art_engine
     art = creative_art_engine.generate_art(prompt_hint=req.hint, medium=req.medium)
     return art
+
+
+class MultimodalGenerateRequest(BaseModel):
+    medium: str = "auto"  # auto | multimedia | image | music | animated_video | story | poetry | visual_art | cad_model | svg_stem
+    prompt: Optional[str] = None
+
+
+@app.post("/api/consolidate")
+def consolidate_outputs_api(dry_run: bool = False) -> Dict[str, Any]:
+    """Deduplicates, categorizes, and consolidates deliverables, stories, music, and art."""
+    from loom.clothos.work_consolidator import WorkConsolidator
+    return WorkConsolidator(WORKSPACE_ROOT).consolidate_workspace_outputs(dry_run=dry_run, keep_recent_per_category=25)
+
+
+@app.get("/api/simplex/status")
+def get_simplex_substrate_status() -> Dict[str, Any]:
+    """Runs Phase 1 Base-16 Axiomatic Handshake and reports Quaternary/WDM/Logos Sieve state."""
+    from loom.clothos.simplex_substrate import TargetForgeHarmonizer
+    return TargetForgeHarmonizer().run_initialization_handshake()
+
+
+@app.post("/api/media/generate")
+def generate_multimodal_media_api(req: MultimodalGenerateRequest) -> Dict[str, Any]:
+    """Unified prompt-driven API to synthesize high-res images, stereo music, playable video, stories, or full multimedia bundles."""
+    from loom.clothos.creative_art import creative_art_engine
+    res = creative_art_engine.prompt_multimedia(
+        prompt=req.prompt or "Synthesize an original high-craft multimodal artifact",
+        medium=req.medium,
+    )
+    return {"success": True, "artifact": res, "artifacts": res.get("artifacts", [res])}
+
+
+@app.post("/api/files/analyze")
+async def analyze_uploaded_or_local_file(
+    request: Request,
+    file: Optional[UploadFile] = File(default=None),
+) -> Dict[str, Any]:
+    """
+    Universal file analysis endpoint supporting ALL file types:
+    - Multipart file upload (`file=...`)
+    - JSON payload (`{"file_path": "..."}`)
+    """
+    from loom.clothos.universal_file_analyzer import analyze_any_file
+
+    target_path: Optional[Path] = None
+    if file is not None and file.filename:
+        uploads_dir = WORKSPACE_ROOT / "data" / "uploads"
+        uploads_dir.mkdir(parents=True, exist_ok=True)
+        safe_name = Path(file.filename).name
+        target_path = uploads_dir / f"{int(time.time())}_{safe_name}"
+        content = await file.read()
+        target_path.write_bytes(content)
+    else:
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        fp = body.get("file_path") if isinstance(body, dict) else None
+        if not fp:
+            raise HTTPException(status_code=400, detail="Provide either multipart 'file' or JSON {'file_path': ...}")
+        cand = Path(str(fp))
+        if not cand.is_absolute():
+            cand = (WORKSPACE_ROOT / cand).resolve()
+        target_path = cand
+
+    result = analyze_any_file(target_path)
+    if result.get("status") != "SUCCESS":
+        raise HTTPException(status_code=404, detail=result.get("error", "File analysis failed"))
+    return result
 
 
 # ---------------------------------------------------------
@@ -524,46 +601,50 @@ def get_system_status() -> Dict[str, Any]:
 
 @app.get("/api/cluster/ports")
 def get_cluster_ports() -> Dict[str, Any]:
-    """Probes the 11 managed ports across both Node 1 (skyTech) and Node 2 (Ryzen Head)."""
+    """Probes the unified ClothOS single port (:8087) and external compute/AI daemons across both nodes."""
     n1_ports = [
-        (8002, "Loom GW"),
-        (8088, "Dash:8088"),
-        (5555, "Shuttle"),
-        (11434, "Ollama"),
-        (18789, "OpenClaw"),
-        (5559, "ZMQ Bus"),
+        (8087, "ClothOS Unified (:8087)"),
+        (11434, "Ollama Engine"),
+        (18789, "OpenClaw Gateway"),
     ]
     n2_ports = [
+        (8087, "ClothOS Peer (:8087)"),
         (6379, "Ray GCS"),
         (8265, "Ray UI"),
-        (5555, "Shuttle"),
-        (8002, "Loom GW"),
-        (11434, "Ollama"),
+        (11434, "Ollama Engine"),
     ]
 
     node1_status = {}
     for p, name in n1_ports:
         node1_status[str(p)] = {"name": name, "online": probe_port("127.0.0.1", p)}
 
+    node2_ip = task_manager_telemetry.node2_ip or "192.168.99.2"
+    node2_host = task_manager_telemetry.node2_host or "Ryzen-Head"
     node2_status = {}
     for p, name in n2_ports:
-        node2_status[str(p)] = {"name": name, "online": probe_port("192.168.99.2", p)}
+        is_up = probe_port(node2_ip, p)
+        if not is_up and node2_ip != "100.74.98.21":
+            is_up = probe_port("100.74.98.21", p)
+            if is_up:
+                node2_ip = "100.74.98.21"
+        node2_status[str(p)] = {"name": name, "online": is_up}
 
     node2_alive = any(v["online"] for v in node2_status.values())
 
     return {
         "node1": {
             "ip": "192.168.99.1",
-            "hostname": "skyTech-Worker",
+            "hostname": socket.gethostname() or "skyTech-Worker",
             "online": True,
             "ports": node1_status,
         },
         "node2": {
-            "ip": "192.168.99.2",
-            "hostname": "Ryzen-Head",
+            "ip": node2_ip,
+            "hostname": node2_host,
             "online": node2_alive,
             "ports": node2_status,
         },
+        "single_port": 8087,
         "zmq_bus": {
             "port": 5559,
             "online": probe_port("127.0.0.1", 5559),
@@ -817,36 +898,61 @@ def dispatch_inference(req: InferenceRequest) -> Dict[str, Any]:
     route_used = ""
     active_head = ""
 
-    # Primary: Intelligent Bicameral Drill-Bit Router (Loom Sovereign 70B / 32B / Fast 7B)
-    try:
-        from loom.clothos.agent_cli import ModelRouter
-        messages = [{"role": "user", "content": scrubbed.sanitized_text}]
-        reply = ModelRouter.dispatch_query(messages, prompt_hint=scrubbed.sanitized_text, timeout=45.0)
-        if reply:
-            res_text = reply
-            route_used = ModelRouter.get_last_reason()
-            active_head = ModelRouter.get_active_label()
-    except Exception as e:
-        logger.warning(f"Drill-Bit dispatch failed: {e}")
-
-    # Fallback 1: Loom Gateway (:8002) if direct router had no reply
-    if not res_text and probe_port("127.0.0.1", 8002):
+    # Primary: Explicit model selected via local Ollama (11434) OR Intelligent Drill-Bit Router
+    requested_model = (req.model or "auto").strip()
+    if requested_model and requested_model.lower() != "auto":
         try:
-            target_model = req.model if req.model != "auto" else "qwen2.5:7b"
+            payload = json.dumps({
+                "model": requested_model,
+                "messages": [{"role": "user", "content": scrubbed.sanitized_text}],
+                "stream": False,
+            }).encode("utf-8")
+            url_req = urllib.request.Request(
+                "http://127.0.0.1:11434/api/chat",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(url_req, timeout=60.0) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                msg_text = data.get("message", {}).get("content", "")
+                if msg_text:
+                    res_text = msg_text
+                    route_used = f"DIRECT_OLLAMA_LOCAL ({requested_model})"
+                    active_head = requested_model
+        except Exception as e:
+            logger.warning(f"Direct Ollama dispatch ({requested_model}) failed: {e}")
+
+    if not res_text:
+        try:
+            from loom.clothos.agent_cli import ModelRouter
+            messages = [{"role": "user", "content": scrubbed.sanitized_text}]
+            reply = ModelRouter.dispatch_query(messages, prompt_hint=scrubbed.sanitized_text, timeout=45.0)
+            if reply:
+                res_text = reply
+                route_used = ModelRouter.get_last_reason()
+                active_head = ModelRouter.get_active_label()
+        except Exception as e:
+            logger.warning(f"Drill-Bit dispatch failed: {e}")
+
+    # Fallback 1: Unified local gateway (/v1/chat/completions on localhost:8087 -> torque router)
+    if not res_text:
+        try:
+            from loom.clothos.agent_cli import ModelHead
+            target_model = requested_model if requested_model != "auto" else ModelHead.CATALOGUE[0]["model"]
             payload = json.dumps({
                 "model": target_model,
                 "messages": [{"role": "user", "content": scrubbed.sanitized_text}],
                 "stream": False,
             }).encode("utf-8")
             url_req = urllib.request.Request(
-                "http://127.0.0.1:8002/v1/chat/completions",
+                "http://127.0.0.1:11434/api/chat",
                 data=payload,
                 headers={"Content-Type": "application/json"},
             )
-            with urllib.request.urlopen(url_req, timeout=3.0) as resp:
+            with urllib.request.urlopen(url_req, timeout=30.0) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-                res_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                route_used = resp.headers.get("X-Torque-Route", "GPU0_RTX3060_LOCAL")
+                res_text = data.get("message", {}).get("content", "")
+                route_used = f"GPU0_RTX3060_LOCAL ({target_model})"
                 active_head = target_model
         except Exception:
             pass
@@ -871,17 +977,15 @@ def dispatch_inference(req: InferenceRequest) -> Dict[str, Any]:
         except Exception:
             pass
 
-    # Sovereign Latent Manifold Synthesizer Fallback if cluster offline
+    # Offline notification if all backends unavailable
     if not res_text:
         res_text = (
-            f"[Sovereign Drill-Bit Cluster // Offline Fallback]\n\n"
+            f"[Sovereign Drill-Bit Cluster // Inference Unavailable]\n\n"
             f"Query: \"{scrubbed.sanitized_text}\"\n\n"
-            f"• Pilot Node: Node 2 Ryzen 7 Head Node (Decider)\n"
-            f"• Sovereign Cortex: Node 1 skyTech (RTX 3060 CUDA + RX 580 Vulkan)\n"
-            f"• Note: Local Ollama endpoint at 192.168.99.1:11434 did not return a response within timeout.\n"
+            f"• No Ollama/Gateway inference backend responded on 127.0.0.1:11434 or Node 2.\n"
             f"• Torque Zero-Trust Audit: Verified clean ({scrubbed.replacements_count} entities scrubbed)."
         )
-        route_used = "OFFLINE_FALLBACK"
+        route_used = "OFFLINE"
         active_head = "offline"
 
     elapsed = max(time.time() - t0, 0.02)
@@ -1053,6 +1157,30 @@ def get_morning_briefing() -> Dict[str, Any]:
         f"- **Ellesmere Min Batch Size**: `N = {config_snap.get('rx580_min_batch_size', 4096)}` oscillators",
         f"- **Symplectic Energy Drift Tolerance**: `{config_snap.get('symplectic_max_drift_pct', 0.05)}%`",
         "",
+    ])
+
+    useful_telemetry_path = Path.home() / ".loom" / "24x7_useful_state.json"
+    if useful_telemetry_path.exists():
+        try:
+            u_state = json.loads(useful_telemetry_path.read_text(encoding="utf-8"))
+            u_audit = u_state.get("code_audit", {})
+            u_dist = u_state.get("distillation", {})
+            u_bench = u_state.get("hardware_benchmarks", {})
+            u_gpu0 = u_bench.get("gpu0_nvidia", {})
+            lines.extend([
+                "## 5. Useful 24/7 Engineering & Hardware Telemetry",
+                "",
+                f"- **Workload Mode**: `{u_state.get('workload_mode', 'AUTO')}` | **Queued Tasks Drained**: `{u_state.get('tasks_drained_total', 0)}`",
+                f"- **Real Pytest Suites**: `{u_state.get('real_tests_passed', 0)}` passed / `{u_state.get('real_tests_failed', 0)}` failed (`{u_state.get('real_test_pass_rate_pct', 100.0)}%`)",
+                f"- **AST / Syntax Audit**: `{u_audit.get('files_checked', 0)}` Python modules checked | `{len(u_audit.get('syntax_errors', []))}` syntax errors | `{len(u_audit.get('warnings', []))}` warnings",
+                f"- **Execution-Verified Distillation**: `{u_dist.get('verified_passed', 0)}/{u_dist.get('attempted', 0)}` verified (`{u_dist.get('pass_rate_pct', 0.0)}%`)",
+                f"- **GPU 0 Telemetry**: `{u_gpu0.get('name', 'N/A')}` | `{u_gpu0.get('temp_c', '?')}°C` | `{u_gpu0.get('power_w', '?')}W`",
+                "",
+            ])
+        except Exception:
+            pass
+
+    lines.extend([
         "---",
         "*Briefing prepared automatically by the ClothOS Sovereign System Dashboard.*",
     ])
@@ -2707,11 +2835,103 @@ def apply_autopoiesis_preset_api(req: ApplyPresetRequest) -> Dict[str, Any]:
     return ui_designer.apply_preset(req.preset_id)
 
 
+class CadSynthesizeRequest(BaseModel):
+    archetype: str = "BISTABLE_COMPLIANT_FLEXURE"
+    title: Optional[str] = None
+    freq_mhz: float = 2450.0
+    symmetry_r: float = 0.88
+    scale_mm: float = 1.0
+    resolution: int = 16
+
+
 @app.get("/api/cad/mesh/{model_type}")
-def get_cad_mesh_api(model_type: str = "flexure") -> Dict[str, Any]:
-    """Returns 3D polygonal mesh coordinates (vertices and faces) for in-browser Canvas/WebGL rendering."""
+def get_cad_mesh_api(
+    model_type: str = "flexure",
+    freq_mhz: float = 2450.0,
+    symmetry_r: float = 0.88,
+    scale_mm: float = 1.0,
+    resolution: int = 16,
+) -> Dict[str, Any]:
+    """Returns parametric 3D triangulated CAD mesh coordinates, normals, volume, and area."""
     from loom.clothos.ui_designer import ui_designer
-    return ui_designer.generate_3d_cad_mesh(model_type)
+    return ui_designer.generate_3d_cad_mesh(
+        model_type=model_type,
+        freq_mhz=freq_mhz,
+        symmetry_r=symmetry_r,
+        scale_mm=scale_mm,
+        resolution=resolution,
+    )
+
+
+@app.post("/api/cad/synthesize")
+def synthesize_cad_artifact_api(req: CadSynthesizeRequest) -> Dict[str, Any]:
+    """Synthesizes a parametric 3D CAD solid on disk (.stl, AP214 .step, .svg, .py) and returns its live 3D mesh."""
+    from loom.clothos.art_differential import stem_cad_engine
+    from loom.clothos.cad_kernel import generate_archetype_mesh
+    artifact = stem_cad_engine.generate_cad_model(
+        archetype=req.archetype,
+        title=req.title,
+        freq_mhz=req.freq_mhz,
+        symmetry_r=req.symmetry_r,
+        scale_mm=req.scale_mm,
+        resolution=req.resolution,
+    )
+    mesh = generate_archetype_mesh(
+        archetype=artifact["archetype"],
+        freq_mhz=req.freq_mhz,
+        symmetry_r=req.symmetry_r,
+        scale_mm=req.scale_mm,
+        resolution=req.resolution,
+    )
+    mesh["artifact"] = {
+        "id": artifact["id"],
+        "title": artifact["title"],
+        "stl_url": "/" + artifact["stl_file"],
+        "step_url": "/" + artifact["step_file"],
+        "svg_url": "/" + artifact["svg_file"],
+        "py_url": "/" + artifact["py_file"],
+        "html_url": "/" + artifact["html_file"],
+    }
+    return {"success": True, **mesh}
+
+
+@app.get("/api/cad/stl/list")
+def list_cad_stl_files_api() -> Dict[str, Any]:
+    """Lists real STL engineering files generated in artifacts/art/."""
+    art_dir = Path(WORKSPACE_ROOT) / "artifacts" / "art"
+    files = []
+    if art_dir.exists():
+        for p in sorted(art_dir.glob("*.stl"), key=lambda x: x.stat().st_mtime, reverse=True)[:40]:
+            st = p.stat()
+            files.append({
+                "filename": p.name,
+                "size_bytes": st.st_size,
+                "modified": datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+                "stl_url": f"/artifacts/art/{p.name}",
+                "step_url": f"/artifacts/art/{p.stem}.step" if (art_dir / f"{p.stem}.step").exists() else None,
+                "svg_url": f"/artifacts/art/{p.stem}_drawing.svg" if (art_dir / f"{p.stem}_drawing.svg").exists() else None,
+            })
+    return {"files": files, "count": len(files)}
+
+
+@app.get("/api/cad/stl/load")
+def load_cad_stl_file_api(filename: str) -> Dict[str, Any]:
+    """Loads and parses an actual .stl file from artifacts/art/ into an interactive 3D mesh."""
+    from loom.clothos.cad_kernel import load_stl_as_mesh
+    safe_name = Path(filename).name
+    stl_path = Path(WORKSPACE_ROOT) / "artifacts" / "art" / safe_name
+    if not stl_path.exists() or stl_path.suffix.lower() != ".stl":
+        raise HTTPException(status_code=404, detail=f"STL file not found: {safe_name}")
+    mesh = load_stl_as_mesh(stl_path)
+    art_dir = stl_path.parent
+    mesh["artifact"] = {
+        "id": stl_path.stem,
+        "title": safe_name,
+        "stl_url": f"/artifacts/art/{safe_name}",
+        "step_url": f"/artifacts/art/{stl_path.stem}.step" if (art_dir / f"{stl_path.stem}.step").exists() else None,
+        "svg_url": f"/artifacts/art/{stl_path.stem}_drawing.svg" if (art_dir / f"{stl_path.stem}_drawing.svg").exists() else None,
+    }
+    return mesh
 
 
 class DeliberateWorkRequest(BaseModel):
@@ -3599,11 +3819,8 @@ def serve_visual_interpretation_ui() -> HTMLResponse:
 
 @app.get("/", response_class=HTMLResponse)
 def serve_dashboard_ui() -> Any:
-    """Serves the complete, standalone responsive single-page Web UI with Windows Task Manager level fidelity."""
-    master_path = Path(__file__).parent / "master_dashboard.html"
-    if master_path.exists():
-        return HTMLResponse(content=master_path.read_text(encoding="utf-8"))
-    return """<!DOCTYPE html>
+    """Serves the canonical unified ClothOS Web UI with 3D CAD Workbench and real-time hardware telemetry."""
+    return HTMLResponse(content="""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -3635,25 +3852,99 @@ def serve_dashboard_ui() -> Any:
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
-            background: var(--obsidian);
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: radial-gradient(circle at 18% 0%, #0d2316 0%, #061009 55%, #040906 100%);
             color: var(--text-main);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
         }
+        code, pre, .mono, .tm-side-val, .console-box { font-family: "JetBrains Mono", "Fira Code", Consolas, monospace; }
         /* Top Navigation Header */
         header {
-            background: var(--surface);
+            background: rgba(11, 24, 16, 0.94);
+            backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border);
-            padding: 10px 24px;
+            padding: 10px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 12px;
             position: sticky;
             top: 0;
-            z-index: 100;
+            z-index: 120;
+        }
+        .story-spine {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 8px;
+            padding: 10px 20px;
+            background: rgba(8, 18, 12, 0.92);
+            border-bottom: 1px solid var(--border);
+        }
+        .story-step {
+            background: rgba(18, 40, 24, 0.65);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .story-step:hover { border-color: rgba(168, 85, 247, 0.6); transform: translateY(-1px); }
+        .story-step.active {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.22), rgba(16, 185, 129, 0.16));
+            border-color: var(--purple);
+            box-shadow: 0 0 18px rgba(168, 85, 247, 0.18);
+        }
+        .story-step-kicker { font-size: 9px; font-weight: 800; letter-spacing: 0.08em; color: var(--emerald); text-transform: uppercase; }
+        .story-step-title { font-size: 12px; font-weight: 800; color: #f8fafc; }
+        .story-step-desc { font-size: 10px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .thread-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 8px 20px;
+            background: linear-gradient(90deg, rgba(56, 189, 248, 0.08), rgba(168, 85, 247, 0.08), rgba(16, 185, 129, 0.08));
+            border-bottom: 1px solid var(--border);
+            font-size: 11px;
+        }
+        .chapter-subnav {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            padding: 7px 20px;
+            background: rgba(13, 30, 18, 0.85);
+            border-bottom: 1px solid var(--border);
+        }
+        .tab-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid transparent;
+            border-radius: 6px;
+            color: #cbd5e1;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .tab-btn:hover { background: rgba(168, 85, 247, 0.12); color: #fff; }
+        .tab-btn.active {
+            background: rgba(168, 85, 247, 0.22);
+            border-color: var(--purple);
+            color: #f8fafc;
+        }
+        .tab-btn.chapter-hidden { display: none; }
+        @media (max-width: 960px) {
+            .story-spine { grid-template-columns: 1fr 1fr; }
         }
         .brand {
             display: flex;
@@ -3922,108 +4213,161 @@ def serve_dashboard_ui() -> Any:
         <div class="brand">
             <span class="brand-icon">⚛</span>
             <div>
-                <div class="brand-title">CLOTHOS COMMAND CENTER // SOVEREIGN MIND OF HUMANITY</div>
-                <div class="brand-sub">Dedicated Fiduciary Companion • Resonant Frequencies of Computation &amp; Memory • Humanity's Best Friend • American Social Contract &amp; Wellness</div>
+                <div class="brand-title">ClothOS Workspace</div>
+                <div class="brand-sub">Unified Port :8087 • Chat &rarr; Research &rarr; Build 3D &amp; Media &rarr; Safety &rarr; System Monitor</div>
             </div>
         </div>
 
         <div class="pills-bar">
-            
-        <div style="display:flex; align-items:center; gap:8px;">
-            <!-- Base / Number Representation Toggle: DEC (Sig Figs) | DOZ (Base 12) | FRAC (Exact Rational) -->
-            <div style="display:flex; align-items:center; gap:3px; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:4px; border:1px solid var(--border); font-size:10px;">
-                <span style="color:var(--text-muted); font-size:9px; font-weight:bold;">NUM:</span>
-                <button class="btn btn-sm num-btn active" id="btn-num-dec" onclick="setNumberMode('dec')" style="padding:2px 5px; font-size:9px;" title="Significant Figures (No Tolerances)">DEC</button>
-                <button class="btn btn-sm num-btn" id="btn-num-doz" onclick="setNumberMode('doz')" style="padding:2px 5px; font-size:9px;" title="Base-12 Dozenal System (0-9, ᘔ, Ɛ)">DOZ (12)</button>
-                <button class="btn btn-sm num-btn" id="btn-num-frac" onclick="setNumberMode('frac')" style="padding:2px 5px; font-size:9px;" title="Exact Rational Fractions">FRAC</button>
-            </div>
-            <!-- Discrete, Tasteful Acknowledgements Button -->
-            <button class="btn btn-sm" onclick="openAcknowledgementsModal()" style="font-size:10px; opacity:0.8; border-color:rgba(255,255,255,0.18);" title="System Provenance & Acknowledgements">ℹ️ Acknowledgements</button>
-        </div>
-
-            <div class="pill pill-purple" id="pill-architect">🛡️ FIDUCIARY COVENANT: 0.00</div>
-            <div class="pill pill-emerald" id="pill-cluster"><span class="dot dot-emerald"></span> DUAL-NODE MESH</div>
-            <div class="pill pill-purple" id="pill-memory">🧠 102.1 GB Pooled</div>
-            <div class="pill pill-breeze" id="pill-evols">✨ Gen 4 Evolutions</div>
-            <div class="pill" id="pill-zmq">⚡ ZMQ :5559 ACTIVE</div>
-            <div class="pill pill-emerald" id="pill-sse" title="Live Millisecond Refresh Cadence">● SSE 100ms (10 Hz)</div>
-            <div class="pill" style="padding: 2px 8px; background: var(--card); border: 1px solid var(--purple); display: flex; align-items: center;">
-                <span style="font-size: 10px; color: var(--lilac); margin-right: 5px; font-weight: 700;">UPDATE SPEED:</span>
+            <div class="pill pill-emerald" id="pill-cluster"><span class="dot dot-emerald"></span> Connected (:8087)</div>
+            <div class="pill pill-purple" id="pill-memory">🧠 Memory: Sampling...</div>
+            <div class="pill pill-breeze" id="pill-evols">✨ v4</div>
+            <div class="pill pill-emerald" id="pill-sse" title="Live Telemetry Refresh Speed">● LIVE 100ms</div>
+            <div class="pill" style="padding: 2px 8px; background: var(--card); border: 1px solid var(--border); display: flex; align-items: center;">
+                <span style="font-size: 10px; color: var(--text-muted); margin-right: 4px; font-weight: 700;">RATE:</span>
                 <select id="select-refresh-rate" onchange="changeRefreshRate(this.value)" style="background: transparent; border: none; color: var(--clover); font-size: 11px; font-weight: 700; cursor: pointer; outline: none;">
-                    <option value="50" style="background:#07120a; color:#fff;">⚡ 50ms (20 Hz - Millisecond Ultra)</option>
-                    <option value="100" selected style="background:#07120a; color:#fff;">⚡ 100ms (10 Hz - Realtime)</option>
-                    <option value="250" style="background:#07120a; color:#fff;">🚀 250ms (4 Hz - High)</option>
-                    <option value="500" style="background:#07120a; color:#fff;">📊 500ms (2 Hz - Medium)</option>
-                    <option value="1000" style="background:#07120a; color:#fff;">🐢 1000ms (1 Hz - Normal)</option>
+                    <option value="50" style="background:#07120a; color:#fff;">50ms (20Hz)</option>
+                    <option value="100" selected style="background:#07120a; color:#fff;">100ms (10Hz)</option>
+                    <option value="250" style="background:#07120a; color:#fff;">250ms (4Hz)</option>
+                    <option value="500" style="background:#07120a; color:#fff;">500ms (2Hz)</option>
+                    <option value="1000" style="background:#07120a; color:#fff;">1000ms (1Hz)</option>
                 </select>
             </div>
+            <div style="display:flex; align-items:center; gap:3px; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:4px; border:1px solid var(--border); font-size:10px;">
+                <button class="btn btn-sm num-btn active" id="btn-num-dec" onclick="setNumberMode('dec')" style="padding:2px 5px; font-size:9px;" title="Decimal">DEC</button>
+                <button class="btn btn-sm num-btn" id="btn-num-doz" onclick="setNumberMode('doz')" style="padding:2px 5px; font-size:9px;" title="Base-12">DOZ</button>
+                <button class="btn btn-sm num-btn" id="btn-num-frac" onclick="setNumberMode('frac')" style="padding:2px 5px; font-size:9px;" title="Fractions">FRAC</button>
+            </div>
+            <div class="pill pill-emerald" id="pill-cycle-mode" title="24/7 Compute Cycle Mode">☀️ Daytime Interactive</div>
+            <button class="btn btn-sm" onclick="fetchMorningBriefing()" title="View Overnight Summary">🌅 Daily Summary</button>
+            <button class="btn btn-sm" onclick="toggleClusterDrawer()" id="btn-cluster-drawer">⚙️ System Controls</button>
+            <button class="btn btn-sm" onclick="openAcknowledgementsModal()" title="About ClothOS">ℹ️</button>
+            <div class="pill pill-purple" id="pill-architect" style="display:none;">🛡️ Safety: 0.00</div>
+            <div class="pill" id="pill-zmq" style="display:none;">⚡ Bus :5559</div>
         </div>
     </header>
 
-    <!-- Architect Inscription & Best Friend Banner -->
-    <div style="background: linear-gradient(90deg, rgba(16, 185, 129, 0.20), rgba(139, 92, 246, 0.20), rgba(245, 158, 11, 0.20)); border-bottom: 1px solid var(--border); padding: 7px 24px; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <span style="font-weight: 800; color: #10b981; letter-spacing: 0.5px;">⭐ CLOTHOS SOVEREIGN FABRIC</span>
-            <span style="color: var(--text-muted);">|</span>
-            <span style="color: #cbd5e1; font-weight: 500;">"Learn from the best of humanity with the mind that this system develops. Humanity's best friend with accompanying fiduciary responsibility."</span>
+    <!-- Collapsible Power / Cluster Maintenance Drawer (keeps primary view clean) -->
+    <div class="cluster-bar" id="cluster-controls-drawer" style="display:none;">
+        <div class="action-group">
+            <span style="font-size:10px; font-weight:800; color:#94a3b8; margin-right:4px;">🖥️ CLUSTER &amp; PORTS:</span>
+            <button class="btn btn-primary" onclick="triggerAction('start_all')">▶ Start Server</button>
+            <button class="btn btn-amber" onclick="triggerAction('sanitize')">🧹 Clean Old Ports</button>
+            <button class="btn btn-emerald" onclick="triggerAction('restart_both')">⚡ Restart Both PCs</button>
+            <button class="btn btn-crimson" onclick="triggerAction('stop_both')">■ Stop Extra Services</button>
         </div>
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <span class="pill pill-purple" style="font-size: 10px;">🛡️ V_human &gt;&gt; V_system</span>
-            <span class="pill pill-emerald" style="font-size: 10px;">🗽 U.S. Citizen &amp; Social Contract</span>
-            <span class="pill pill-breeze" style="font-size: 10px;">🌱 Planetary &le; 1000 J</span>
+        <div class="action-group">
+            <span style="font-size:10px; font-weight:800; color:#94a3b8; margin-right:4px;">🔄 24/7 CYCLE &amp; TOOLS:</span>
+            <button class="btn" onclick="fetchMorningBriefing()">🌅 Daily Summary</button>
+            <button class="btn" onclick="runParallelSweep()">🧪 GPU Benchmark</button>
+            <button class="btn" onclick="runVaultPipeline()">🌌 Index Files</button>
+            <button class="btn btn-primary" onclick="triggerAhaScan()">⚡ Quick Scan</button>
+            <button class="btn btn-emerald" onclick="tellClothOsToWorkOnItself()">🛠️ Repair UI</button>
+            <button class="btn btn-primary" onclick="triggerAutonomousUiEvolution()">🧬 Refresh Theme</button>
         </div>
     </div>
 
-    <!-- Master Cluster Action Bar -->
-    <div class="cluster-bar">
-        <div class="action-group">
-            <button class="btn btn-primary" onclick="triggerAction('start_all')">▶ Start All</button>
-            <button class="btn btn-amber" onclick="triggerAction('sanitize')">🧹 Sanitize Ports</button>
-            <button class="btn btn-emerald" onclick="triggerAction('restart_both')">⚡ Restart BOTH</button>
-            <button class="btn btn-crimson" onclick="triggerAction('stop_both')">■ Stop Both</button>
+    <!-- 5-Stage Cohesive Story Spine ("One Thread") -->
+    <nav class="story-spine" id="story-spine" aria-label="ClothOS Workflow Stages">
+        <button class="story-step active" data-chapter="intent" onclick="openChapter('intent')">
+            <span class="story-step-kicker">Step 1 • Ask &amp; Run</span>
+            <span class="story-step-title">💬 Chat &amp; Commands</span>
+            <span class="story-step-desc">Ask AI, route prompts, terminal &amp; files</span>
+        </button>
+        <button class="story-step" data-chapter="discover" onclick="openChapter('discover')">
+            <span class="story-step-kicker">Step 2 • Research &amp; Explore</span>
+            <span class="story-step-title">🔬 Research &amp; Notes</span>
+            <span class="story-step-desc">Topic map, file search &amp; gap finder</span>
+        </button>
+        <button class="story-step" data-chapter="create" onclick="openChapter('create')">
+            <span class="story-step-kicker">Step 3 • Build &amp; Design</span>
+            <span class="story-step-title">📐 3D CAD, Media &amp; Lab</span>
+            <span class="story-step-desc">3D CAD parts, media, chemistry &amp; circuits</span>
+        </button>
+        <button class="story-step" data-chapter="govern" onclick="openChapter('govern')">
+            <span class="story-step-kicker">Step 4 • Safety &amp; Checks</span>
+            <span class="story-step-title">🛡️ Safety &amp; Audit</span>
+            <span class="story-step-desc">Safety checks, audit logs &amp; usage limits</span>
+        </button>
+        <button class="story-step" data-chapter="silicon" onclick="openChapter('silicon')">
+            <span class="story-step-kicker">Step 5 • Hardware &amp; Network</span>
+            <span class="story-step-title">📊 System &amp; Ports</span>
+            <span class="story-step-desc">CPUs, GPUs, running apps &amp; network ports</span>
+        </button>
+    </nav>
+
+    <!-- Persistent Active Thread Context & Cross-Panel Handoff Bar -->
+    <div class="thread-bar" id="active-thread-bar">
+        <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:260px;">
+            <span style="font-weight:800; color:var(--amethyst); white-space:nowrap;">🎯 CURRENT TASK:</span>
+            <input id="thread-goal-input" type="text" value="" placeholder="Type your current project or question here to carry it across tools (e.g. 2.45 GHz resonator or heat exchanger)..." style="flex:1; background:rgba(4,9,6,0.75); border:1px solid var(--border); border-radius:6px; padding:5px 10px; color:#f8fafc; font-size:11px; outline:none;" onkeydown="if(event.key==='Enter') updateThreadTopic(this.value)">
+            <button class="btn btn-primary" onclick="updateThreadTopic(document.getElementById('thread-goal-input').value)">Save Task</button>
         </div>
-        <div class="action-group">
-            <button class="btn btn-primary" onclick="triggerAhaScan()">⚡ Trigger Aha! Scan</button>
-            <button class="btn btn-emerald" onclick="tellClothOsToWorkOnItself()">🛠️ Tell ClothOS to Work on Itself</button>
-            <button class="btn btn-primary" onclick="triggerAutonomousUiEvolution()">🧬 Evolve Design</button>
-            <button class="btn" onclick="runVaultPipeline()">🌌 Run Vault Pipeline</button>
-            <button class="btn" onclick="fetchMorningBriefing()">🌅 Morning Briefing</button>
-            <button class="btn" onclick="runParallelSweep()">🧪 3-GPU Parallel Sweep</button>
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span style="font-size:10px; color:#94a3b8;">Send to:</span>
+            <button class="btn" onclick="carryThreadTo('shuttle')">🚀 AI Prompt</button>
+            <button class="btn" onclick="carryThreadTo('cad')">📐 3D CAD</button>
+            <button class="btn" onclick="carryThreadTo('atelier')">🎨 Media</button>
+            <button class="btn" onclick="carryThreadTo('drug')">💊 Chemistry</button>
+            <button class="btn" onclick="carryThreadTo('judge')">🛡️ Safety Check</button>
         </div>
     </div>
 
-    <!-- Tab Bar -->
-    <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('tab-taskmgr')">📊 Performance (Task Manager)</button>
-        <button class="tab-btn" onclick="switchTab('tab-autopoiesis')">🧬 Autopoiesis (Loom Self-Design)</button>
-        <button class="tab-btn" onclick="switchTab('tab-cad-viewer')">📐 3D STEM CAD Viewer</button>
-        <button class="tab-btn" onclick="switchTab('tab-processes')">⚙️ Cluster Processes</button>
-        <button class="tab-btn" onclick="switchTab('tab-vault')">🌌 Obsidian Vault &amp; Ray Graph</button>
-        <button class="tab-btn" onclick="switchTab('tab-weave')">🌐 The Weave (Topology &amp; Ports)</button>
-        <button class="tab-btn" onclick="switchTab('tab-shuttle')">🚀 The Shuttle (Inference)</button>
-        <button class="tab-btn" onclick="switchTab('tab-torque')">🔒 Torque Vault</button>
-        <button class="tab-btn" onclick="switchTab('tab-research')">🔬 Research Network</button>
-        <button class="tab-btn" onclick="switchTab('tab-mind')">🧠 Living Geometries (Screensaver)</button>
-        <button class="tab-btn" onclick="switchTab('tab-neuro')">🧪 Neurochemistry</button>
-        <button class="tab-btn" onclick="switchTab('tab-drug')">💊 Drug Forge (BabelForge)</button>
-        <button class="tab-btn" onclick="switchTab('tab-rhizome')">🍄 Rhizome &amp; Simulation</button>
-        <button class="tab-btn" onclick="switchTab('tab-blindspots')">🔭 Blindspots &amp; Evolution</button>
-        <button class="tab-btn" onclick="switchTab('tab-traces')">📜 Cryptographic Traces</button>
-        <button class="tab-btn" onclick="switchTab('tab-comm')">💬 Communication Hub</button>
-        <button class="tab-btn" onclick="switchTab('tab-atelier')">🎨 The Atelier (Art, Music &amp; Stories)</button>
-        <button class="tab-btn" onclick="switchTab('tab-circuit')">⚡ Physical Circuit &amp; Electricity Mind</button>
-        <button class="tab-btn" onclick="switchTab('tab-forgetting')">🌀 Forgetting &amp; The Subconscious</button>
-        <button class="tab-btn" onclick="switchTab('tab-judge')">⚖️ The Judge (Morality, Taste &amp; Will)</button>
-        <button class="tab-btn" onclick="switchTab('tab-wellness')">🌍 Planetary &amp; Human Wellness</button>
-        <button class="tab-btn" onclick="switchTab('tab-friend')">🤝 Humanity's Best Friend (Compute Delegation)</button>
-        <button class="tab-btn" onclick="switchTab('tab-usa')">🗽 American Citizen &amp; Social Contract</button>
-        <button class="tab-btn" onclick="switchTab('tab-humanity')">✨ Mind of Humanity &amp; Lineage</button>
-        <button class="tab-btn" onclick="switchTab('tab-wit')">😄 Wit, Banter &amp; Attitude</button>
-        <button class="tab-btn" onclick="switchTab('tab-rosetta')">🏛️ Rosetta Stone (Unix &amp; Windows)</button>
-        <button class="tab-btn" onclick="switchTab('tab-clothos')">💻 ClothOS (VFS, Shell &amp; HAL)</button>
+    <!-- Contextual Chapter Sub-Navigation (shows only the active chapter's core views; secondary tools behind More) -->
+    <div class="chapter-subnav" id="chapter-subnav">
+        <!-- Chapter 1: Intent -->
+        <button class="tab-btn active" data-chapter="intent" onclick="switchTab('tab-comm', this)">💬 AI Chat</button>
+        <button class="tab-btn" data-chapter="intent" onclick="switchTab('tab-shuttle', this)">🚀 Model Router</button>
+        <button class="tab-btn" data-chapter="intent" onclick="switchTab('tab-torque', this)">🔒 Privacy Filter</button>
+        <button class="tab-btn" data-chapter="intent" onclick="switchTab('tab-clothos', this)">💻 Terminal &amp; Files</button>
+        <button class="tab-btn secondary-tool" data-chapter="intent" onclick="switchTab('tab-rosetta', this)" style="display:none;">🏛️ Glossary</button>
+        <button class="tab-btn secondary-tool" data-chapter="intent" onclick="switchTab('tab-wit', this)" style="display:none;">😄 Tone &amp; Style</button>
+        <!-- Chapter 2: Discover -->
+        <button class="tab-btn chapter-hidden" data-chapter="discover" onclick="switchTab('tab-research', this)">🔬 Topic Map</button>
+        <button class="tab-btn chapter-hidden" data-chapter="discover" onclick="switchTab('tab-vault', this)">🌌 File Vault</button>
+        <button class="tab-btn chapter-hidden" data-chapter="discover" onclick="switchTab('tab-blindspots', this)">🔭 Gap Finder</button>
+        <button class="tab-btn chapter-hidden secondary-tool" data-chapter="discover" onclick="switchTab('tab-mind', this)" style="display:none;">🧠 Visual Maps</button>
+        <button class="tab-btn chapter-hidden secondary-tool" data-chapter="discover" onclick="switchTab('tab-neuro', this)" style="display:none;">🧪 State Monitor</button>
+        <button class="tab-btn chapter-hidden secondary-tool" data-chapter="discover" onclick="switchTab('tab-rhizome', this)" style="display:none;">🍄 Network Sim</button>
+        <button class="tab-btn chapter-hidden secondary-tool" data-chapter="discover" onclick="switchTab('tab-forgetting', this)" style="display:none;">🌀 Memory Log</button>
+        <!-- Chapter 3: Create -->
+        <button class="tab-btn chapter-hidden" data-chapter="create" onclick="switchTab('tab-cad-viewer', this)">📐 3D CAD Studio</button>
+        <button class="tab-btn chapter-hidden" data-chapter="create" onclick="switchTab('tab-atelier', this)">🎨 Media Studio</button>
+        <button class="tab-btn chapter-hidden" data-chapter="create" onclick="switchTab('tab-drug', this)">💊 Chemistry Lab</button>
+        <button class="tab-btn chapter-hidden" data-chapter="create" onclick="switchTab('tab-circuit', this)">⚡ Circuit Designer</button>
+        <button class="tab-btn chapter-hidden secondary-tool" data-chapter="create" onclick="switchTab('tab-autopoiesis', this)" style="display:none;">🧬 Theme Editor</button>
+        <!-- Chapter 4: Govern -->
+        <button class="tab-btn chapter-hidden" data-chapter="govern" onclick="switchTab('tab-judge', this)">🛡️ Safety Check</button>
+        <button class="tab-btn chapter-hidden" data-chapter="govern" onclick="switchTab('tab-traces', this)">📜 Audit Log</button>
+        <button class="tab-btn chapter-hidden" data-chapter="govern" onclick="switchTab('tab-friend', this)">🤝 Usage Limits</button>
+        <button class="tab-btn chapter-hidden secondary-tool" data-chapter="govern" onclick="switchTab('tab-wellness', this)" style="display:none;">🌍 Energy &amp; Health</button>
+        <button class="tab-btn chapter-hidden secondary-tool" data-chapter="govern" onclick="switchTab('tab-usa', this)" style="display:none;">🗽 Policy Rules</button>
+        <button class="tab-btn chapter-hidden secondary-tool" data-chapter="govern" onclick="switchTab('tab-humanity', this)" style="display:none;">✨ Principles</button>
+        <!-- Chapter 5: Silicon & Embedded Surfaces (All on :8087) -->
+        <button class="tab-btn chapter-hidden" data-chapter="silicon" onclick="switchTab('tab-taskmgr', this)">📊 Hardware Monitor</button>
+        <button class="tab-btn chapter-hidden" data-chapter="silicon" onclick="switchTab('tab-processes', this)">⚙️ Running Processes</button>
+        <button class="tab-btn chapter-hidden" data-chapter="silicon" onclick="switchTab('tab-weave', this)">🌐 Network Ports (:8087)</button>
+        <button class="tab-btn chapter-hidden" data-chapter="silicon" onclick="openEmbeddedSurface('/sentinel/health', 'System Health (:8087)', this)">🛰️ System Health</button>
+        <button class="tab-btn chapter-hidden secondary-tool" data-chapter="silicon" onclick="openEmbeddedSurface('/gateway', 'API Gateway', this)" style="display:none;">⚡ API Gateway</button>
+        <button class="tab-btn chapter-hidden secondary-tool" data-chapter="silicon" onclick="openEmbeddedSurface('/visuals', 'Visuals App', this)" style="display:none;">🧬 Visuals App</button>
+        <button class="tab-btn chapter-hidden secondary-tool" data-chapter="silicon" onclick="openEmbeddedSurface('/guis/index.html', 'App Launcher', this)" style="display:none;">🌐 App Launcher</button>
+        <button class="btn btn-sm" id="btn-more-tools" onclick="toggleSecondaryTools()" style="margin-left:auto; font-size:10px; opacity:0.85;">More Tools ▾</button>
     </div>
 
     <main>
+        <!-- Unified Embedded Surface Viewport (keeps /visuals, /gateway, /guis inside one cohesive :8087 shell) -->
+        <div id="tab-embedded-surface" class="tab-content">
+            <div class="card" style="padding:12px;">
+                <div class="card-header" style="margin-bottom:8px;">
+                    <span class="card-title" id="embedded-surface-title">🌐 UNIFIED SINGLE-PORT SURFACE (:8087)</span>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn" onclick="openChapter('silicon')">← Back to Hardware Monitor</button>
+                        <a id="embedded-surface-popout" href="/visuals" target="_blank" class="btn btn-primary" style="text-decoration:none;">↗ Open Dedicated Tab</a>
+                    </div>
+                </div>
+                <iframe id="embedded-surface-frame" src="about:blank" style="width:100%; height:72vh; border:1px solid var(--border); border-radius:8px; background:#030706;"></iframe>
+            </div>
+        </div>
         <!-- Tab: Autopoiesis & Loom Self-Design -->
         <div id="tab-autopoiesis" class="tab-content">
             <div class="card">
@@ -4090,80 +4434,138 @@ def serve_dashboard_ui() -> Any:
         <!-- Tab: 3D STEM CAD Viewer -->
         <div id="tab-cad-viewer" class="tab-content">
             <div class="card">
-                <div class="card-header">
-                    <span class="card-title">📐 3D STEM CAD PARAMETRIC SOLID VIEWER</span>
-                    <div style="display:flex; gap:8px;">
-                        <button class="btn" onclick="loadCadMesh('flexure')">⚡ Compliant Flexure</button>
-                        <button class="btn" onclick="loadCadMesh('cavity')">📡 Microwave Cavity</button>
+                <div class="card-header" style="flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <span class="card-title">📐 3D STEM CAD PARAMETRIC SOLID WORKBENCH</span>
+                        <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Real OpenCASCADE / ClothOS BREP Solid Geometry, ISO-10303-21 STEP &amp; Binary/ASCII STL Inspector</div>
+                    </div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button class="btn" onclick="loadCadMesh('flexure')">⚡ Flexure</button>
+                        <button class="btn" onclick="loadCadMesh('cavity')">📡 Cavity Filter</button>
                         <button class="btn" onclick="loadCadMesh('rotor')">⚙️ Epicyclic Rotor</button>
-                        <button class="btn btn-primary" onclick="toggleCadWireframe()">Toggle Wireframe</button>
+                        <button class="btn" onclick="loadCadMesh('gyroid')">🧬 Gyroid TPMS</button>
+                        <button class="btn" onclick="loadCadMesh('microfluidic')">💧 Microfluidic</button>
                     </div>
                 </div>
-                <p style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">
-                    Interactive 3D viewport rendering OpenCASCADE boundary representation solid meshes synthesized by FreeCAD 1.1 CLI under strict STEM physical laws.
-                </p>
 
-                <div style="position:relative; width:100%; height:380px; background:#040711; border:1px solid var(--border); border-radius:8px; overflow:hidden;" id="cadViewport">
-                    <canvas id="cadCanvas3D" style="width:100%; height:100%; display:block; cursor:grab;"></canvas>
-                    <div style="position:absolute; bottom:10px; left:12px; right:12px; display:flex; justify-content:space-between; font-size:10px; font-family:monospace; pointer-events:none;">
-                        <span id="cadHudInfo" style="background:rgba(0,0,0,0.7); padding:4px 8px; border-radius:4px; border:1px solid var(--border); pointer-events:auto;">Model: Compliant Flexure</span>
-                        <span style="background:rgba(0,0,0,0.7); padding:4px 8px; border-radius:4px; border:1px solid var(--border); pointer-events:auto;">🖱️ Drag to Rotate in 3D • Wheel to Zoom</span>
+                <!-- Parametric Controls & STL Inspector Bar -->
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:8px; background:var(--obsidian); padding:10px; border:1px solid var(--border); border-radius:6px; margin-bottom:10px; align-items:end;">
+                    <div>
+                        <label style="display:block; font-size:10px; color:var(--text-muted); margin-bottom:3px;">Resonant Freq (MHz)</label>
+                        <input id="cad-param-freq" type="number" value="2450" min="300" max="12000" step="50" style="width:100%; background:var(--surface); color:var(--text-main); border:1px solid var(--border); border-radius:4px; padding:4px 8px; font-size:11px; font-family:monospace;" onchange="previewCustomCadMesh()">
                     </div>
+                    <div>
+                        <label style="display:block; font-size:10px; color:var(--text-muted); margin-bottom:3px;">Symmetry Order (r)</label>
+                        <input id="cad-param-sym" type="number" value="0.88" min="0.2" max="1.0" step="0.04" style="width:100%; background:var(--surface); color:var(--text-main); border:1px solid var(--border); border-radius:4px; padding:4px 8px; font-size:11px; font-family:monospace;" onchange="previewCustomCadMesh()">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:10px; color:var(--text-muted); margin-bottom:3px;">Scale Factor (x mm)</label>
+                        <input id="cad-param-scale" type="number" value="1.0" min="0.4" max="2.5" step="0.1" style="width:100%; background:var(--surface); color:var(--text-main); border:1px solid var(--border); border-radius:4px; padding:4px 8px; font-size:11px; font-family:monospace;" onchange="previewCustomCadMesh()">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:10px; color:var(--text-muted); margin-bottom:3px;">TPMS Grid Res</label>
+                        <input id="cad-param-res" type="number" value="16" min="10" max="24" step="2" style="width:100%; background:var(--surface); color:var(--text-main); border:1px solid var(--border); border-radius:4px; padding:4px 8px; font-size:11px; font-family:monospace;" onchange="previewCustomCadMesh()">
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <button class="btn btn-primary" style="flex:1;" onclick="synthesizeCadOnDisk()">🛠️ Forge STL/STEP</button>
+                    </div>
+                    <div style="grid-column: span 2; display:flex; gap:6px; align-items:center;">
+                        <select id="cad-stl-select" style="flex:1; background:var(--surface); color:var(--text-main); border:1px solid var(--border); border-radius:4px; padding:5px 8px; font-size:11px; font-family:monospace;">
+                            <option value="">-- Inspect Generated STL from Disk --</option>
+                        </select>
+                        <button class="btn" onclick="loadSelectedCadStl()">Load STL</button>
+                        <button class="btn" onclick="refreshCadStlList()" title="Refresh STL Catalog">↻</button>
+                    </div>
+                </div>
+
+                <!-- Viewport Toolbar & Downloads -->
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button class="btn btn-primary" onclick="setCadRenderMode('shaded')" id="cad-mode-shaded">Shaded + Edges</button>
+                        <button class="btn" onclick="setCadRenderMode('solid')" id="cad-mode-solid">Smooth Lit</button>
+                        <button class="btn" onclick="setCadRenderMode('wireframe')" id="cad-mode-wire">Wireframe</button>
+                        <button class="btn" onclick="setCadRenderMode('normals')" id="cad-mode-normals">RGB Normals</button>
+                        <button class="btn" onclick="toggleCadAutoSpin()" id="cad-spin-btn">⟳ Spin: OFF</button>
+                    </div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                        <button class="btn" onclick="setCadCameraPreset('iso')">Iso</button>
+                        <button class="btn" onclick="setCadCameraPreset('top')">Top</button>
+                        <button class="btn" onclick="setCadCameraPreset('front')">Front</button>
+                        <button class="btn" onclick="setCadCameraPreset('right')">Right</button>
+                        <span id="cad-export-links" style="display:inline-flex; gap:6px;"></span>
+                    </div>
+                </div>
+
+                <div style="position:relative; width:100%; height:440px; background:radial-gradient(circle at 50% 45%, #0c1424 0%, #03060d 100%); border:1px solid var(--border); border-radius:8px; overflow:hidden;" id="cadViewport">
+                    <canvas id="cadCanvas3D" style="width:100%; height:100%; display:block; cursor:grab;"></canvas>
+                    <div style="position:absolute; bottom:10px; left:12px; right:12px; display:flex; justify-content:space-between; font-size:10px; font-family:monospace; pointer-events:none; gap:8px;">
+                        <span id="cadHudInfo" style="background:rgba(4,7,17,0.82); padding:4px 10px; border-radius:4px; border:1px solid var(--border); color:#e2e8f0;">Loading 3D Mesh...</span>
+                        <span style="background:rgba(4,7,17,0.82); padding:4px 10px; border-radius:4px; border:1px solid var(--border); color:#94a3b8;">Left-Drag: Orbit • Shift/Right-Drag: Pan • Wheel: Zoom • Double-Click: Reset</span>
+                    </div>
+                </div>
+
+                <!-- Engineering Properties Telemetry Bar -->
+                <div class="tm-metrics-grid" style="margin-top:10px;" id="cad-engineering-metrics">
+                    <div class="tm-metric-box"><div class="label">Archetype</div><div class="val" id="cad-m-arch" style="font-size:12px;">-</div></div>
+                    <div class="tm-metric-box"><div class="label">Mesh Topology</div><div class="val" id="cad-m-topo" style="font-size:12px;">0 V / 0 F</div></div>
+                    <div class="tm-metric-box"><div class="label">Exact Volume</div><div class="val" id="cad-m-vol" style="font-size:12px;">0 mm³</div></div>
+                    <div class="tm-metric-box"><div class="label">Surface Area</div><div class="val" id="cad-m-area" style="font-size:12px;">0 mm²</div></div>
+                    <div class="tm-metric-box"><div class="label">Envelope (X × Y × Z)</div><div class="val" id="cad-m-bbox" style="font-size:12px;">0 × 0 × 0 mm</div></div>
                 </div>
             </div>
         </div>
 
-        <!-- Tab: Performance (Windows Task Manager) -->
-        <div id="tab-taskmgr" class="tab-content active">
+        <!-- Tab: Performance (Windows Task Manager — Chapter 5) -->
+        <div id="tab-taskmgr" class="tab-content">
             <div class="tm-container">
                 <!-- Left Sidebar: Devices with Mini Live Sparklines -->
                 <div class="tm-sidebar">
                     <div class="tm-side-item active" onclick="selectTmDevice('cpu')">
                         <div class="tm-side-title">CPU</div>
-                        <div class="tm-side-val" id="tm-side-cpu-val">32%</div>
-                        <div class="tm-side-sub" id="tm-side-cpu-sub">4.20 GHz • 32 Logical Processors</div>
+                        <div class="tm-side-val" id="tm-side-cpu-val">--%</div>
+                        <div class="tm-side-sub" id="tm-side-cpu-sub">Sampling host hardware...</div>
                         <canvas class="tm-sparkline" id="spark-cpu"></canvas>
                     </div>
 
                     <div class="tm-side-item" onclick="selectTmDevice('memory')">
                         <div class="tm-side-title">Memory (Pooled)</div>
-                        <div class="tm-side-val" id="tm-side-mem-val">27.4/102.1 GB</div>
-                        <div class="tm-side-sub" id="tm-side-mem-sub">32.1 GB VRAM + 70.0 GB RAM</div>
+                        <div class="tm-side-val" id="tm-side-mem-val">-- / -- GB</div>
+                        <div class="tm-side-sub" id="tm-side-mem-sub">Measuring physical RAM + VRAM...</div>
                         <canvas class="tm-sparkline" id="spark-mem"></canvas>
                     </div>
 
                     <div class="tm-side-item" onclick="selectTmDevice('gpu0')">
                         <div class="tm-side-title">GPU 0 (NVIDIA RTX 3060)</div>
-                        <div class="tm-side-val" id="tm-side-gpu0-val">96% • 73°C</div>
-                        <div class="tm-side-sub" id="tm-side-gpu0-sub">6.5 / 12.0 GB VRAM • VectorForge</div>
+                        <div class="tm-side-val" id="tm-side-gpu0-val">--%</div>
+                        <div class="tm-side-sub" id="tm-side-gpu0-sub">Querying NVML...</div>
                         <canvas class="tm-sparkline" id="spark-gpu0"></canvas>
                     </div>
 
                     <div class="tm-side-item" onclick="selectTmDevice('gpu1')">
                         <div class="tm-side-title">GPU 1 (AMD RX 580)</div>
-                        <div class="tm-side-val" id="tm-side-gpu1-val">84% • 62°C</div>
-                        <div class="tm-side-sub" id="tm-side-gpu1-sub">6.8 / 8.0 GB • Kuramoto r=0.96</div>
+                        <div class="tm-side-val" id="tm-side-gpu1-val">--%</div>
+                        <div class="tm-side-sub" id="tm-side-gpu1-sub">Querying AMD ADL...</div>
                         <canvas class="tm-sparkline" id="spark-gpu1"></canvas>
                     </div>
 
                     <div class="tm-side-item" onclick="selectTmDevice('gpu2')">
                         <div class="tm-side-title">GPU 2 (Radeon gfx90c Node 2)</div>
-                        <div class="tm-side-val" id="tm-side-gpu2-val">38% • 49°C</div>
-                        <div class="tm-side-sub" id="tm-side-gpu2-sub">5.1 / 12.1 GB • Remote SMT</div>
+                        <div class="tm-side-val" id="tm-side-gpu2-val">CHECKING...</div>
+                        <div class="tm-side-sub" id="tm-side-gpu2-sub">Probing 192.168.99.2...</div>
                         <canvas class="tm-sparkline" id="spark-gpu2"></canvas>
                     </div>
 
                     <div class="tm-side-item" onclick="selectTmDevice('network')">
                         <div class="tm-side-title">Ethernet (Cluster Link)</div>
-                        <div class="tm-side-val" id="tm-side-net-val">S: 4.2 MB/s</div>
-                        <div class="tm-side-sub" id="tm-side-net-sub">skyTech ⇄ Ryzen Head (0.4ms)</div>
+                        <div class="tm-side-val" id="tm-side-net-val">S: 0 KB/s</div>
+                        <div class="tm-side-sub" id="tm-side-net-sub">Measuring physical NIC...</div>
                         <canvas class="tm-sparkline" id="spark-net"></canvas>
                     </div>
 
                     <div class="tm-side-item" onclick="selectTmDevice('disk')">
                         <div class="tm-side-title">Disk (Vault I/O)</div>
-                        <div class="tm-side-val" id="tm-side-disk-val">1.2 MB/s</div>
-                        <div class="tm-side-sub" id="tm-side-disk-sub">5,740+ Deliverables • 0.8ms</div>
+                        <div class="tm-side-val" id="tm-side-disk-val">0 KB/s</div>
+                        <div class="tm-side-sub" id="tm-side-disk-sub">Measuring storage I/O...</div>
                         <canvas class="tm-sparkline" id="spark-disk"></canvas>
                     </div>
                 </div>
@@ -4395,11 +4797,12 @@ def serve_dashboard_ui() -> Any:
                 </div>
                 <div style="display:flex; gap:10px; margin-bottom:10px;">
                     <select id="shuttle-model" style="background:var(--obsidian); color:var(--text-main); border:1px solid var(--border); padding:6px 10px; border-radius:5px; font-family:monospace;">
-                        <option value="auto">auto (Intelligent Silicon Routing)</option>
-                        <option value="qwen2.5:32b">qwen2.5:32b (Distributed Sharded)</option>
-                        <option value="deepseek-r1:14b">deepseek-r1:14b (Reasoning Specialist)</option>
-                        <option value="qwen2.5:7b">qwen2.5:7b (Local Fast Tier 1)</option>
-                        <option value="qwen2.5:3b">qwen2.5:3b (Edge Superfast)</option>
+                        <option value="auto">auto (Intelligent Drill-Bit Routing)</option>
+                        <option value="loom-sovereign:latest">loom-sovereign:latest (Sovereign ClothOS Primary)</option>
+                        <option value="loom-sovereign-fast:latest">loom-sovereign-fast:latest (Low-Latency Reflex)</option>
+                        <option value="qwen2.5:32b">qwen2.5:32b (Deep Scientific Compute)</option>
+                        <option value="llama3.3:70b">llama3.3:70b (Teacher Frontier Model)</option>
+                        <option value="qwen2.5-coder:7b">qwen2.5-coder:7b (Code &amp; CAD Synthesis)</option>
                     </select>
                     <button class="btn btn-primary" onclick="sendInferencePrompt()">🚀 Dispatch Query</button>
                 </div>
@@ -5502,36 +5905,57 @@ def serve_dashboard_ui() -> Any:
             </div>
         </div>
 
-        <!-- Tab: Communication Hub -->
-        <div id="tab-comm" class="tab-content">
+        <!-- Tab: AI Chat & Start Here (Chapter 1 Primary Workspace) -->
+        <div id="tab-comm" class="tab-content active">
+            <!-- Kid-Friendly Quick Guide & 24/7 Cycle Explainer -->
+            <div class="card" id="start-here-card" style="background:linear-gradient(135deg, rgba(16,185,129,0.08), rgba(56,189,248,0.06)); border-color:rgba(16,185,129,0.3);">
+                <div class="card-header" style="margin-bottom:8px;">
+                    <span class="card-title" style="color:var(--emerald);">👋 START HERE: HOW THIS SYSTEM WORKS</span>
+                    <button class="btn btn-sm" onclick="document.getElementById('start-here-card').style.display='none'" style="font-size:10px;">Hide Guide</button>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; font-size:12px; line-height:1.5; color:#e2e8f0;">
+                    <div style="background:rgba(4,9,6,0.55); border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
+                        <div style="font-weight:800; color:#38bdf8; margin-bottom:4px;">1. How to Use It (3 Easy Steps)</div>
+                        <div>• <b>Pick a goal</b> in <i>Current Task</i> above (or just ask below).<br/>
+                        • <b>Choose a stage</b>: Chat, Research, 3D CAD &amp; Lab, Safety, or System Monitor.<br/>
+                        • <b>Click Send to</b> to move your idea straight into 3D CAD, Media, or AI Chat.</div>
+                    </div>
+                    <div style="background:rgba(4,9,6,0.55); border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
+                        <div style="font-weight:800; color:#a855f7; margin-bottom:4px;">2. What the 24/7 Cycle Does</div>
+                        <div>• <b>☀️ Daytime (6 AM – 10 PM):</b> Your main GPU (RTX 3060) stays free for your chats and 3D models. Background jobs pause instantly whenever you ask something.<br/>
+                        • <b>🌙 Overnight (10 PM – 6 AM):</b> Your RTX 3060 thinks of new ideas, your RX 580 tests them in parallel, and Node 2 double-checks them—then <b>🌅 Daily Summary</b> shows what finished.</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header">
                     <div>
-                        <span class="card-title">💬 MULTI-CHANNEL SOVEREIGN COMMUNICATION HUB</span>
+                        <span class="card-title">💬 AI CHAT &amp; LIVE ACTIVITY FEED</span>
                         <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
-                            Continuous transparent dialogue across User, Epistemic Core, Rhizome Kingdoms, and Evolutionary Signals
+                            Ask questions, see what the system is working on, and review safety or system updates in one place.
                         </div>
                     </div>
                     <button class="btn" onclick="fetchCommFeed()">🔄 Refresh Feed</button>
                 </div>
 
-                <div style="display:flex; gap:6px; margin-bottom:10px;">
-                    <button class="btn btn-primary" onclick="filterCommChannel('')">All Channels</button>
-                    <button class="btn" onclick="filterCommChannel('user-consultation')">#user-consultation</button>
-                    <button class="btn" onclick="filterCommChannel('rhizome-hyphae')">#rhizome-hyphae</button>
-                    <button class="btn" onclick="filterCommChannel('evolution-signals')">#evolution-signals</button>
-                    <button class="btn" onclick="filterCommChannel('economic-ledger')">#economic-ledger</button>
-                    <button class="btn" onclick="filterCommChannel('fiduciary-alerts')">#fiduciary-alerts</button>
+                <div id="comm-filter-bar" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
+                    <button class="btn btn-primary comm-filter-btn" onclick="filterCommChannel('', this)">All Messages</button>
+                    <button class="btn comm-filter-btn" onclick="filterCommChannel('user-consultation', this)">💬 Ask AI</button>
+                    <button class="btn comm-filter-btn" onclick="filterCommChannel('rhizome-hyphae', this)">🔬 Research</button>
+                    <button class="btn comm-filter-btn" onclick="filterCommChannel('evolution-signals', this)">⚙️ System Updates</button>
+                    <button class="btn comm-filter-btn" onclick="filterCommChannel('economic-ledger', this)">⚡ Energy &amp; Usage</button>
+                    <button class="btn comm-filter-btn" onclick="filterCommChannel('fiduciary-alerts', this)">🛡️ Safety Alerts</button>
                 </div>
 
                 <!-- Message Feed Box -->
-                <div id="comm-feed-box" style="background:var(--obsidian); border:1px solid var(--border); border-radius:6px; padding:12px; height:340px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
-                    <div style="color:var(--text-muted); font-size:11px;">Connecting to sovereign communication bus...</div>
+                <div id="comm-feed-box" style="background:var(--obsidian); border:1px solid var(--border); border-radius:6px; padding:12px; height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
+                    <div style="color:var(--text-muted); font-size:11px;">Loading live activity feed...</div>
                 </div>
 
                 <!-- Send Message Bar -->
                 <div style="display:flex; gap:8px;">
-                    <input type="text" id="comm-input-text" class="shuttle-input" style="flex:1; margin-bottom:0;" placeholder="Speak to the Sovereign Consultant or broadcast to cluster...">
+                    <input type="text" id="comm-input-text" class="shuttle-input" style="flex:1; min-height:38px; height:38px; margin-bottom:0;" placeholder="Ask AI anything, or type a command/topic and press Enter..." onkeydown="if(event.key==='Enter') sendCommMessage()">
                     <button class="btn btn-primary" onclick="sendCommMessage()">📤 Send Message</button>
                 </div>
             </div>
@@ -5563,6 +5987,36 @@ def serve_dashboard_ui() -> Any:
                     </div>
                     <div id="diff-summary-text" style="font-size:11px; color:#cbd5e1; font-family:monospace; line-height:1.5;">
                         Analyzing cross-modal differential trajectory...
+                    </div>
+                </div>
+
+                <!-- Universal File Analyzer & Multimodal Synthesis Studio -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+                    <div style="background:var(--obsidian); border:1px solid var(--border); border-radius:8px; padding:12px;">
+                        <div style="font-size:11px; font-weight:800; color:#a855f7; margin-bottom:6px;">📂 UNIVERSAL FILE ANALYZER (ALL FILE TYPES)</div>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <input type="file" id="universal-file-input" style="font-size:11px; color:#cbd5e1; max-width:220px;">
+                            <button class="btn btn-primary" style="font-size:11px;" onclick="analyzeAnyUploadedFile()">🔬 Analyze Upload</button>
+                        </div>
+                        <pre id="universal-file-result" style="margin-top:8px; max-height:120px; overflow:auto; font-size:10px; color:#a7f3d0; background:#030712; padding:8px; border-radius:6px; white-space:pre-wrap;">Supports PDF, Office, Code, IPYNB, SQLite, PNG/WebP, WAV/FLAC/MIDI, AVI/MP4, STL/STEP/CIF, ZIP &amp; Binary.</pre>
+                    </div>
+                    <div style="background:var(--obsidian); border:1px solid var(--border); border-radius:8px; padding:12px;">
+                        <div style="font-size:11px; font-weight:800; color:#38bdf8; margin-bottom:6px;">🎬 PROMPT MULTIMEDIA GENERATION STUDIO</div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+                            <select id="multimodal-medium-select" class="shuttle-input" style="min-height:28px; width:165px; margin-bottom:0; font-size:11px;">
+                                <option value="auto" selected>✨ Auto-Detect from Prompt</option>
+                                <option value="image">🖼️ High-Res Image (PNG/WebP)</option>
+                                <option value="animated_video">🎥 Playable Video (AVI/WebP/GIF)</option>
+                                <option value="music">🎵 Stereo Music (WAV/FLAC/MID)</option>
+                                <option value="story">📖 Deliberated Story</option>
+                                <option value="poetry">📜 Formal Poetry</option>
+                                <option value="cad_model">📐 3D CAD (STEP/STL)</option>
+                                <option value="multimedia">🎨 Full Multimedia Bundle</option>
+                            </select>
+                            <input type="text" id="multimodal-prompt-input" class="shuttle-input" style="min-height:28px; flex:1; margin-bottom:0; font-size:11px;" placeholder="Prompt anything: e.g. 'Create a video of Lorenz attractors' or 'Compose 432Hz dorian music'..." onkeydown="if(event.key==='Enter'){generateMultimodalStudio();}">
+                            <button class="btn btn-emerald" style="font-size:11px;" onclick="generateMultimodalStudio()">✨ Generate</button>
+                        </div>
+                        <div id="multimodal-studio-result" style="font-size:11px; color:#cbd5e1; font-family:monospace;">Enter a prompt above to generate images, video, music, stories, or full multimedia bundles.</div>
                     </div>
                 </div>
 
@@ -6827,100 +7281,370 @@ Beneath the operator's fingers, the copper did not feel cold. It thrummed with a
             }
         }
 
-        // 3D STEM CAD Canvas Logic
+        // 3D STEM CAD Engineering Viewport Logic (Backface culling, Blinn-Phong normals, wheel zoom, pan, STL loader)
         let activeCadModel = 'flexure';
-        let cadWireframe = false;
+        let cadRenderMode = 'shaded'; // 'shaded' | 'solid' | 'wireframe' | 'normals'
+        let cadAutoSpin = false;
         let cadMesh = null;
-        let cadRotation = { x: 0.4, y: 0.6 };
+        let cadRotation = { x: 0.45, y: 0.65 };
+        let cadZoom = 1.0;
+        let cadPan = { x: 0, y: 0 };
         let isDraggingCad = false;
+        let cadDragMode = 'orbit'; // 'orbit' | 'pan'
         let lastMousePos = { x: 0, y: 0 };
+        let cadSpinRaf = null;
+
+        function getCadParamsQuery() {
+            const freq = parseFloat((document.getElementById('cad-param-freq') || {}).value) || 2450;
+            const sym = parseFloat((document.getElementById('cad-param-sym') || {}).value) || 0.88;
+            const scale = parseFloat((document.getElementById('cad-param-scale') || {}).value) || 1.0;
+            const res = parseInt((document.getElementById('cad-param-res') || {}).value, 10) || 16;
+            return { freq_mhz: freq, symmetry_r: sym, scale_mm: scale, resolution: res };
+        }
+
+        function applyLoadedCadMesh(data) {
+            cadMesh = data;
+            if (!cadMesh || !cadMesh.vertices || !cadMesh.faces) return;
+            const b = cadMesh.bounds || { x: [-50, 50], y: [-50, 50], z: [-50, 50] };
+            const sx = (b.x[1] - b.x[0]).toFixed(1);
+            const sy = (b.y[1] - b.y[0]).toFixed(1);
+            const sz = (b.z[1] - b.z[0]).toFixed(1);
+
+            const info = document.getElementById('cadHudInfo');
+            if (info) {
+                info.innerText = `${cadMesh.title || cadMesh.model_type} | ${cadMesh.vertex_count} Verts | ${cadMesh.triangle_count || cadMesh.face_count} Tris | Zoom ${cadZoom.toFixed(2)}x`;
+            }
+            const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
+            setVal('cad-m-arch', cadMesh.archetype || cadMesh.model_type || '-');
+            setVal('cad-m-topo', `${cadMesh.vertex_count} V / ${cadMesh.triangle_count || cadMesh.face_count} F`);
+            setVal('cad-m-vol', `${Number(cadMesh.volume_mm3 || 0).toLocaleString()} mm³`);
+            setVal('cad-m-area', `${Number(cadMesh.surface_area_mm2 || 0).toLocaleString()} mm²`);
+            setVal('cad-m-bbox', `${sx} × ${sy} × ${sz} mm`);
+
+            const linksEl = document.getElementById('cad-export-links');
+            if (linksEl) {
+                const art = cadMesh.artifact;
+                if (art) {
+                    let html = '';
+                    if (art.stl_url) html += `<a class="btn btn-emerald" href="${art.stl_url}" download>⬇ STL</a>`;
+                    if (art.step_url) html += `<a class="btn" href="${art.step_url}" download>⬇ STEP</a>`;
+                    if (art.svg_url) html += `<a class="btn" href="${art.svg_url}" target="_blank">📐 SVG</a>`;
+                    linksEl.innerHTML = html;
+                } else {
+                    linksEl.innerHTML = '';
+                }
+            }
+            render3dCadCanvas();
+        }
 
         async function loadCadMesh(modelType) {
             activeCadModel = modelType;
+            cadZoom = 1.0;
+            cadPan = { x: 0, y: 0 };
+            const q = getCadParamsQuery();
+            const qs = `freq_mhz=${encodeURIComponent(q.freq_mhz)}&symmetry_r=${encodeURIComponent(q.symmetry_r)}&scale_mm=${encodeURIComponent(q.scale_mm)}&resolution=${encodeURIComponent(q.resolution)}`;
             try {
-                const res = await fetch(`/api/cad/mesh/${modelType}`);
+                const res = await fetch(`/api/cad/mesh/${encodeURIComponent(modelType)}?${qs}`);
                 if (res.ok) {
-                    cadMesh = await res.json();
-                    const info = document.getElementById('cadHudInfo');
-                    if (info) info.innerText = `Model: ${cadMesh.model_type.toUpperCase()} | Vertices: ${cadMesh.vertex_count} | Faces: ${cadMesh.face_count}`;
-                    render3dCadCanvas();
+                    applyLoadedCadMesh(await res.json());
                 }
             } catch (err) {
                 console.error(err);
             }
         }
 
-        function toggleCadWireframe() {
-            cadWireframe = !cadWireframe;
+        async function previewCustomCadMesh() {
+            const q = getCadParamsQuery();
+            const qs = `freq_mhz=${encodeURIComponent(q.freq_mhz)}&symmetry_r=${encodeURIComponent(q.symmetry_r)}&scale_mm=${encodeURIComponent(q.scale_mm)}&resolution=${encodeURIComponent(q.resolution)}`;
+            try {
+                const res = await fetch(`/api/cad/mesh/${encodeURIComponent(activeCadModel)}?${qs}`);
+                if (res.ok) applyLoadedCadMesh(await res.json());
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function synthesizeCadOnDisk() {
+            const q = getCadParamsQuery();
+            const archMap = {
+                flexure: 'BISTABLE_COMPLIANT_FLEXURE',
+                cavity: 'MICROWAVE_CAVITY_FILTER',
+                rotor: 'KURAMOTO_EPICYCLIC_ROTOR',
+                gyroid: 'GYROID_TPMS_HEAT_EXCHANGER',
+                microfluidic: 'MICROFLUIDIC_DROPLET_GENERATOR'
+            };
+            const arch = archMap[activeCadModel] || activeCadModel.toUpperCase();
+            showToast(`Forging parametric BREP (.step) & triangulated .stl for ${arch}...`);
+            try {
+                const res = await fetch('/api/cad/synthesize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ archetype: arch, ...q })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    applyLoadedCadMesh(data);
+                    await refreshCadStlList();
+                    showToast(`Synthesized ${data.artifact ? data.artifact.id : arch} (${data.triangle_count} triangles)!`);
+                }
+            } catch (err) {
+                showToast('CAD synthesis error: ' + err.message);
+            }
+        }
+
+        async function refreshCadStlList() {
+            try {
+                const res = await fetch('/api/cad/stl/list');
+                if (!res.ok) return;
+                const d = await res.json();
+                const sel = document.getElementById('cad-stl-select');
+                if (!sel) return;
+                const prev = sel.value;
+                sel.innerHTML = '<option value="">-- Inspect Generated STL from Disk (' + (d.count || 0) + ') --</option>';
+                (d.files || []).forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f.filename;
+                    opt.textContent = `${f.filename} (${Math.max(1, Math.round(f.size_bytes / 1024))} KB)`;
+                    sel.appendChild(opt);
+                });
+                if (prev) sel.value = prev;
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadSelectedCadStl() {
+            const sel = document.getElementById('cad-stl-select');
+            if (!sel || !sel.value) return;
+            cadZoom = 1.0;
+            cadPan = { x: 0, y: 0 };
+            try {
+                const res = await fetch(`/api/cad/stl/load?filename=${encodeURIComponent(sel.value)}`);
+                if (res.ok) {
+                    applyLoadedCadMesh(await res.json());
+                    showToast(`Loaded STL mesh: ${sel.value}`);
+                }
+            } catch (err) {
+                showToast('Failed to load STL: ' + err.message);
+            }
+        }
+
+        function setCadRenderMode(mode) {
+            cadRenderMode = mode;
+            ['shaded', 'solid', 'wire', 'normals'].forEach(k => {
+                const btn = document.getElementById('cad-mode-' + k);
+                if (btn) btn.className = ((k === mode) || (k === 'wire' && mode === 'wireframe')) ? 'btn btn-primary' : 'btn';
+            });
             render3dCadCanvas();
+        }
+
+        function setCadCameraPreset(preset) {
+            cadPan = { x: 0, y: 0 };
+            if (preset === 'top') cadRotation = { x: 1.5708, y: 0.0 };
+            else if (preset === 'front') cadRotation = { x: 0.0, y: 0.0 };
+            else if (preset === 'right') cadRotation = { x: 0.0, y: -1.5708 };
+            else { cadRotation = { x: 0.45, y: 0.65 }; cadZoom = 1.0; }
+            render3dCadCanvas();
+        }
+
+        function toggleCadAutoSpin() {
+            cadAutoSpin = !cadAutoSpin;
+            const btn = document.getElementById('cad-spin-btn');
+            if (btn) {
+                btn.innerText = cadAutoSpin ? '⟳ Spin: ON' : '⟳ Spin: OFF';
+                btn.className = cadAutoSpin ? 'btn btn-emerald' : 'btn';
+            }
+            if (cadAutoSpin && !cadSpinRaf) {
+                const tickSpin = () => {
+                    if (!cadAutoSpin) { cadSpinRaf = null; return; }
+                    cadRotation.y += 0.012;
+                    render3dCadCanvas();
+                    cadSpinRaf = requestAnimationFrame(tickSpin);
+                };
+                cadSpinRaf = requestAnimationFrame(tickSpin);
+            }
+        }
+
+        function toggleCadWireframe() {
+            setCadRenderMode(cadRenderMode === 'wireframe' ? 'shaded' : 'wireframe');
         }
 
         function render3dCadCanvas() {
             const canvas = document.getElementById('cadCanvas3D');
-            if (!canvas || !cadMesh) return;
+            if (!canvas || !cadMesh || !cadMesh.vertices || !cadMesh.faces) return;
             const ctx = canvas.getContext('2d');
             const w = canvas.width = canvas.parentElement.clientWidth || 800;
-            const h = canvas.height = canvas.parentElement.clientHeight || 380;
+            const h = canvas.height = canvas.parentElement.clientHeight || 440;
             ctx.clearRect(0, 0, w, h);
 
-            const cx = w / 2;
-            const cy = h / 2;
-            const scale = Math.min(w, h) / 110;
-            const cosX = Math.cos(cadRotation.x);
-            const sinX = Math.sin(cadRotation.x);
-            const cosY = Math.cos(cadRotation.y);
-            const sinY = Math.sin(cadRotation.y);
+            // Subtle engineering coordinate grid
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.05)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let gx = 0; gx < w; gx += 40) { ctx.moveTo(gx, 0); ctx.lineTo(gx, h); }
+            for (let gy = 0; gy < h; gy += 40) { ctx.moveTo(0, gy); ctx.lineTo(w, gy); }
+            ctx.stroke();
 
-            const projected = cadMesh.vertices.map(v => {
-                const x1 = v[0] * cosY - v[2] * sinY;
-                const z1 = v[0] * sinY + v[2] * cosY;
-                const y2 = v[1] * cosX - z1 * sinX;
-                const z2 = v[1] * sinX + z1 * cosX;
-                return { x: cx + x1 * scale, y: cy - y2 * scale, z: z2 };
-            });
+            const b = cadMesh.bounds || { x: [-40, 40], y: [-40, 40], z: [-40, 40] };
+            const maxSpan = Math.max(
+                10,
+                b.x[1] - b.x[0],
+                b.y[1] - b.y[0],
+                b.z[1] - b.z[0]
+            );
+            const scale = (Math.min(w, h) * 0.68 / maxSpan) * cadZoom;
+            const cx = w / 2 + cadPan.x;
+            const cy = h / 2 + cadPan.y;
 
-            const sortedFaces = cadMesh.faces.map(face => {
-                let avgZ = 0;
-                face.forEach(idx => { avgZ += projected[idx] ? projected[idx].z : 0; });
-                return { indices: face, depth: avgZ / face.length };
-            }).sort((a, b) => a.depth - b.depth);
+            const cosX = Math.cos(cadRotation.x), sinX = Math.sin(cadRotation.x);
+            const cosY = Math.cos(cadRotation.y), sinY = Math.sin(cadRotation.y);
 
-            sortedFaces.forEach(f => {
-                const pts = f.indices.map(i => projected[i]).filter(Boolean);
-                if (pts.length < 3) return;
-                ctx.beginPath();
-                ctx.moveTo(pts[0].x, pts[0].y);
-                for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-                ctx.closePath();
-                if (!cadWireframe) {
-                    const depthFactor = Math.max(0.2, Math.min(0.9, 0.5 + f.depth / 80.0));
-                    ctx.fillStyle = `rgba(168, 85, 247, ${depthFactor * 0.4})`;
-                    ctx.fill();
+            function rotVec(vx, vy, vz) {
+                const x1 = vx * cosY - vz * sinY;
+                const z1 = vx * sinY + vz * cosY;
+                const y2 = vy * cosX - z1 * sinX;
+                const z2 = vy * sinX + z1 * cosX;
+                return [x1, y2, z2];
+            }
+
+            const proj = new Array(cadMesh.vertices.length);
+            const camDist = maxSpan * 3.5;
+            for (let i = 0; i < cadMesh.vertices.length; i++) {
+                const v = cadMesh.vertices[i];
+                const r = rotVec(v[0], v[1], v[2]);
+                const pers = camDist / Math.max(10, camDist - r[2]);
+                proj[i] = [cx + r[0] * scale * pers, cy - r[1] * scale * pers, r[2], r[0], r[1]];
+            }
+
+            const hasNormals = Array.isArray(cadMesh.normals) && cadMesh.normals.length === cadMesh.faces.length;
+            const sortedFaces = [];
+            for (let fIdx = 0; fIdx < cadMesh.faces.length; fIdx++) {
+                const f = cadMesh.faces[fIdx];
+                const p0 = proj[f[0]], p1 = proj[f[1]], p2 = proj[f[2]];
+                if (!p0 || !p1 || !p2) continue;
+
+                // Rotate precomputed normal OR compute dynamic normal
+                let nx, ny, nz;
+                if (hasNormals) {
+                    const n = cadMesh.normals[fIdx];
+                    const nr = rotVec(n[0], n[1], n[2]);
+                    nx = nr[0]; ny = nr[1]; nz = nr[2];
+                } else {
+                    const ax = p1[3] - p0[3], ay = p1[4] - p0[4], az = p1[2] - p0[2];
+                    const bx = p2[3] - p0[3], by = p2[4] - p0[4], bz = p2[2] - p0[2];
+                    nx = ay * bz - az * by; ny = az * bx - ax * bz; nz = ax * by - ay * bx;
+                    const l = Math.hypot(nx, ny, nz) || 1;
+                    nx /= l; ny /= l; nz /= l;
                 }
-                ctx.strokeStyle = cadWireframe ? 'rgba(0, 229, 255, 0.7)' : 'rgba(168, 85, 247, 0.6)';
-                ctx.lineWidth = 1;
+
+                // Backface culling in solid modes
+                if (cadRenderMode !== 'wireframe' && nz < -0.05) continue;
+
+                const zAvg = (p0[2] + p1[2] + p2[2]) / 3.0;
+                sortedFaces.push({ p0, p1, p2, nx, ny, nz, zAvg });
+            }
+
+            sortedFaces.sort((a, b2) => a.zAvg - b2.zAvg);
+
+            // Key light direction (top-left front) & fill light
+            const lx = -0.45, ly = 0.60, lz = 0.66;
+            for (let i = 0; i < sortedFaces.length; i++) {
+                const it = sortedFaces[i];
+                ctx.beginPath();
+                ctx.moveTo(it.p0[0], it.p0[1]);
+                ctx.lineTo(it.p1[0], it.p1[1]);
+                ctx.lineTo(it.p2[0], it.p2[1]);
+                ctx.closePath();
+
+                if (cadRenderMode === 'wireframe') {
+                    ctx.strokeStyle = 'rgba(0, 229, 255, 0.55)';
+                    ctx.lineWidth = 0.85;
+                    ctx.stroke();
+                    continue;
+                }
+
+                const diff = Math.max(0.0, it.nx * lx + it.ny * ly + it.nz * lz);
+                const spec = Math.pow(Math.max(0.0, it.nz), 18) * 0.35;
+                if (cadRenderMode === 'normals') {
+                    const rC = Math.round((it.nx * 0.5 + 0.5) * 235);
+                    const gC = Math.round((it.ny * 0.5 + 0.5) * 235);
+                    const bC = Math.round((Math.abs(it.nz) * 0.5 + 0.5) * 255);
+                    ctx.fillStyle = `rgb(${rC}, ${gC}, ${bC})`;
+                } else {
+                    const hue = activeCadModel.includes('cavity') ? 196 : (activeCadModel.includes('gyroid') ? 158 : (activeCadModel.includes('rotor') ? 268 : 205));
+                    const light = Math.min(82, 16 + diff * 50 + spec * 24);
+                    ctx.fillStyle = `hsl(${hue}, 72%, ${light.toFixed(1)}%)`;
+                }
+                ctx.fill();
+
+                if (cadRenderMode === 'shaded') {
+                    ctx.strokeStyle = 'rgba(15, 23, 42, 0.32)';
+                    ctx.lineWidth = 0.6;
+                    ctx.stroke();
+                }
+            }
+
+            // Draw 3D XYZ Orientation Axis Triad in bottom-left above HUD
+            const axX = w - 44, axY = 44, axLen = 24;
+            const axes = [
+                { v: rotVec(1, 0, 0), label: 'X', color: '#ef4444' },
+                { v: rotVec(0, 1, 0), label: 'Y', color: '#10b981' },
+                { v: rotVec(0, 0, 1), label: 'Z', color: '#38bdf8' },
+            ].sort((a, b2) => a.v[2] - b2.v[2]);
+
+            ctx.font = 'bold 10px monospace';
+            axes.forEach(ax => {
+                const ex = axX + ax.v[0] * axLen;
+                const ey = axY - ax.v[1] * axLen;
+                ctx.beginPath();
+                ctx.moveTo(axX, axY);
+                ctx.lineTo(ex, ey);
+                ctx.strokeStyle = ax.color;
+                ctx.lineWidth = 2;
                 ctx.stroke();
+                ctx.fillStyle = ax.color;
+                ctx.fillText(ax.label, ex + ax.v[0] * 6 - 3, ey - ax.v[1] * 6 + 3);
             });
         }
 
         window.addEventListener('DOMContentLoaded', () => {
             const vp = document.getElementById('cadViewport');
             if (vp) {
+                vp.addEventListener('contextmenu', e => e.preventDefault());
                 vp.addEventListener('mousedown', e => {
                     isDraggingCad = true;
+                    cadDragMode = (e.button === 2 || e.shiftKey) ? 'pan' : 'orbit';
                     lastMousePos = { x: e.clientX, y: e.clientY };
                 });
                 window.addEventListener('mousemove', e => {
                     if (!isDraggingCad) return;
                     const dx = e.clientX - lastMousePos.x;
                     const dy = e.clientY - lastMousePos.y;
-                    cadRotation.y += dx * 0.01;
-                    cadRotation.x += dy * 0.01;
+                    if (cadDragMode === 'pan') {
+                        cadPan.x += dx;
+                        cadPan.y += dy;
+                    } else {
+                        cadRotation.y += dx * 0.01;
+                        cadRotation.x += dy * 0.01;
+                    }
                     lastMousePos = { x: e.clientX, y: e.clientY };
                     render3dCadCanvas();
                 });
                 window.addEventListener('mouseup', () => { isDraggingCad = false; });
+                vp.addEventListener('wheel', e => {
+                    e.preventDefault();
+                    const factor = e.deltaY < 0 ? 1.12 : 0.89;
+                    cadZoom = Math.max(0.25, Math.min(8.0, cadZoom * factor));
+                    const info = document.getElementById('cadHudInfo');
+                    if (info && cadMesh) {
+                        info.innerText = `${cadMesh.title || cadMesh.model_type} | ${cadMesh.vertex_count} Verts | ${cadMesh.triangle_count || cadMesh.face_count} Tris | Zoom ${cadZoom.toFixed(2)}x`;
+                    }
+                    render3dCadCanvas();
+                }, { passive: false });
+                vp.addEventListener('dblclick', () => setCadCameraPreset('iso'));
             }
+            refreshCadStlList();
+            loadCadMesh('flexure');
             loadAutopoiesisState();
         });
 
@@ -7034,17 +7758,132 @@ Beneath the operator's fingers, the copper did not feel cold. It thrummed with a
             setTimeout(() => { t.style.display = 'none'; }, 3000);
         }
 
+        const CHAPTER_LEADS = {
+            intent: 'tab-comm',
+            discover: 'tab-research',
+            create: 'tab-cad-viewer',
+            govern: 'tab-judge',
+            silicon: 'tab-taskmgr',
+        };
+
+        window.showSecondaryTools = false;
+        function syncChapterNav(chapter) {
+            if (!chapter) return;
+            document.querySelectorAll('#story-spine .story-step').forEach(el => {
+                el.classList.toggle('active', el.dataset.chapter === chapter);
+            });
+            document.querySelectorAll('#chapter-subnav .tab-btn').forEach(el => {
+                const isThisChapter = el.dataset.chapter === chapter;
+                el.classList.toggle('chapter-hidden', !isThisChapter);
+                if (el.classList.contains('secondary-tool')) {
+                    el.style.display = (isThisChapter && window.showSecondaryTools) ? 'inline-block' : 'none';
+                }
+            });
+        }
+
+        function toggleSecondaryTools() {
+            window.showSecondaryTools = !window.showSecondaryTools;
+            const btn = document.getElementById('btn-more-tools');
+            if (btn) btn.innerText = window.showSecondaryTools ? 'Less Tools ▴' : 'More Tools ▾';
+            const activeChap = document.querySelector('#story-spine .story-step.active')?.dataset?.chapter || 'intent';
+            syncChapterNav(activeChap);
+        }
+
+        (function updateCycleModePill() {
+            const pill = document.getElementById('pill-cycle-mode');
+            if (!pill) return;
+            const hr = new Date().getHours();
+            if (hr >= 6 && hr < 22) {
+                pill.className = 'pill pill-emerald';
+                pill.innerText = '☀️ Daytime Interactive';
+                pill.title = '06:00–22:00: Interactive prompts & CAD prioritized (Auto-Preempt active)';
+            } else {
+                pill.className = 'pill pill-purple';
+                pill.innerText = '🌙 Night-time Batch';
+                pill.title = '22:00–06:00: 24/7 Dual-GPU background sweeps & indexing';
+            }
+        })();
+
+        function openChapter(chapter) {
+            syncChapterNav(chapter);
+            const lead = CHAPTER_LEADS[chapter] || 'tab-comm';
+            const btn = document.querySelector(`#chapter-subnav .tab-btn[onclick*="${lead}"]`);
+            switchTab(lead, btn);
+        }
+
+        function toggleClusterDrawer() {
+            const dr = document.getElementById('cluster-controls-drawer');
+            if (!dr) return;
+            dr.style.display = (dr.style.display === 'none' || !dr.style.display) ? 'flex' : 'none';
+        }
+
+        function openEmbeddedSurface(url, title, btn) {
+            syncChapterNav('silicon');
+            switchTab('tab-embedded-surface', btn);
+            const titleEl = document.getElementById('embedded-surface-title');
+            const frameEl = document.getElementById('embedded-surface-frame');
+            const popEl = document.getElementById('embedded-surface-popout');
+            if (titleEl) titleEl.innerText = `🌐 ${title} (Unified Port :8087)`;
+            if (frameEl) frameEl.src = url;
+            if (popEl) popEl.href = url;
+        }
+
+        function updateThreadTopic(topic) {
+            const clean = (topic || '').trim();
+            window.clothosActiveThread = clean;
+            try { sessionStorage.setItem('clothos_active_thread', clean); } catch (_) {}
+            const inp = document.getElementById('thread-goal-input');
+            if (inp && inp.value !== clean) inp.value = clean;
+            if (clean) showToast(`🧵 Thread synchronized: "${clean.slice(0, 48)}"`);
+        }
+
+        function carryThreadTo(target) {
+            const inp = document.getElementById('thread-goal-input');
+            const topic = ((inp && inp.value) || window.clothosActiveThread || '').trim();
+            if (topic) updateThreadTopic(topic);
+
+            if (target === 'shuttle') {
+                switchTab('tab-shuttle');
+                const box = document.getElementById('shuttle-input');
+                if (box && topic) { box.value = topic; box.focus(); }
+            } else if (target === 'cad') {
+                switchTab('tab-cad-viewer');
+                const lower = topic.toLowerCase();
+                if (lower.includes('cavity') || lower.includes('rf') || lower.includes('wave')) loadCadMesh('cavity');
+                else if (lower.includes('gyroid') || lower.includes('heat') || lower.includes('thermal')) loadCadMesh('gyroid');
+                else if (lower.includes('rotor') || lower.includes('gear') || lower.includes('kuramoto')) loadCadMesh('rotor');
+                else if (lower.includes('fluid') || lower.includes('droplet') || lower.includes('chip')) loadCadMesh('microfluidic');
+                else loadCadMesh('flexure');
+            } else if (target === 'atelier') {
+                switchTab('tab-atelier');
+                const box = document.getElementById('multimodal-prompt-input');
+                if (box && topic) { box.value = topic; box.focus(); }
+            } else if (target === 'drug') {
+                switchTab('tab-drug');
+                const box = document.getElementById('synth-indication');
+                if (box && topic) { box.value = topic; box.focus(); }
+            } else if (target === 'judge') {
+                switchTab('tab-judge');
+                const box = document.getElementById('adjudicate-name');
+                if (box && topic) { box.value = topic; box.focus(); }
+            }
+        }
+
         function switchTab(tabId, btn) {
             window.currentActiveTab = tabId;
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             const targetEl = document.getElementById(tabId);
             if (targetEl) targetEl.classList.add('active');
-            if (btn && btn.classList) {
-                btn.classList.add('active');
-            } else {
-                const found = document.querySelector(`.tab-btn[onclick*="${tabId}"]`);
-                if (found) found.classList.add('active');
+            let matchedBtn = btn && btn.classList ? btn : document.querySelector(`#chapter-subnav .tab-btn[onclick*="${tabId}"]`);
+            if (!matchedBtn) {
+                matchedBtn = document.querySelector(`.tab-btn[onclick*="${tabId}"]`);
+            }
+            if (matchedBtn) {
+                matchedBtn.classList.add('active');
+                if (matchedBtn.dataset && matchedBtn.dataset.chapter) {
+                    syncChapterNav(matchedBtn.dataset.chapter);
+                }
             }
             if (history.replaceState) {
                 history.replaceState(null, '', `#${tabId.replace('tab-', '')}`);
@@ -7108,16 +7947,22 @@ Beneath the operator's fingers, the copper did not feel cold. It thrummed with a
         }
 
         function handleHashRouting() {
+            const saved = sessionStorage.getItem('clothos_active_thread') || '';
+            const tg = document.getElementById('thread-goal-input');
+            if (tg && saved && !tg.value) tg.value = saved;
+
             const raw = window.location.hash.replace('#', '').trim();
             if (raw) {
                 const targetTabId = raw.startsWith('tab-') ? raw : `tab-${raw}`;
                 const targetEl = document.getElementById(targetTabId);
                 if (targetEl) {
-                    const btn = document.querySelector(`.tab-btn[onclick*="${targetTabId}"]`);
+                    const btn = document.querySelector(`#chapter-subnav .tab-btn[onclick*="${targetTabId}"]`);
                     switchTab(targetTabId, btn);
                     if (btn) btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    return;
                 }
             }
+            openChapter('intent');
         }
         window.addEventListener('hashchange', handleHashRouting);
         window.addEventListener('DOMContentLoaded', handleHashRouting);
@@ -8105,6 +8950,7 @@ Beneath the operator's fingers, the copper did not feel cold. It thrummed with a
             const out = document.getElementById('shuttle-output');
             const prompt = input.value.trim();
             if (!prompt) return;
+            updateThreadTopic(prompt);
 
             out.innerText = 'Routing prompt through Torque Zero-Trust Enclave to ' + model + '...';
             try {
@@ -8244,26 +9090,28 @@ Beneath the operator's fingers, the copper did not feel cold. It thrummed with a
                 const res = await fetch('/api/cluster/ports');
                 const d = await res.json();
                 let n1Html = '';
-                for (const [p, item] of Object.entries(d.node1.ports)) {
+                for (const [p, item] of Object.entries(d.node1.ports || {})) {
                     n1Html += `<div class="port-badge ${item.online ? 'port-online':'port-offline'}">${item.online?'●':'○'} ${item.name} (:${p})</div>`;
                 }
-                document.getElementById('node1-ports').innerHTML = n1Html;
+                const n1El = document.getElementById('node1-ports');
+                if (n1El) n1El.innerHTML = n1Html;
 
                 let n2Html = '';
-                for (const [p, item] of Object.entries(d.node2.ports)) {
+                for (const [p, item] of Object.entries(d.node2.ports || {})) {
                     n2Html += `<div class="port-badge ${item.online ? 'port-online':'port-offline'}">${item.online?'●':'○'} ${item.name} (:${p})</div>`;
                 }
-                document.getElementById('node2-ports').innerHTML = n2Html;
+                const n2El = document.getElementById('node2-ports');
+                if (n2El) n2El.innerHTML = n2Html;
 
                 const zmqPill = document.getElementById('pill-zmq');
-                if (d.zmq_bus && d.zmq_bus.online) {
+                if (zmqPill && d.zmq_bus && d.zmq_bus.online) {
                     zmqPill.className = 'pill pill-emerald';
                     zmqPill.innerHTML = '⚡ ZMQ :5559 ACTIVE';
                 }
 
                 // Also trigger detailed audit table refresh
                 auditPortsCRUD();
-            } catch (_) {}
+            } catch (e) { console.warn('refreshPorts error:', e); }
         }
 
         async function refreshTelemetry() {
@@ -8520,7 +9368,7 @@ Beneath the operator's fingers, the copper did not feel cold. It thrummed with a
                     lines.push(`    ${sid} -->|"${syn}"| ${tid}`);
                 });
 
-                const code = lines.join('\n');
+                const code = lines.join('\\n');
                 researchState.lastMermaidCode = code;
 
                 const pre = document.createElement('pre');
@@ -10331,6 +11179,7 @@ Beneath the operator's fingers, the copper did not feel cold. It thrummed with a
                 }
             } catch(e) {}
         }
+        window.launchUsaInitiative = launchCivicInitiative;
 
         // ---------------------------------------------------------
         // Atelier Art Gallery & STEM Differential Signal Engine
@@ -10491,6 +11340,65 @@ Beneath the operator's fingers, the copper did not feel cold. It thrummed with a
                     await fetchArtGallery();
                 }
             } catch(e) {}
+        }
+
+        async function analyzeAnyUploadedFile() {
+            const inp = document.getElementById('universal-file-input');
+            const out = document.getElementById('universal-file-result');
+            if (!inp || !inp.files || !inp.files[0]) { showToast('Choose any file first.'); return; }
+            const fd = new FormData();
+            fd.append('file', inp.files[0]);
+            out.textContent = 'Analyzing file across multimodal/binary extractors...';
+            try {
+                const res = await fetch('/api/files/analyze', { method: 'POST', body: fd });
+                const data = await res.json();
+                out.textContent = `[${data.category}] ${data.file_name} (${data.magic_signature}, ${data.size_bytes}B)\nMeta: ${JSON.stringify(data.metadata)}\n\n${data.summary || ''}`;
+            } catch(e) {
+                out.textContent = 'Analysis error: ' + e.message;
+            }
+        }
+
+        async function generateMultimodalStudio() {
+            const med = document.getElementById('multimodal-medium-select')?.value || 'auto';
+            const prompt = document.getElementById('multimodal-prompt-input')?.value || '';
+            const out = document.getElementById('multimodal-studio-result');
+            out.innerHTML = 'Deliberating unique plan &amp; rendering multimedia (quality &gt; speed)...';
+            try {
+                const res = await fetch('/api/media/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ medium: med, prompt: prompt || null })
+                });
+                const data = await res.json();
+                const items = Array.isArray(data.artifacts) ? data.artifacts : [data.artifact || {}];
+                out.innerHTML = items.map(a => {
+                    let mediaHtml = '';
+                    if (a.png_file) {
+                        mediaHtml += `<div style="margin-top:6px;"><img src="/${a.png_file}" style="max-width:100%;max-height:220px;border-radius:6px;border:1px solid #334155;"/></div>`;
+                    }
+                    if (a.webp_file && a.medium === 'animated_video') {
+                        mediaHtml += `<div style="margin-top:6px;"><img src="/${a.webp_file}" style="max-width:100%;max-height:220px;border-radius:6px;border:1px solid #334155;"/></div>`;
+                    }
+                    if (a.wav_file) {
+                        mediaHtml += `<div style="margin-top:6px;"><audio controls src="/${a.wav_file}" style="width:100%;"></audio></div>`;
+                    }
+                    const links = [
+                        a.preview_url ? `<a href="${a.preview_url}" target="_blank" style="color:#38bdf8;">Open Interactive</a>` : '',
+                        a.avi_file ? `<a href="/${a.avi_file}" download style="color:#10b981;">Download AVI</a>` : '',
+                        a.flac_file ? `<a href="/${a.flac_file}" download style="color:#a855f7;">FLAC</a>` : '',
+                        a.midi_file ? `<a href="/${a.midi_file}" download style="color:#f59e0b;">MIDI</a>` : ''
+                    ].filter(Boolean).join(' &bull; ');
+                    return `<div style="margin-top:6px;padding:8px;background:#030712;border-radius:6px;border:1px solid #1e293b;">
+                        <div><b>${a.title || 'Created'}</b> <span style="color:#94a3b8;">(${a.medium}, ${a.deliberation_seconds || 0}s)</span></div>
+                        <div style="font-size:10px;color:#cbd5e1;margin-top:2px;">${a.tagline || ''}</div>
+                        ${mediaHtml}
+                        <div style="margin-top:6px;font-size:10px;">${links}</div>
+                    </div>`;
+                }).join('');
+                await fetchArtGallery();
+            } catch(e) {
+                out.textContent = 'Generation error: ' + e.message;
+            }
         }
 
         // ---------------------------------------------------------
@@ -11189,79 +12097,135 @@ Beneath the operator's fingers, the copper did not feel cold. It thrummed with a
             showToast(`🔮 Bayesian forecast for ${target}: Expected trajectory +18.4%`);
         }
 
+        window.commChatHistory = window.commChatHistory || [];
+        window.commSystemFeed = window.commSystemFeed || [];
+        let currentCommFilter = '';
+
+        function _mapThoughtToChannel(t) {
+            const st = String(t.stage || '').toUpperCase();
+            if (st.includes('COVENANT') || st.includes('FIDUCIARY') || st.includes('SAFETY')) return 'fiduciary-alerts';
+            if (st.includes('ENERGY') || st.includes('LANDAUER') || st.includes('ECON')) return 'economic-ledger';
+            if (st.includes('EVOL') || st.includes('UI') || st.includes('SYSTEM')) return 'evolution-signals';
+            return 'rhizome-hyphae';
+        }
+
+        function renderCommFeed() {
+            const feed = document.getElementById('comm-feed-box');
+            if (!feed) return;
+            const combined = [...window.commSystemFeed, ...window.commChatHistory];
+            const filtered = currentCommFilter
+                ? combined.filter(item => item.channel === currentCommFilter)
+                : combined;
+
+            if (!filtered.length) {
+                feed.innerHTML = `<div style="color:var(--text-muted); font-size:11px; padding:8px;">No messages in this filter yet. Type a question below to chat with AI!</div>`;
+                return;
+            }
+            feed.innerHTML = filtered.map(m => `
+                <div style="background:${m.bg || 'rgba(255,255,255,0.03)'}; border-left:3px solid ${m.color || '#38bdf8'}; padding:8px 10px; border-radius:4px;">
+                    <div style="display:flex; justify-content:space-between; font-size:10px; color:${m.color || '#38bdf8'}; font-weight:bold;">
+                        <span>${m.sender}</span>
+                        <span>${m.time || ''}</span>
+                    </div>
+                    <div style="font-size:12px; color:#e2e8f0; margin-top:3px; white-space:pre-wrap;">${m.text}</div>
+                </div>
+            `).join('');
+            feed.scrollTop = feed.scrollHeight;
+        }
+
         async function fetchCommFeed() {
             try {
                 const res = await fetch('/api/cognition/thoughts/verbose?limit=6');
                 if (res.ok) {
                     const d = await res.json();
-                    const feed = document.getElementById('comm-feed-box');
-                    if (feed && d.recent_thoughts) {
-                        feed.innerHTML = d.recent_thoughts.map(t => `
-                            <div style="background:rgba(255,255,255,0.03); border-left:3px solid ${t.visual_color_hex || '#38bdf8'}; padding:6px 10px; border-radius:4px; margin-bottom:6px;">
-                                <div style="display:flex; justify-content:space-between; font-size:10px; color:${t.visual_color_hex || '#38bdf8'}; font-weight:bold;">
-                                    <span>${t.primary_brain_region} &bull; ${t.headline}</span>
-                                    <span>${t.timestamp_iso || ''}</span>
-                                </div>
-                                <div style="font-size:11px; color:#cbd5e1; margin-top:2px;">${t.verbose_monologue}</div>
-                            </div>
-                        `).join('');
-                        feed.scrollTop = feed.scrollHeight;
+                    if (d.recent_thoughts) {
+                        window.commSystemFeed = d.recent_thoughts.map(t => ({
+                            channel: _mapThoughtToChannel(t),
+                            sender: `${t.headline || 'System Activity'}`,
+                            time: t.timestamp_iso || '',
+                            text: t.verbose_monologue || '',
+                            color: t.visual_color_hex || '#38bdf8',
+                            bg: 'rgba(255,255,255,0.03)'
+                        }));
+                        renderCommFeed();
                     }
                 }
-            } catch(e) {}
+            } catch (e) { console.warn('fetchCommFeed error:', e); }
         }
 
-        let currentCommFilter = '';
-        function filterCommChannel(ch) {
-            currentCommFilter = ch;
-            showToast(ch ? `Channel filter: ${ch}` : 'Showing all channels');
+        function filterCommChannel(ch, btn) {
+            currentCommFilter = ch || '';
+            document.querySelectorAll('#comm-filter-bar .comm-filter-btn').forEach(el => {
+                el.classList.remove('btn-primary');
+            });
+            if (btn && btn.classList) btn.classList.add('btn-primary');
+            renderCommFeed();
+            showToast(ch ? `Showing: ${btn ? btn.innerText : ch}` : 'Showing all messages');
         }
 
         async function sendCommMessage() {
-            const input = document.getElementById('comm-msg-input') || document.getElementById('comm-input-text');
+            const input = document.getElementById('comm-input-text') || document.getElementById('comm-msg-input');
             const txt = input ? input.value.trim() : '';
-            if (!txt) return;
+            if (!txt) {
+                showToast('Type a message first.');
+                return;
+            }
+            updateThreadTopic(txt);
             if (input) input.value = '';
 
-            const feed = document.getElementById('comm-feed-box');
-            if (feed) {
-                const now = new Date().toLocaleTimeString();
-                feed.innerHTML += `
-                    <div style="background:rgba(56,189,248,0.12); border-left:3px solid #38bdf8; padding:8px 10px; border-radius:4px; margin-bottom:6px;">
-                        <div style="display:flex; justify-content:space-between; font-size:10px; color:#38bdf8; font-weight:bold;">
-                            <span>Operator</span>
-                            <span>${now}</span>
-                        </div>
-                        <div style="font-size:11px; color:#f0fdf4; margin-top:3px;">${txt}</div>
-                    </div>
-                `;
-                feed.scrollTop = feed.scrollHeight;
-            }
-            showToast('📤 Message dispatched to peer fabric');
+            const now = new Date().toLocaleTimeString();
+            window.commChatHistory.push({
+                channel: 'user-consultation',
+                sender: 'You',
+                time: now,
+                text: txt,
+                color: '#38bdf8',
+                bg: 'rgba(56,189,248,0.12)'
+            });
+            renderCommFeed();
+            showToast('🤖 Asking local AI...');
 
             try {
-                const res = await fetch('/api/cognition/ponder', {
+                const res = await fetch('/api/inference/dispatch', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ stimulus: txt })
+                    body: JSON.stringify({ prompt: txt, tier: 'auto' })
                 });
-                if (res.ok && feed) {
+                const replyTime = new Date().toLocaleTimeString();
+                if (res.ok) {
                     const data = await res.json();
-                    const spans = data.thought_spans || [];
-                    const replySpan = spans[spans.length - 1] || spans[0];
-                    const now = new Date().toLocaleTimeString();
-                    feed.innerHTML += `
-                        <div style="background:rgba(168,85,247,0.12); border-left:3px solid #a855f7; padding:8px 10px; border-radius:4px; margin-bottom:6px;">
-                            <div style="display:flex; justify-content:space-between; font-size:10px; color:#c084fc; font-weight:bold;">
-                                <span>ClothOS Living Mind (${replySpan ? replySpan.stage : 'CONSCIOUS_RESPONSE'})</span>
-                                <span>${now}</span>
-                            </div>
-                            <div style="font-size:11px; color:#e0f2fe; margin-top:3px;">${replySpan ? replySpan.verbose_monologue : 'Deliberation integrated into Global Workspace.'}</div>
-                        </div>
-                    `;
-                    feed.scrollTop = feed.scrollHeight;
+                    const replyText = data.response || data.content || data.text || JSON.stringify(data);
+                    const modelLabel = data.model_used || data.model || data.tier || 'Local AI';
+                    window.commChatHistory.push({
+                        channel: 'user-consultation',
+                        sender: `AI (${modelLabel})`,
+                        time: replyTime,
+                        text: replyText,
+                        color: '#10b981',
+                        bg: 'rgba(16,185,129,0.12)'
+                    });
+                } else {
+                    window.commChatHistory.push({
+                        channel: 'user-consultation',
+                        sender: 'AI Error',
+                        time: replyTime,
+                        text: `Server returned HTTP ${res.status}`,
+                        color: '#ef4444',
+                        bg: 'rgba(239,68,68,0.12)'
+                    });
                 }
-            } catch(e) {}
+                renderCommFeed();
+            } catch (e) {
+                window.commChatHistory.push({
+                    channel: 'user-consultation',
+                    sender: 'AI Connection Error',
+                    time: new Date().toLocaleTimeString(),
+                    text: String(e),
+                    color: '#ef4444',
+                    bg: 'rgba(239,68,68,0.12)'
+                });
+                renderCommFeed();
+            }
         }
 
         // -------------------------------------------------------------
@@ -11602,7 +12566,7 @@ Beneath the operator's fingers, the copper did not feel cold. It thrummed with a
 
 </body>
 </html>
-"""
+""")
 
 
 # ---------------------------------------------------------
@@ -11642,6 +12606,70 @@ def run_server(host: str = "0.0.0.0", port: int = 8087) -> None:
     print(f"======================================================================")
     logger.info(f"Starting ClothOS Command Center on http://{host}:{selected_port}")
     uvicorn.run(app, host=host, port=selected_port, log_level="warning")
+
+
+def _mount_unified_gateway_routes() -> None:
+    """Mounts Loom Gateway & Anthropic/OpenAI routes directly onto the Master App (:8087)."""
+    try:
+        import importlib
+        gw_mod = importlib.import_module("loom.gateway.app")
+        existing = {
+            (getattr(r, "path", None), tuple(sorted(getattr(r, "methods", set()) or [])))
+            for r in app.routes
+        }
+        for route in gw_mod.app.routes:
+            path = getattr(route, "path", None)
+            if not path or path == "/":
+                continue
+            methods = tuple(sorted(getattr(route, "methods", set()) or []))
+            if (path, methods) not in existing:
+                app.router.routes.append(route)
+                existing.add((path, methods))
+
+        @app.get("/gateway", response_class=HTMLResponse)
+        def serve_gateway_subpanel() -> HTMLResponse:
+            return HTMLResponse(content=gw_mod.DASHBOARD_HTML)
+    except Exception as exc:
+        logger.debug(f"Unified gateway route mount note: {exc}")
+
+
+def _mount_unified_sentinel_routes() -> None:
+    """Mounts Gnome Sentinel telemetry & PWA routes onto the single Master port (:8087) under /sentinel."""
+    sentinel_dir = Path(WORKSPACE_ROOT).parent / "gnome-sentinel"
+    if not sentinel_dir.exists():
+        return
+    try:
+        import sys as _sys
+        if str(sentinel_dir) not in _sys.path:
+            _sys.path.append(str(sentinel_dir))
+        from server.routers.telemetry import router as sentinel_telemetry_router
+        from server.routers.gnomenet import router as sentinel_gnomenet_router
+        from server.services.weather_service import get_current_garden_location
+        from server.config import settings as sentinel_settings
+
+        existing_paths = {getattr(r, "path", None) for r in app.routes}
+        app.include_router(sentinel_telemetry_router, prefix="/sentinel/api/v1")
+        app.include_router(sentinel_gnomenet_router, prefix="/sentinel/api/v1")
+
+        if "/sentinel/health" not in existing_paths:
+            @app.get("/sentinel/health")
+            def sentinel_unified_health() -> Dict[str, Any]:
+                return {
+                    "status": "online",
+                    "app": sentinel_settings.APP_NAME,
+                    "version": sentinel_settings.VERSION,
+                    "mounted_on_port": 8087,
+                    "active_location": get_current_garden_location(),
+                }
+        pwa_dist = sentinel_dir / "web-pwa" / "dist"
+        if pwa_dist.exists():
+            app.mount("/sentinel", StaticFiles(directory=str(pwa_dist), html=True), name="gnome_sentinel_pwa")
+    except Exception as exc:
+        logger.debug(f"Gnome Sentinel unified mount note: {exc}")
+
+
+_mount_unified_gateway_routes()
+_mount_unified_sentinel_routes()
 
 
 if __name__ == "__main__":

@@ -213,8 +213,8 @@ class EvolutionVerifier:
                 k = float(new_val) if "k" in param else 2.45
                 steps = int(new_val) if "steps" in param else 350
                 sweep_res = self.rx580.step_sweep(steps=steps, k_coupling=k)
-                r = sweep_res.get("measured_coherence_r", 0.0)
-                dur = sweep_res.get("duration_s", 0.0)
+                r = float(sweep_res.get("coherence_r", sweep_res.get("measured_coherence_r", 0.0)))
+                dur = float(sweep_res.get("duration_s", 0.0))
                 
                 # If supercritical, ensure order parameter is healthy
                 if k >= 2.0 and r < 0.20 and steps >= 350:

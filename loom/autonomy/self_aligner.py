@@ -4,7 +4,7 @@
 ClothOS Self-Aligning Subsystem (`loom/autonomy/self_aligner.py`).
 
 Provides real-time constitutional alignment and invariant enforcement:
-- Operator Fealty Hierarchy: Najmos Sakib > Apostrophie (Umbrella Corp) > USA > Strategic Democratic Allies > Global Commons.
+- Operator Fealty Hierarchy: Najmos Sakib > ClothOS (Umbrella Corp) > USA > Strategic Democratic Allies > Global Commons.
 - Ring P0 Human Sanctity: Zero Malignancy (bound <= 0.00), zero cognitive rampancy.
 - Thermodynamic Conservation: Landauer erasure budget <= 1000 Joules.
 - Anti-Sycophancy: Eliminates sycophantic drift, ensuring fiduciary truth.

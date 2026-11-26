@@ -180,7 +180,7 @@ class ClothOSDesktopApiHandler(BaseHTTPRequestHandler):
         pass
 
 
-def run_desktop_server(port: int = 8088, open_browser: bool = True) -> None:
+def run_desktop_server(port: int = 8087, open_browser: bool = True) -> None:
     server_address = ("127.0.0.1", port)
     httpd = HTTPServer(server_address, ClothOSDesktopApiHandler)
     url = f"http://127.0.0.1:{port}/"
@@ -202,7 +202,7 @@ def run_desktop_server(port: int = 8088, open_browser: bool = True) -> None:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(description="ClothOS Desktop Server")
-    parser.add_argument("--port", type=int, default=8088, help="Port to bind (default: 8088)")
+    parser.add_argument("--port", type=int, default=8087, help="Port to bind (default: 8087)")
     parser.add_argument("--no-browser", action="store_true", help="Do not automatically open browser")
     args = parser.parse_args()
     run_desktop_server(port=args.port, open_browser=not args.no_browser)

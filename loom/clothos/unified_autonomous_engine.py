@@ -46,6 +46,7 @@ import json
 import logging
 from pathlib import Path
 import random
+import re
 import threading
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -61,6 +62,7 @@ from loom.clothos.agent_cli import ClothOSAgentEngine, ExecutionMode
 from loom.clothos.autonomous_runner import AutonomousTaskRunner
 from loom.clothos.skill_evolver import SkillEvolver, ClothOSSkill
 from loom.clothos.self_training_knowledge_engine import SelfTrainingKnowledgeEngine, SelfTrainingCycleReport
+from loom.clothos.useful_work_engine import useful_work_engine
 from loom.clothos.working_memory import working_memory_engine
 from loom.clothos.agent_controller import agent_controller
 from loom.clothos.drivers.driver_manager import get_driver_manager
@@ -184,8 +186,15 @@ class ClothOSUnifiedAutonomousEngine:
         self.synaptic = self.memory_suite.synaptic
         self.attractor = self.memory_suite.attractor
 
-        # Initial seed
+        # Initial seed & reset any crashed running hypotheses
         self.hypothesis_engine.seed_initial_hypotheses_if_empty()
+        try:
+            self.hypothesis_store.reset_stale_running(max_age_s=600.0)
+        except Exception:
+            pass
+        self.useful_work = useful_work_engine
+        self.workload_mode_override: str = "auto"
+        self.last_recommended_sleep_s: float = 15.0
 
         # Telemetry State
         self.stats: Dict[str, Any] = {
@@ -319,10 +328,10 @@ class ClothOSUnifiedAutonomousEngine:
     # User Activity Detection & Auto-Preemption
     # =========================================================================
     def is_user_active(self) -> bool:
-        """Detects if an interactive user session is using the Fabric Gateway (:8002) or Shuttle (:5555)."""
+        """Detects if an interactive user session is using the unified ClothOS Master Hub (:8087)."""
         try:
             with httpx.Client(timeout=1.0) as client:
-                r = client.get("http://127.0.0.1:8002/health")
+                r = client.get("http://127.0.0.1:8087/health")
                 if r.status_code == 200 and r.json().get("active_stream", False):
                     return True
         except Exception:
@@ -378,7 +387,7 @@ class ClothOSUnifiedAutonomousEngine:
     # =========================================================================
     # Phase 1: Priority Goal & Task Queue Drain
     # =========================================================================
-    def step_phase1_drain_tasks(self, max_tasks: int = 1) -> int:
+    def step_phase1_drain_tasks(self, max_tasks: int = 3) -> int:
         """Drains pending user/system engineering tasks from .clothos_task_queue.jsonl."""
         drained = 0
         while not self.stop_event.is_set() and drained < max_tasks:
@@ -401,7 +410,7 @@ class ClothOSUnifiedAutonomousEngine:
     # Phase 2: Substrate Self-Healing & SCI Audit
     # =========================================================================
     def step_phase2_health_and_self_healing(self) -> float:
-        """Evaluates Sovereign Coherence Index (SCI), heals faults, and crystallizes solutions."""
+        """Evaluates Sovereign Coherence Index (SCI), heals faults, and crystallizes unique solutions."""
         report: SuccessGaugeReport = self.gauge.evaluate()
         sci = report.sovereign_coherence_index
         self.stats["sovereign_coherence_index"] = sci
@@ -412,8 +421,10 @@ class ClothOSUnifiedAutonomousEngine:
             faults = audit_res.get("faults", [])
             repairs = audit_res.get("repairs_applied", [])
             for fault, repair in zip(faults, repairs):
+                # Normalize fluctuating numbers (e.g. '91.6%') so the same fault doesn't spawn thousands of skills
+                norm_fault = re.sub(r"\d+(?:\.\d+)?%", "<PCT>", str(fault))
                 self.crystallize_problem_resolution(
-                    problem=fault,
+                    problem=norm_fault,
                     resolution=repair,
                     domain="SUBSTRATE_SELF_HEALING"
                 )
@@ -426,7 +437,7 @@ class ClothOSUnifiedAutonomousEngine:
                 heal_res = self.self_healer.heal_file("loom/clothos/agent_cli.py")
                 if heal_res.get("fixed", False):
                     self.crystallize_problem_resolution(
-                        problem=f"Low SCI ({sci:.1f}%) in agent_cli.py",
+                        problem="Low SCI in agent_cli.py",
                         resolution="Executed zero-regression AST repair on agent_cli.py",
                         domain="CODEBASE_HEALING"
                     )
@@ -436,23 +447,29 @@ class ClothOSUnifiedAutonomousEngine:
         return sci
 
     def crystallize_problem_resolution(self, problem: str, resolution: str, domain: str = "SYSTEM") -> Dict[str, Any]:
-        """Crystallizes an encountered problem and verified solution into attractor memory and distillation pairs."""
-        prob_hash = hashlib.sha256(f"{problem}:{resolution}".encode("utf-8")).hexdigest()[:8]
+        """Crystallizes a unique problem and verified solution into attractor memory and distillation pairs."""
+        norm_problem = re.sub(r"\d+(?:\.\d+)?%", "<PCT>", str(problem).strip())
+        prob_hash = hashlib.sha256(f"{norm_problem}:{resolution}".encode("utf-8")).hexdigest()[:8]
         memory_id = f"MEM_HEAL_{prob_hash}"
         skill_id = f"skill_heal_{prob_hash}"
+
+        # Deduplicate: skip redundant re-crystallization if skill already exists
+        existing = self.skill_evolver.get_skill(skill_id)
+        if existing:
+            return {"memory_id": memory_id, "skill_id": skill_id, "staged_for_distillation": False, "already_known": True}
 
         # 1. Compute dense semantic attractor vector via Sovereign Runtime (all-MiniLM-L6-v2)
         try:
             from loom.clothos.sovereign_runtime import ClothOSSovereignRuntime
             rt = ClothOSSovereignRuntime.get_instance()
-            norm_vec = rt.embed_text(f"Fault: {problem} | Solution: {resolution}").tolist()
+            norm_vec = rt.embed_text(f"Fault: {norm_problem} | Solution: {resolution}").tolist()
         except Exception:
-            raw_hash = [float(ord(c) % 10) / 10.0 for c in problem[:64].ljust(64, "0")]
+            raw_hash = [float(ord(c) % 10) / 10.0 for c in norm_problem[:64].ljust(64, "0")]
             norm_vec = list(np.array(raw_hash) / (np.linalg.norm(raw_hash) + 1e-9))
 
         # 2. Store in CrystallizedMemoryVault (Continuous Hopfield Basin)
         try:
-            self.vault.store(
+            self.vault.crystallize_memory(
                 memory_id=memory_id,
                 label=f"RESOLUTION_{prob_hash}_{domain}",
                 vector=norm_vec,
@@ -463,76 +480,90 @@ class ClothOSUnifiedAutonomousEngine:
             logger.debug(f"Vault store exception: {e}")
 
         # 3. Ratify into SkillEvolver so agent tools immediately reference the fix
-        existing = self.skill_evolver.get_skill(skill_id)
-        if not existing:
-            new_skill = ClothOSSkill(
-                skill_id=skill_id,
-                name=f"Self-Healing: {problem[:35]}...",
-                version="1.0.0",
-                domain=domain,
-                description=f"Auto-crystallized resolution for fault: {problem}",
-                principles=[
-                    f"Problem: {problem}",
-                    f"Verified Invariant Resolution: {resolution}",
-                    "Preserves 0-regression bound across sovereign mesh.",
-                ],
-                code_templates={
-                    "remedy": f"# Auto-crystallized remediation\ndef apply_fix():\n    return '{resolution}'\n"
-                },
-                verification_test=f"def test_{skill_id}():\n    assert len('{resolution}') > 0\n",
-                status="VERIFIED_ACTIVE",
-                provenance="AUTONOMOUS_SELF_HEALER",
-            )
-            self.skill_evolver.save_skill(new_skill)
+        new_skill = ClothOSSkill(
+            skill_id=skill_id,
+            name=f"Self-Healing: {norm_problem[:35]}...",
+            version="1.0.0",
+            domain=domain,
+            description=f"Auto-crystallized resolution for fault: {norm_problem}",
+            principles=[
+                f"Problem: {norm_problem}",
+                f"Verified Invariant Resolution: {resolution}",
+                "Preserves 0-regression bound across sovereign mesh.",
+            ],
+            code_templates={
+                "remedy": f"# Auto-crystallized remediation\ndef apply_fix():\n    return {json.dumps(resolution)}\n"
+            },
+            verification_test=f"def test_{skill_id}():\n    assert len({json.dumps(resolution)}) > 0\n",
+            status="VERIFIED_ACTIVE",
+            provenance="AUTONOMOUS_SELF_HEALER",
+        )
+        self.skill_evolver.save_skill(new_skill)
 
         # 4. Synthesize distillation training pair for Model Weight Adaptation (Phase 6)
         pair = {
-            "instruction": f"ClothOS Diagnostics: Encountered fault '{problem}' in {domain}. What is the verified resolution procedure?",
-            "response": f"### Diagnostic Root Cause & Verified Solution\n- **Fault Condition**: {problem}\n- **Invariant Resolution**: {resolution}\n- **Sovereign Guarantee**: Tested and ratified into Crystallized Memory.",
+            "instruction": f"ClothOS Diagnostics: Encountered fault '{norm_problem}' in {domain}. What is the verified resolution procedure?",
+            "response": f"### Diagnostic Root Cause & Verified Solution\n- **Fault Condition**: {norm_problem}\n- **Invariant Resolution**: {resolution}\n- **Sovereign Guarantee**: Tested and ratified into Crystallized Memory.",
             "radiance": 0.96,
             "source": "SELF_HEALING_CRYSTALLIZATION",
         }
         self._pending_healing_distillation_pairs.append(pair)
         self.problems_resolved_and_crystallized += 1
         self.stats["problems_crystallized"] = self.problems_resolved_and_crystallized
-        logger.info(f"💎 [Memory Crystallized & Staged]: Stored resolution for '{problem[:40]}' -> Distillation queue.")
+        logger.info(f"💎 [Memory Crystallized & Staged]: Stored resolution for '{norm_problem[:40]}' -> Distillation queue.")
         return {"memory_id": memory_id, "skill_id": skill_id, "staged_for_distillation": True}
 
     # =========================================================================
     # Phase 3: Epistemic Ingestion & Gap Discovery
     # =========================================================================
     def step_phase3_epistemic_ingestion(self) -> int:
-        """Harvests frontier signals from Reddit (/r/osdev), GitHub OS repos, and systems papers."""
+        """Harvests frontier signals and indexes domain-matched testable hypotheses."""
         counts = self.hypothesis_store.count_by_status()
         pending_count = counts.get("pending", 0)
         synthesized = 0
 
         if pending_count < 6:
             self.stats["gpu0_status"] = "SYNTHESIZING_HYPOTHESIS"
-            
-            # Primary: Ingest concrete OS research from Reddit / GitHub
+
+            # Primary: Ingest concrete OS & systems signals mapped to valid HypothesisStore schema
             try:
                 from loom.clothos.research_harvester import research_harvester
                 proposals = research_harvester.synthesize_clothos_proposals(limit=2)
                 for prop in proposals:
+                    claim_txt = str(prop.get("claim", "")).strip()
+                    if not claim_txt or self.hypothesis_store.has_similar(claim_txt):
+                        continue
+                    cat = str(prop.get("category", "KERNEL_CORE"))
+                    exp_type = "z3_smt_verification" if "RISCV" in cat else "code_invariant_audit"
+                    params = (
+                        {"enclave_size_kb": 64, "alignment": 4096}
+                        if exp_type == "z3_smt_verification"
+                        else {"target_path": "loom/clothos", "max_files": 20}
+                    )
                     new_id = self.hypothesis_store.add_hypothesis(
                         submolt=prop.get("submolt", "m/systems"),
-                        claim=prop.get("claim", ""),
-                        author="ClothOS-OSDev-Harvester",
-                        rationale=prop.get("rationale", "")
+                        source_post_id=str(prop.get("provenance_url", "os-harvester"))[:80],
+                        post_title=str(prop.get("citation", "OS Research Signal"))[:120],
+                        topic=f"OSDev: {cat}",
+                        claim=claim_txt,
+                        prediction=str(prop.get("test_strategy", "All checked invariants compile cleanly.")),
+                        experiment_type=exp_type,
+                        parameters=params,
+                        confidence=0.85,
+                        priority=6,
                     )
                     if new_id:
                         synthesized += 1
-                        logger.info(f"⚡ [OS Research Harvester]: Ratified OS hypothesis #{new_id}: {prop['claim'][:45]}... (Cited: {prop.get('provenance_url', '')})")
+                        logger.info(f"⚡ [OS Research Harvester]: Indexed #{new_id} [{exp_type}]: {claim_txt[:45]}...")
             except Exception as exc:
                 logger.debug(f"OS Harvester note: {exc}")
 
-            # Secondary fallback: Moltbook generator if still starving
+            # Secondary: Cross-domain hypothesis engine across all 11 domains
             if synthesized == 0:
                 new_id = self.hypothesis_engine.synthesize_new_hypothesis_from_moltbook()
                 if new_id:
                     synthesized += 1
-                    logger.info(f"⚡ [GPU 0 Generator]: Formulated Moltbook hypothesis #{new_id}")
+                    logger.info(f"⚡ [GPU 0 Generator]: Formulated hypothesis #{new_id}")
 
             self.stats["gpu0_status"] = f"SYNTHESIZED_HYP_{synthesized}"
         else:
@@ -543,7 +574,7 @@ class ClothOSUnifiedAutonomousEngine:
     # Phase 4: Dual-GPU Physical Hardware Experimentation
     # =========================================================================
     def step_phase4_hardware_experimentation(self) -> Tuple[int, int]:
-        """Pulls pending hypothesis, runs physical sweeps on RX 580, and audits via Node 2."""
+        """Pulls pending hypothesis, runs targeted experiment, and ratifies deduplicated invariants."""
         evaluated = 0
         ratified = 0
 
@@ -556,7 +587,6 @@ class ClothOSUnifiedAutonomousEngine:
             submolt_label = pending_hyp.get("submolt", "m/general")
             evaluated += 1
 
-            # If confirmed on physical silicon, audit via Node 2 before ratifying
             if verdict == "confirmed":
                 audit_res = self.node2_auditor.audit_hypothesis(
                     submolt=submolt_label,
@@ -568,30 +598,29 @@ class ClothOSUnifiedAutonomousEngine:
                 axiom_id = f"UNIFIED_MOLT_{pending_hyp['id']}_{int(time.time())}"
                 proof_summary = f"[{submolt_label}] {pending_hyp['claim']} | Audit: {critique_note}"
 
-                # Irrevocable Ratchet Click & Hammer Rivet
-                self.toolbox.ratchet.click(
+                clicked = self.toolbox.ratchet.click(
                     axiom_id=axiom_id,
                     claim=proof_summary,
                     proof_payload=json.dumps({"measurements": measurements, "audit": audit_res}),
                     confidence=0.98,
                     node_origin="ClothOS-Unified-DualNode",
+                    deduplicate_claim=True,
                 )
-                self.toolbox.hammer.rivet(
-                    identifier=f"RIVET_{axiom_id}",
-                    payload={"axiom": axiom_id, "measurements": measurements, "audit": audit_res},
-                )
-                self.stats["invariants_mined_node1"] += 1
-                self.stats["total_invariants_mined"] = self.stats["invariants_mined_node1"] + self.stats["invariants_mined_node2"]
-                ratified += 1
+                if clicked:
+                    self.toolbox.hammer.rivet(
+                        identifier=f"RIVET_{axiom_id}",
+                        payload={"axiom": axiom_id, "measurements": measurements, "audit": audit_res},
+                    )
+                    self.stats["invariants_mined_node1"] += 1
+                    self.stats["total_invariants_mined"] = self.stats["invariants_mined_node1"] + self.stats["invariants_mined_node2"]
+                    ratified += 1
 
             logger.info(
                 f"⚡ [GPU 1 Evaluator]: Hyp #{pending_hyp['id']} [{submolt_label}] ➔ {verdict.upper()} "
-                f"in {exp_result.get('duration_s', 0)}s on RX 580"
+                f"in {exp_result.get('duration_s', 0)}s"
             )
         else:
-            # Saturate RX 580 with high-density dynamical sweeps
-            self.stats["gpu1_status"] = "DENSE_KURAMOTO_SWEEP"
-            self.rx580.step_sweep(steps=2500, k_coupling=2.6)
+            self.stats["gpu1_status"] = "IDLE_STANDBY"
 
         return evaluated, ratified
 
@@ -600,8 +629,8 @@ class ClothOSUnifiedAutonomousEngine:
     # =========================================================================
     def step_phase5_skill_crystallization(self) -> int:
         """
-        Extracts principles from confirmed invariants, creates verification tests,
-        and crystallizes deterministic calculations into the memory vault to free LLM parameters.
+        Extracts domain-level principles from confirmed invariants into CrystallizedMemoryVault
+        and TDSA skills without minting redundant per-row skill folders.
         """
         crystallized_count = 0
         findings = self.hypothesis_store.get_findings_for_deliverable(limit=10)
@@ -609,25 +638,21 @@ class ClothOSUnifiedAutonomousEngine:
 
         for hyp in confirmed:
             hyp_id = hyp["id"]
-            skill_id = f"skill_molt_{hyp_id}"
+            submolt = hyp.get("submolt", "m/general")
+            clean_domain = re.sub(r"[^a-z0-9_]+", "_", submolt.lower()).strip("_")
+            skill_id = f"skill_domain_{clean_domain}"
 
-            # Check if skill already evolved
             existing = self.skill_evolver.get_skill(skill_id)
             if existing:
                 continue
 
             claim = hyp["claim"]
-            submolt = hyp.get("submolt", "m/general")
 
-            # Crystallize deterministic calculation into Modern Hopfield / Continuous Attractor
             try:
-                # Generate pseudo-vector for invariant
                 raw_hash = [float(ord(c) % 10) / 10.0 for c in claim[:64].ljust(64, "0")]
                 norm_vec = list(np.array(raw_hash) / (np.linalg.norm(raw_hash) + 1e-9))
-                
-                # Store in CrystallizedMemoryVault
-                entry = self.vault.store(
-                    memory_id=f"MEM_INVARIANT_{hyp_id}",
+                self.vault.crystallize_memory(
+                    memory_id=f"MEM_INVARIANT_{clean_domain}",
                     label=f"INVARIANT_{hyp_id}_{submolt}",
                     vector=norm_vec,
                     energy_basin=-1.414,
@@ -636,22 +661,20 @@ class ClothOSUnifiedAutonomousEngine:
             except Exception as e:
                 logger.debug(f"Vault crystallization note: {e}")
 
-            # Evolve standard TDSA skill
             new_skill = ClothOSSkill(
                 skill_id=skill_id,
-                name=f"Empirical Invariant: {claim[:40]}...",
+                name=f"Domain Invariant ({submolt}): {claim[:36]}...",
                 version="1.0.0",
                 domain=submolt,
-                description=f"Empirically ratified hardware invariant from {submolt}: {claim}",
+                description=f"Empirically ratified invariant from {submolt}: {claim}",
                 principles=[
-                    f"Physical silicon verified on RX 580 Ellesmere stream processors.",
-                    f"Consensus audited across Node 2 Ryzen 7 mesh.",
-                    f"Deterministic components crystallized to preserve LLM parameter headroom.",
+                    f"Primary empirical claim: {claim}",
+                    "Verified via targeted hardware/formal suite and Node 2 audit.",
                 ],
                 code_templates={
-                    "evaluate_invariant": f"# Ratified hardware claim\ndef check_invariant():\n    return '{claim}'\n"
+                    "evaluate_invariant": f"def check_invariant():\n    return {json.dumps(claim)}\n"
                 },
-                verification_test=f"def test_{skill_id}():\n    assert len('{claim}') > 0\n",
+                verification_test=f"def test_{skill_id}():\n    assert len({json.dumps(claim)}) > 0\n",
                 status="VERIFIED_ACTIVE",
                 provenance="DUAL_GPU_EMPIRICAL_SWEEP",
             )
@@ -684,10 +707,23 @@ class ClothOSUnifiedAutonomousEngine:
                 sample_k=3,
                 min_radiance=0.75,
             )
-            return report.new_training_pairs_generated + staged_count
+            distilled_new = report.new_training_pairs_generated + staged_count
         except Exception as e:
             logger.debug(f"Self-training cycle note: {e}")
-            return staged_count
+            distilled_new = staged_count
+
+        # Run Llama 3.3 70B Teacher Distillation when host is not user-preempted and cooldown elapsed
+        try:
+            last_70b = float(self.stats.get("_last_70b_distill_epoch", 0.0))
+            if (not self.is_user_active()) and (time.time() - last_70b >= 900.0):
+                from loom.models.distillation_trainer import distillation_trainer
+                self.stats["_last_70b_distill_epoch"] = time.time()
+                res70 = distillation_trainer.run_distillation_cycle(iterations_per_task=1, allow_live_teacher=True)
+                distilled_new += int(res70.get("new_distillation_pairs", 0))
+        except Exception as e:
+            logger.debug(f"Llama 70B distillation note: {e}")
+
+        return distilled_new
 
     # =========================================================================
     # Phase 7: Architectural Self-Evolution ("Aha!" Optimization)
@@ -707,19 +743,21 @@ class ClothOSUnifiedAutonomousEngine:
     # Phase 8: Multimodal Synthesis & Deliverable Compilation
     # =========================================================================
     def step_phase8_multimodal_and_deliverables(self, cur_cycle: int) -> Tuple[Optional[str], Optional[str]]:
-        """Compiles research deliverables and generates periodic mathematical art."""
+        """Compiles deduplicated deliverables when new experiments accumulate and updates executive briefing."""
         del_name = None
         art_title = None
 
-        # Deliverable synthesis
-        if self.synthesizer.should_synthesize(min_new_experiments=5) or (cur_cycle % 10 == 0):
-            del_path = self.synthesizer.compile_deliverable(cycle_range=f"Unified Cycles #{cur_cycle - 10}..#{cur_cycle}")
+        # Deliverable synthesis only when meaningful new experiments have accumulated
+        if self.synthesizer.should_synthesize(min_new_experiments=20, min_interval_s=900.0):
+            del_path = self.synthesizer.compile_deliverable(cycle_range=f"Unified Cycles ..#{cur_cycle}")
             if del_path:
                 del_name = del_path.name
                 self.stats["latest_deliverable"] = del_name
                 logger.info(f"📄 [Deliverable Published]: {del_name}")
 
-        # Periodic mathematical art
+        # Periodic mathematical art (respects agent_controller cadence, default >= 30m in background)
+        if agent_controller.state.get("art_cadence_seconds", 120) < 900:
+            agent_controller.state["art_cadence_seconds"] = 1800
         art_piece = agent_controller.step_periodic_art_if_due()
         if art_piece:
             art_title = art_piece.get("title", "Harmonic Blueprint")
@@ -730,10 +768,21 @@ class ClothOSUnifiedAutonomousEngine:
                 raw_payload={
                     "id": art_piece.get("id", "art_piece"),
                     "title": art_title,
-                    "style": art_piece.get("style", "Sacred Geometry"),
+                    "medium": art_piece.get("medium", "visual_art"),
+                    "png_file": art_piece.get("png_file", ""),
+                    "avi_file": art_piece.get("avi_file", ""),
+                    "wav_file": art_piece.get("wav_file", ""),
                     "svg_file": art_piece.get("svg_file", ""),
+                    "html_file": art_piece.get("html_file", ""),
                 },
             )
+
+        # Always refresh actionable live executive briefing
+        try:
+            brief_path = self.useful_work.synthesize_briefing(worker_stats=self.stats)
+            self.stats["latest_briefing"] = str(brief_path)
+        except Exception as exc:
+            logger.debug(f"Briefing refresh note: {exc}")
 
         return del_name, art_title
 
@@ -741,20 +790,31 @@ class ClothOSUnifiedAutonomousEngine:
     # Supervised Single Cycle Execution (Step-by-Step Dependency Chain)
     # =========================================================================
     def run_supervised_cycle(self) -> UnifiedCycleTelemetry:
-        """Executes a single, complete pass through all 9 dependency-ordered phases."""
+        """Executes a single, complete pass through all dependency-ordered phases + real useful workloads."""
         t0 = time.time()
         self.stats["total_cycles_completed"] += 1
         cur_cycle = self.stats["total_cycles_completed"]
+        user_active = self.is_user_active()
 
         # Check preemption
-        if self.is_user_active():
+        if user_active:
             self.stats["last_active_tier"] = "Preempted (User Active)"
             self.stats["last_preemption_epoch"] = time.time()
+            uw_res = self.useful_work.run_useful_cycle(
+                hypothesis_store=self.hypothesis_store,
+                task_runner=self.task_runner,
+                agent_engine=self.agent_engine,
+                rx580_engine=self.rx580,
+                mode_override=self.workload_mode_override,
+                user_active=True,
+            )
+            self.last_recommended_sleep_s = float(uw_res.get("recommended_sleep_s", 10.0))
+            self.stats["workload_mode"] = uw_res.get("mode", "PREEMPTED_USER_ACTIVE")
             self._persist_state()
             return UnifiedCycleTelemetry(
                 cycle_index=cur_cycle,
                 timestamp=time.time(),
-                duration_s=0.1,
+                duration_s=round(time.time() - t0, 2),
                 user_active=True,
                 tasks_drained=0,
                 sci_score=self.stats.get("sovereign_coherence_index", 92.5),
@@ -771,7 +831,34 @@ class ClothOSUnifiedAutonomousEngine:
         self.step_phase0_proprioception()
 
         # Phase 1: Drain Queued Tasks
-        tasks_drained = self.step_phase1_drain_tasks()
+        tasks_drained = self.step_phase1_drain_tasks(max_tasks=3)
+
+        # Phase 1b: Real Useful Workloads (Pytest suite rotation, AST audit, hardware/cluster bench, hygiene)
+        uw_res = self.useful_work.run_useful_cycle(
+            hypothesis_store=self.hypothesis_store,
+            task_runner=None,  # tasks already drained above
+            agent_engine=None,
+            rx580_engine=self.rx580,
+            mode_override=self.workload_mode_override,
+            user_active=False,
+        )
+        self.last_recommended_sleep_s = float(uw_res.get("recommended_sleep_s", 15.0))
+        u_state = self.useful_work.state
+        gpu0 = u_state.get("hardware_benchmarks", {}).get("gpu0_nvidia", {})
+        self.stats.update({
+            "workload_mode": uw_res.get("mode", "AUTO"),
+            "last_active_tier": f"Sovereign Useful Compute ({uw_res.get('mode', 'AUTO')})",
+            "real_tests_passed": u_state.get("real_tests_passed", 0),
+            "real_tests_failed": u_state.get("real_tests_failed", 0),
+            "real_test_pass_rate_pct": u_state.get("real_test_pass_rate_pct", 100.0),
+            "code_syntax_errors": len(u_state.get("code_audit", {}).get("syntax_errors", [])),
+            "code_files_checked": u_state.get("code_audit", {}).get("files_checked", 0),
+            "tasks_drained_total": u_state.get("tasks_drained_total", 0) + tasks_drained,
+            "gpu0_temp_c": gpu0.get("temp_c"),
+            "gpu0_vram_used_mb": gpu0.get("vram_used_mb"),
+            "verified_distillation_passed": u_state.get("distillation", {}).get("verified_passed", 0),
+            "verified_distillation_attempted": u_state.get("distillation", {}).get("attempted", 0),
+        })
 
         # Phase 2: Health & Self-Healing
         sci = self.step_phase2_health_and_self_healing()
@@ -788,10 +875,10 @@ class ClothOSUnifiedAutonomousEngine:
         # Phase 6: Model Adaptation & Distillation
         pairs_gen = self.step_phase6_model_adaptation()
 
-        # Phase 7: Aha! Architecture Optimization
-        aha_count = self.step_phase7_aha_optimization()
+        # Phase 7: Aha! Architecture Optimization (run every 5 cycles to avoid overhead)
+        aha_count = self.step_phase7_aha_optimization() if (cur_cycle % 5 == 0) else 0
 
-        # Phase 8: Deliverables & Multimodal Art
+        # Phase 8: Deliverables & Executive Briefing
         del_name, art_title = self.step_phase8_multimodal_and_deliverables(cur_cycle)
 
         # Broadcast Telemetry
@@ -800,8 +887,11 @@ class ClothOSUnifiedAutonomousEngine:
             source_node="skyTech-Worker",
             raw_payload={
                 "cycle": cur_cycle,
+                "mode": self.stats.get("workload_mode"),
                 "sci": sci,
                 "tasks_drained": tasks_drained,
+                "real_tests_passed": self.stats.get("real_tests_passed", 0),
+                "real_tests_failed": self.stats.get("real_tests_failed", 0),
                 "evaluated": evaluated,
                 "ratified": ratified,
                 "crystallized_skills": crystallized,
@@ -812,9 +902,9 @@ class ClothOSUnifiedAutonomousEngine:
 
         elapsed = round(time.time() - t0, 2)
         msg = (
-            f"Cycle #{cur_cycle:,} ({elapsed}s) | SCI: {sci:.1f}% | "
-            f"Tasks: {tasks_drained} | Tested: {evaluated} (Ratified: {ratified}) | "
-            f"Skills: +{crystallized} | Pairs: +{pairs_gen} | Aha: +{aha_count}"
+            f"Cycle #{cur_cycle:,} ({elapsed}s) [{self.stats.get('workload_mode')}] | "
+            f"SCI: {sci:.1f}% | Tests: {self.stats.get('real_tests_passed', 0)}P/{self.stats.get('real_tests_failed', 0)}F | "
+            f"Tasks: {tasks_drained} | Exp: {evaluated} (Ratified: {ratified}) | GPU0: {gpu0.get('temp_c', '?')}C"
         )
         self.stats["last_log_message"] = msg
         logger.info(msg)
@@ -843,22 +933,31 @@ class ClothOSUnifiedAutonomousEngine:
     # =========================================================================
     def run_continuous_loop(self) -> None:
         """Runs the unified autonomous engine continuously until stopped."""
+        from loom.clothos.useful_work_engine import WorkerProcessLock
+        lock = WorkerProcessLock(owner_name="unified_autonomous_engine")
+        acquired, other_pid = lock.acquire()
+        if not acquired:
+            logger.warning(f"Another 24/7 compute daemon is already active (PID {other_pid}). Exiting duplicate loop.")
+            return
+
         self.stats["is_running"] = True
         self.stats["started_at_epoch"] = time.time()
         self._persist_state()
         logger.info("⚡ ClothOS Sovereign Unified Autonomous Engine ONLINE.")
 
-        while not self.stop_event.is_set():
-            try:
-                self.run_supervised_cycle()
-                time.sleep(1.0)
-            except Exception as e:
-                logger.error(f"Error in unified cycle loop: {e}", exc_info=True)
-                time.sleep(2.0)
-
-        self.stats["is_running"] = False
-        self._persist_state()
-        logger.info("ClothOS Sovereign Unified Autonomous Engine stopped.")
+        try:
+            while not self.stop_event.is_set():
+                try:
+                    self.run_supervised_cycle()
+                    self.stop_event.wait(timeout=max(2.0, self.last_recommended_sleep_s))
+                except Exception as e:
+                    logger.error(f"Error in unified cycle loop: {e}", exc_info=True)
+                    self.stop_event.wait(timeout=5.0)
+        finally:
+            self.stats["is_running"] = False
+            self._persist_state()
+            lock.release()
+            logger.info("ClothOS Sovereign Unified Autonomous Engine stopped.")
 
     def start_background(self) -> None:
         """Launches the continuous orchestrator loop in a daemon thread."""

@@ -90,9 +90,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('screensaver');
   const [apiHost, setApiHost] = useState<string>(() => {
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
-      return `${window.location.protocol}//${window.location.hostname}:8085`;
+      return `${window.location.protocol}//${window.location.hostname}:8087`;
     }
-    return 'http://127.0.0.1:8085';
+    return 'http://127.0.0.1:8087';
   });
   const [telemetry, setTelemetry] = useState<any>(null);
   const [clusterPorts, setClusterPorts] = useState<any>(null);

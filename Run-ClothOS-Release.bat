@@ -34,7 +34,7 @@ goto menu
 
 :launch_desktop
 echo.
-echo [*] Launching ClothOS Desktop GUI at http://127.0.0.1:8088/ ...
+echo [*] Launching Unified ClothOS Master UI at http://127.0.0.1:8087/ ...
 call "%~dp0Launch-ClothOS-Desktop.bat"
 goto menu
 

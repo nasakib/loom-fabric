@@ -127,15 +127,10 @@ def spawn_detached_wmi(cmd_line: str, work_dir: str):
     ps = f"Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{{CommandLine='{cmd_line}'; CurrentDirectory='{work_dir}'}} | Out-Null"
     subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", ps], capture_output=True)
 
-# 4. Spawn ClothOS Dashboard Server on port 8085
-print(">>> [Node 2 Worker] Spawning ClothOS Dashboard Server on 0.0.0.0:8085...")
-cmd_dash = f'"{pyw_exe}" -m loom.fabric.dashboard_server'
+# 4. Spawn Unified ClothOS Master Server on single port 8087 (includes Gateway + GUIs)
+print(">>> [Node 2 Worker] Spawning Unified ClothOS Master Server on 0.0.0.0:8087...")
+cmd_dash = f'"{pyw_exe}" -m uvicorn loom.fabric.dashboard_server:app --host 0.0.0.0 --port 8087'
 spawn_detached_wmi(cmd_dash, str(dest_dir))
-
-# 5. Spawn Loom Fabric Gateway on port 8002
-print(">>> [Node 2 Worker] Spawning Loom Fabric Gateway on 0.0.0.0:8002...")
-cmd_gw = f'"{pyw_exe}" -m uvicorn loom.gateway.app:app --host 0.0.0.0 --port 8002'
-spawn_detached_wmi(cmd_gw, str(dest_dir))
 
 # 6. Spawn Continuous Autonomous Worker
 print(">>> [Node 2 Worker] Spawning 24/7 Sovereign Autonomous Worker...")
@@ -197,17 +192,12 @@ def probe_cluster_health():
     print("==================================================================")
 
     endpoints = [
-        ("Local Dashboard (8085)", "127.0.0.1", 8085),
-        ("Local Dashboard (Alt 8087)", "127.0.0.1", 8087),
-        ("Local Gateway", "127.0.0.1", 8002),
-        ("Local Stitch Bridge", "127.0.0.1", 5555),
+        ("Local Unified Master (8087)", "127.0.0.1", 8087),
         ("Local Ollama", "127.0.0.1", 11434),
         ("Node 2 Ray Dashboard", NODE2_IP_TAILSCALE, 8265),
         ("Node 2 Ray GCS", NODE2_IP_TAILSCALE, 6379),
-        ("Node 2 Dashboard (Tailscale)", NODE2_IP_TAILSCALE, 8085),
-        ("Node 2 Gateway (Tailscale)", NODE2_IP_TAILSCALE, 8002),
-        ("Node 2 Dashboard (Direct-Wire)", NODE2_IP_DIRECT, 8085),
-        ("Node 2 Gateway (Direct-Wire)", NODE2_IP_DIRECT, 8002),
+        ("Node 2 Unified (Tailscale)", NODE2_IP_TAILSCALE, 8087),
+        ("Node 2 Unified (Direct-Wire)", NODE2_IP_DIRECT, 8087),
     ]
 
     for name, host, port in endpoints:

@@ -1,4 +1,4 @@
-﻿"""
+"""
 ClothOS Autonomous Stealth Sentry & Workload Governor
 File: loom/clothos/stealth_sentry.py
 

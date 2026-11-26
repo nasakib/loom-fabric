@@ -93,15 +93,22 @@ class ClothOsUiTeacher:
 
     @staticmethod
     def generate_complete_sleek_dashboard() -> str:
-        """ClothOS compiles its full 27-lobe sleek modern dashboard with zero placeholders."""
-        # Read from master_dashboard.html template if valid, or synthesize
-        if MASTER_DASHBOARD_PATH.exists():
-            content = MASTER_DASHBOARD_PATH.read_text(encoding="utf-8")
+        """Compiles the canonical live unified ClothOS dashboard directly from the server source."""
+        try:
+            from loom.fabric.dashboard_server import serve_dashboard_ui
+            resp = serve_dashboard_ui()
+            body = getattr(resp, "body", b"")
+            content = body.decode("utf-8") if isinstance(body, (bytes, bytearray)) else str(resp)
             if len(content) > 50000 and "switchTab" in content and "ClothOS" in content:
                 return content
+        except Exception as exc:
+            logger.warning(f"Could not compile canonical dashboard inline source: {exc}")
+        if MASTER_DASHBOARD_PATH.exists():
+            content = MASTER_DASHBOARD_PATH.read_text(encoding="utf-8")
+            if len(content) > 50000 and "switchTab" in content:
+                return content
         from loom.clothos.ui_designer import ui_designer
-        design = ui_designer.get_current_design()
-        return ClothOsUiTeacher._build_full_html(design)
+        return ClothOsUiTeacher._build_full_html(ui_designer.get_current_design())
 
     @staticmethod
     def _build_full_html(design: Dict[str, Any]) -> str:
@@ -120,9 +127,9 @@ def execute_clothos_self_repair() -> Dict[str, Any]:
     # Step 1: Evolve or ensure valid design state
     design = ui_designer.get_current_design()
 
-    # Step 2: Ensure master_dashboard.html exists and is fully populated
-    if not MASTER_DASHBOARD_PATH.exists() or MASTER_DASHBOARD_PATH.stat().st_size < 50000:
-        html = teacher.generate_complete_sleek_dashboard()
+    # Step 2: Sync master_dashboard.html directly from the canonical unified dashboard source
+    html = teacher.generate_complete_sleek_dashboard()
+    if len(html) > 50000:
         MASTER_DASHBOARD_PATH.write_text(html, encoding="utf-8")
 
     # Step 3: Run resilience supervisor to heal database locks and memory

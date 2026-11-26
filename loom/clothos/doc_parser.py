@@ -202,14 +202,13 @@ def parse_tabular(file_path: Union[str, Path], max_rows: int = 100) -> List[Dict
     return [{"error": f"Unsupported tabular format: {suffix}"}]
 
 
-def parse_document(file_path: Union[str, Path], chunk_size: int = 1500) -> Dict[str, Any]:
-    """Unified document parser dispatcher returning structured chunks and metadata."""
+def parse_document_text_only(file_path: Union[str, Path], chunk_size: int = 1500) -> Dict[str, Any]:
+    """Document/text parser for PDF, Word, PowerPoint, Excel, CSV, HTML, and Markdown."""
     path = Path(file_path).resolve()
     if not path.exists():
         return {"success": False, "error": f"File not found: {path}"}
 
     suffix = path.suffix.lower()
-    file_type = suffix.lstrip('.')
     metadata = {
         "file_name": path.name,
         "file_path": str(path),
@@ -231,14 +230,11 @@ def parse_document(file_path: Union[str, Path], chunk_size: int = 1500) -> Dict[
         full_text = json.dumps(tables, indent=2)
     elif suffix in ('.html', '.htm'):
         raw = path.read_text(encoding='utf-8', errors='replace')
-        # strip tags
         text = re.sub(r'<[^>]+>', ' ', raw)
         full_text = clean_text(html.unescape(text))
     else:
-        # Standard text, markdown, code
         full_text = clean_text(path.read_text(encoding='utf-8', errors='replace'))
 
-    # Break into token-friendly chunks
     chunks = []
     paragraphs = full_text.split('\n\n')
     current_chunk = []
@@ -263,3 +259,42 @@ def parse_document(file_path: Union[str, Path], chunk_size: int = 1500) -> Dict[
         "chunks": chunks,
         "full_text_preview": full_text[:2000] + ("..." if len(full_text) > 2000 else ""),
     }
+
+
+def parse_document(file_path: Union[str, Path], chunk_size: int = 1500) -> Dict[str, Any]:
+    """
+    Unified universal file & document parser.
+    Handles standard documents directly AND routes images, audio, video, databases,
+    archives, 3D CAD/biomolecular models, code, and binary files through
+    `universal_file_analyzer.analyze_any_file`.
+    """
+    path = Path(file_path).resolve()
+    if not path.exists():
+        return {"success": False, "error": f"File not found: {path}"}
+
+    suffix = path.suffix.lower()
+    doc_direct = {'.pdf', '.docx', '.doc', '.pptx', '.ppt', '.xlsx', '.xls', '.csv', '.tsv', '.html', '.htm', '.md', '.txt'}
+    if suffix in doc_direct:
+        return parse_document_text_only(path, chunk_size=chunk_size)
+
+    try:
+        from loom.clothos.universal_file_analyzer import analyze_any_file
+        ua = analyze_any_file(path, chunk_size=chunk_size)
+        if ua.get("status") == "SUCCESS":
+            chunks = ua.get("chunks", [])
+            preview = ua.get("summary", "")
+            return {
+                "success": True,
+                "category": ua.get("category"),
+                "mime_type": ua.get("mime_type"),
+                "magic_signature": ua.get("magic_signature"),
+                "sha256": ua.get("sha256"),
+                "metadata": ua.get("metadata", {}),
+                "total_characters": sum(len(c) for c in chunks),
+                "total_chunks": ua.get("total_chunks", len(chunks)),
+                "chunks": chunks,
+                "full_text_preview": preview,
+            }
+    except Exception:
+        pass
+    return parse_document_text_only(path, chunk_size=chunk_size)

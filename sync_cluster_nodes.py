@@ -28,8 +28,8 @@ def main():
     with open(r'C:\Users\natsa\.openclaw\openclaw.json', 'r', encoding='utf-8') as f:
         openclaw_json_dict = json.load(f)
 
-    # On remote node, baseUrl should point to 192.168.99.1:8002 if gateway is hosted on skyTech
-    openclaw_json_dict['models']['providers']['loom-fabric']['baseUrl'] = 'http://192.168.99.1:8002/v1'
+    # On remote node, baseUrl points to 192.168.99.1:8087 (Unified ClothOS Single-Port Master Hub)
+    openclaw_json_dict['models']['providers']['loom-fabric']['baseUrl'] = 'http://192.168.99.1:8087/v1'
     remote_openclaw_json_content = json.dumps(openclaw_json_dict, indent=2)
 
     @ray.remote

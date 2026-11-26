@@ -540,7 +540,7 @@ def test_agentic_brain_cns_and_self_teaching(agent_engine):
 
     assert "Najmos Sakib" in cns_res["operator_fealty"]
 
-    assert "Apostrophie" in cns_res["operator_fealty"]
+    assert "ClothOS" in cns_res["operator_fealty"]
 
 
 
@@ -628,7 +628,7 @@ def test_jarvis_and_self_training_knowledge_engine(agent_engine):
 
     assert "Najmos Sakib" in b_res["markdown_briefing"]
 
-    assert "Apostrophie" in b_res["markdown_briefing"]
+    assert "ClothOS" in b_res["markdown_briefing"]
 
     assert "spoken_script" in b_res
 

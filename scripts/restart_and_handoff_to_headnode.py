@@ -152,27 +152,15 @@ def spawn_wmi(cmd_line: str, work_dir: str):
     ps = f"Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{{CommandLine='{cmd_line}'; CurrentDirectory='{work_dir}'}} | Out-Null"
     subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", ps], capture_output=True)
 
-# 1. Spawn ClothOS Dashboard Server on Head Node port 8085
-print(">>> [Head Node] Restarting ClothOS Dashboard Server on 0.0.0.0:8085...")
-cmd_dash = f'"{pyw_exe}" -m loom.fabric.dashboard_server'
+# 1. Spawn Unified ClothOS Master Server on Head Node single port 8087 (includes Gateway + GUIs)
+print(">>> [Head Node] Restarting Unified ClothOS Master Server on 0.0.0.0:8087...")
+cmd_dash = f'"{pyw_exe}" -m uvicorn loom.fabric.dashboard_server:app --host 0.0.0.0 --port 8087'
 spawn_wmi(cmd_dash, str(dest_dir))
 
-# 2. Spawn Loom Fabric Gateway on port 8002
-print(">>> [Head Node] Restarting Loom Fabric Gateway on 0.0.0.0:8002...")
-cmd_gw = f'"{pyw_exe}" -m uvicorn loom.gateway.app:app --host 0.0.0.0 --port 8002'
-spawn_wmi(cmd_gw, str(dest_dir))
-
-# 3. Spawn 24/7 Continuous Autonomous Worker on Head Node
+# 2. Spawn 24/7 Continuous Autonomous Worker on Head Node
 print(">>> [Head Node] Restarting 24/7 Sovereign Autonomous Worker...")
 cmd_worker = f'"{pyw_exe}" -m loom.fabric.continuous_worker'
 spawn_wmi(cmd_worker, str(dest_dir))
-
-# 4. Spawn Stitch Bridge on Head Node port 5555 if stitch-core exists
-stitch_dir = dest_dir.parent / "stitch-core"
-if (stitch_dir / "bridge" / "server.py").exists():
-    print(">>> [Head Node] Restarting Stitch Bridge on 0.0.0.0:5555...")
-    cmd_stitch = f'"{pyw_exe}" -m uvicorn bridge.server:app --host 0.0.0.0 --port 5555'
-    spawn_wmi(cmd_stitch, str(stitch_dir))
 
 time.sleep(3.0)
 print(">>> [Head Node] All Head Node systems successfully restarted under sovereign directive!")
@@ -239,13 +227,9 @@ def probe_cluster_health():
     endpoints = [
         ("Head Node Ray Dashboard", HEADNODE_IP_TAILSCALE, 8265),
         ("Head Node Ray GCS", HEADNODE_IP_TAILSCALE, 6379),
-        ("Head Node Dashboard (Tailscale)", HEADNODE_IP_TAILSCALE, 8085),
-        ("Head Node Gateway (Tailscale)", HEADNODE_IP_TAILSCALE, 8002),
-        ("Head Node Dashboard (Direct)", HEADNODE_IP_DIRECT, 8085),
-        ("Head Node Gateway (Direct)", HEADNODE_IP_DIRECT, 8002),
-        ("skyTech Dashboard (Port 8087)", "127.0.0.1", 8087),
-        ("skyTech Gateway (Port 8002)", "127.0.0.1", 8002),
-        ("skyTech Stitch Bridge (Port 5555)", "127.0.0.1", 5555),
+        ("Head Node Unified (Tailscale)", HEADNODE_IP_TAILSCALE, 8087),
+        ("Head Node Unified (Direct)", HEADNODE_IP_DIRECT, 8087),
+        ("skyTech Unified (Port 8087)", "127.0.0.1", 8087),
         ("skyTech Ollama (Port 11434)", "127.0.0.1", 11434),
     ]
 

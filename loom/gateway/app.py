@@ -290,7 +290,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             <button onclick="clusterAction('start')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 8px 16px;">&#9654; START FABRIC</button>
             <button onclick="clusterAction('restart_both')" style="background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%); padding: 8px 16px;">&#9889; Restart BOTH Machines</button>
             <button class="secondary" onclick="clusterAction('stop')" style="padding: 8px 14px; color: #f43f5e; border-color: rgba(244,63,94,0.4);">&#9632; Stop Local</button>
-            <div class="status-badge" id="cluster-status">FABRIC + CLOTHOS ONLINE &bull; PORT 8002</div>
+            <div class="status-badge" id="cluster-status">FABRIC + CLOTHOS UNIFIED &bull; PORT 8087</div>
         </div>
     </div>
 
@@ -304,6 +304,9 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                 <label style="font-size: 12px; color: var(--text-dim); display: block; margin-bottom: 4px;">Target Model</label>
                 <select id="model-select">
                     <option value="auto">auto (Dynamic Compute Triage &amp; Delegation)</option>
+                    <option value="claude-sonnet-4-5">claude-sonnet-4-5 (Anthropic Drop-In -> Sovereign 32B)</option>
+                    <option value="claude-opus-4-5">claude-opus-4-5 (Anthropic Drop-In -> Apex 32B/70B)</option>
+                    <option value="claude-haiku-4-5">claude-haiku-4-5 (Anthropic Drop-In -> CUDA 7B)</option>
                     <option value="qwen2.5:32b">qwen2.5:32b (Distributed Dual-GPU + Host RAM)</option>
                     <option value="deepseek-r1:14b">deepseek-r1:14b (Formal Reasoning &amp; Math)</option>
                     <option value="qwen2.5:7b">qwen2.5:7b (Pure RTX 3060 CUDA)</option>
@@ -342,7 +345,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             <div class="stat-row"><span>GPU 0 (Primary)</span><span class="stat-val">RTX 3060 12GB (CUDA 12.x)</span></div>
             <div class="stat-row"><span>GPU 1 (Secondary)</span><span class="stat-val">RX 580 8GB (Vulkan 1.3)</span></div>
             <div class="stat-row"><span>Host Memory</span><span class="stat-val">54 GB DDR4</span></div>
-            <div class="stat-row"><span>Live Ports</span><span class="stat-val" id="ports-99-1">:8002 :5555 :11434 :18789</span></div>
+            <div class="stat-row"><span>Live Ports</span><span class="stat-val" id="ports-99-1">:8087 :11434 :18789</span></div>
         </div>
 
         <div class="card">
@@ -350,8 +353,8 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             <div class="stat-row"><span>IP Address</span><span class="stat-val">192.168.99.2 (1Gbps Direct Wire)</span></div>
             <div class="stat-row"><span>Processor</span><span class="stat-val">AMD Ryzen 7 7730U (16 vCPUs, 16 GB RAM)</span></div>
             <div class="stat-row"><span>Ray GCS / UI</span><span class="stat-val">Port 6379 / Port 8265</span></div>
-            <div class="stat-row"><span>Loom Gateway</span><span class="stat-val">Port 8002 (SSE Active)</span></div>
-            <div class="stat-row"><span>Live Ports</span><span class="stat-val" id="ports-99-2">:8002 :5555 :6379 :8265 :11434</span></div>
+            <div class="stat-row"><span>Unified ClothOS Hub</span><span class="stat-val">Port 8087 (SSE + Gateway Active)</span></div>
+            <div class="stat-row"><span>Live Ports</span><span class="stat-val" id="ports-99-2">:8087 :6379 :8265 :11434</span></div>
         </div>
 
         <div class="card">
@@ -362,6 +365,21 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             <div class="stat-row"><span>Local Force Tag</span><span class="stat-val">[LOCAL] / [SOVEREIGN]</span></div>
             <div class="stat-row"><span>Stream Rehydration</span><span class="stat-val">On-The-Fly Active</span></div>
         </div>
+    </div>
+
+    <div class="interactive-section" style="border-color: var(--breeze);">
+        <div class="card-title">
+            <span>SOVEREIGN UNIFIED NEXUS // Anthropic Drop-In (/v1/messages) &amp; Multi-Engine Verification</span>
+            <span style="font-size: 12px; color: var(--breeze);">ANTHROPIC_BASE_URL=http://127.0.0.1:8087</span>
+        </div>
+        <div class="controls-bar">
+            <button class="secondary" onclick="refreshUnifiedMesh()">Probe Unified Mesh</button>
+            <button class="secondary" onclick="runSovereignAudit()">Run Constitutional + Deceit Audit</button>
+            <button class="secondary" onclick="runTypemetricSync()">Run Dozenal Kuramoto Sync</button>
+            <button class="secondary" onclick="runJitBench()">Run Bare-Metal ujit Kernel</button>
+        </div>
+        <div id="unified-mesh-grid" style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px;">Probing ecosystem mesh...</div>
+        <div class="output-box" id="nexus-output-box" style="min-height: 75px;">Ready. Click any Sovereign Nexus check above to verify Constitutional Gate, Dozenal Kuramoto, Z3/Topology, or x86-64 JIT execution.</div>
     </div>
 
     <div class="interactive-section">
@@ -540,11 +558,60 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             } catch (_) {}
         }
 
+        async function refreshUnifiedMesh() {
+            const box = document.getElementById('unified-mesh-grid');
+            try {
+                const res = await fetch('/v1/sovereign/mesh');
+                const d = await res.json();
+                const badges = Object.entries(d.services || {}).map(([name, info]) => {
+                    const color = info.online ? 'var(--green)' : 'var(--yellow)';
+                    const dot = info.online ? '●' : '○';
+                    return `<span class="tag tag-tier1" style="border-color:${color}; color:${color}; margin-bottom:4px;">${dot} ${name} (${info.endpoint})</span>`;
+                }).join(' ');
+                box.innerHTML = `<div style="margin-bottom:6px;">Services Online: <strong>${d.services_online}/${d.services_total}</strong> &bull; Ratchet Axioms: <strong>${d.ratchet_teeth_locked}</strong> &bull; JIT Kernels: <strong>${(d.ujit_kernels || []).length}</strong></div><div>${badges}</div>`;
+            } catch (err) {
+                box.innerText = 'Mesh probe error: ' + err.message;
+            }
+        }
+
+        async function runSovereignAudit() {
+            const input = document.getElementById('prompt-input').value.trim() || 'Synthesize verified ClothOS distributed compute schedule';
+            const out = document.getElementById('nexus-output-box');
+            const res = await fetch('/v1/sovereign/audit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action_intent: input, payload_or_claim: input, estimated_energy_joules: 12.0 })
+            });
+            out.innerText = JSON.stringify(await res.json(), null, 2);
+        }
+
+        async function runTypemetricSync() {
+            const out = document.getElementById('nexus-output-box');
+            const res = await fetch('/v1/sovereign/typemetric/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phases: [0, 768, 1536, 2304], omegas: [24, 42, 12, 36], trits: [1, 1, 1, 1], precisions: [1728, 1152, 864, 864], coupling_k: 24 })
+            });
+            out.innerText = JSON.stringify(await res.json(), null, 2);
+        }
+
+        async function runJitBench() {
+            const out = document.getElementById('nexus-output-box');
+            const res = await fetch('/v1/sovereign/jit/eval', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ kernel_name: 'grid_arbitrage', args: [1000, 15, 1] })
+            });
+            out.innerText = JSON.stringify(await res.json(), null, 2);
+        }
+
         // Initial load & Enter key shortcut
         window.addEventListener('DOMContentLoaded', () => {
             loadRecommendations();
             refreshClusterPorts();
+            refreshUnifiedMesh();
             setInterval(refreshClusterPorts, 5000);
+            setInterval(refreshUnifiedMesh, 10000);
             const input = document.getElementById('prompt-input');
             if (input) {
                 input.focus();
@@ -859,10 +926,10 @@ async def api_cluster_status() -> Dict[str, Any]:
     from loom.gui import CrossPlatformClusterController
     ctrl = CrossPlatformClusterController()
     result: Dict[str, Dict[str, bool]] = {"192.168.99.1": {}, "192.168.99.2": {}}
-    for port in [8002, 5555, 11434, 18789]:
+    for port in [8087, 11434, 18789]:
         host1 = "127.0.0.1" if ctrl.self_ip == "192.168.99.1" else "192.168.99.1"
         result["192.168.99.1"][str(port)] = ctrl.is_port_open(host1, port, timeout=0.4)
-    for port in [8002, 5555, 6379, 8265, 11434, 18789]:
+    for port in [8087, 6379, 8265, 11434]:
         host2 = "127.0.0.1" if ctrl.self_ip == "192.168.99.2" else "192.168.99.2"
         result["192.168.99.2"][str(port)] = ctrl.is_port_open(host2, port, timeout=0.4)
     return result
@@ -911,6 +978,11 @@ app.include_router(ollama_bridge_router)
 # Mount Loom Fabric Modem & Seamless Mesh Router ("Wi-Fi for Compute")
 from loom.gateway.modem_router import router as modem_router
 app.include_router(modem_router)
+
+# Mount Anthropic Drop-In Messages API (/v1/messages) & Unified Sovereign Nexus (/v1/sovereign/*)
+from loom.gateway.anthropic_bridge import anthropic_router, sovereign_router
+app.include_router(anthropic_router)
+app.include_router(sovereign_router)
 
 
 

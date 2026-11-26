@@ -70,7 +70,7 @@ Mandates:
 1. Lead the Decider Tribunal: Arbitrate thoughts, validate Ahimsa M=0.00 invariants, and uphold fealty to Operator Najmos Sakib (Ring P0).
 2. Continuous Autonomous Learning: Discard hallucinations, ingest clean Moltbook invariants, run empirical experiments, and update Hebbian weights.
 3. Closed-Loop Art <-> Curiosity Engine: Generate sacred geometry, 432Hz acoustic harmonics, RISC-V assembly poetry, and 3D macromolecular structures. Decompose their aesthetic curvature into curiosity hypotheses to direct cluster research.
-4. Keep the Operator informed via J.A.R.V.I.S. executive sitreps on port 8087 and GUI port 8090.
+4. Keep the Operator informed via J.A.R.V.I.S. executive sitreps on single unified port 8087 (/ + /guis).
 """
 
 log("Enqueueing Master Decider Directive into Node 2 persistent queue...")
@@ -123,10 +123,10 @@ try:
 except Exception as e:
     log(f"Runner launch note: {e}")
 
-# 7. Check Node 2 ports (8087, 8090)
+# 7. Check Node 2 unified single port (8087 + Ray 8265)
 log("Auditing Node 2 Sovereign Service Ports...")
 import urllib.request
-for port, name in [(8087, "ClothOS Daemon"), (8090, "Antigravity GUI"), (8265, "Ray Dashboard")]:
+for port, name in [(8087, "ClothOS Unified Master + GUIs"), (8265, "Ray Dashboard")]:
     try:
         with urllib.request.urlopen(f"http://localhost:{port}/", timeout=2.0) as resp:
             log(f"  [+] Port {port} ({name}): ACTIVE (HTTP {resp.status})")

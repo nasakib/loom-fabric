@@ -4,7 +4,7 @@
 Comprehensive Verification Suite for ClothOS Tiered Upgrade (P1-P3, Tiers 1-3).
 ==============================================================================
 Validates:
-1. Ring P0 Governance Root of Trust (Najmos Sakib / Apostrophie / Vector Core Holdings)
+1. Ring P0 Governance Root of Trust (Najmos Sakib / ClothOS / Vector Core Holdings)
 2. Base-12 Duodecimal Codec, Fractions, and Entropy Reduction
 3. Base-16 Nibble Codec, Endianness, CRC32, and DMA Packet Framing
 4. 2-Bit ATGC Genomic Codec, Exact Tail-Bits, Complement, and Rolling k-mers
@@ -65,7 +65,7 @@ from loom.gateway.app import app
 def test_ring_p0_governance_invariants():
     gov = RingP0GovernanceController.get_instance()
     assert gov.operator == "Najmos Sakib"
-    assert gov.parent_entity == "Apostrophie"
+    assert gov.parent_entity == "ClothOS"
     assert gov.subsidiary_entity == "Vector Core Holdings, LLC"
 
     # 1. Authorized mutation with valid P0 token

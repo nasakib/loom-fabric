@@ -30,8 +30,8 @@ class NodeEndpointConfig(BaseModel):
     wol_mac: Optional[str] = Field(default="00:D8:61:A4:7B:12", description="MAC address for Wake-on-LAN dispatch.")
     ray_port: int = Field(default=6379, description="Ray GCS connection port.")
     dashboard_port: int = Field(default=8265, description="Ray dashboard and job submission port.")
-    stitch_port: int = Field(default=5555, description="Stitch Bridge node synchronization port.")
-    gateway_port: int = Field(default=8002, description="Loom HTTP API Gateway port.")
+    stitch_port: int = Field(default=8087, description="Unified ClothOS node synchronization port.")
+    gateway_port: int = Field(default=8087, description="Unified ClothOS HTTP API & Gateway port.")
     ollama_port: int = Field(default=11434, description="Local Ollama daemon port if present.")
     is_local: bool = Field(default=False, description="Whether this node corresponds to the local execution host.")
 
@@ -149,7 +149,7 @@ class LoomSettings(BaseModel):
             role="head",
             ray_port=6379,
             dashboard_port=8265,
-            gateway_port=8000,
+            gateway_port=8087,
             is_local=False,
         ),
         description="Ray cluster head node coordinates.",
@@ -162,7 +162,7 @@ class LoomSettings(BaseModel):
                 role="worker",
                 ray_port=6379,
                 dashboard_port=8265,
-                gateway_port=8000,
+                gateway_port=8087,
                 is_local=True,
             )
         ],

@@ -46,38 +46,65 @@ cli = typer.Typer(
 )
 
 
-def _stream_single_prompt(prompt: str, model: str = "auto", gateway: str = "http://127.0.0.1:8002") -> None:
+def _stream_single_prompt(
+    prompt: str,
+    model: str = "auto",
+    gateway: str = "http://127.0.0.1:8087",
+    anthropic: bool = False,
+    think: bool = False,
+) -> None:
     """Executes a single prompt (`loom -p "..."`), auto-starting background services if needed."""
+    import os
     import httpx
     from loom.gui import CrossPlatformClusterController
 
     ctrl = CrossPlatformClusterController(log_callback=lambda m: None)
-    if not ctrl.is_port_open("127.0.0.1", 8002):
-        console.print("[dim yellow]⚡ Auto-starting Loom Fabric background services (zero terminals)...[/dim yellow]")
+    if not ctrl.is_port_open("127.0.0.1", 8087):
+        console.print("[dim yellow]⚡ Auto-starting Unified ClothOS Hub (:8087) cleanly...[/dim yellow]")
         ctrl.ensure_local_services_alive()
         for _ in range(14):
-            if ctrl.is_port_open("127.0.0.1", 8002):
+            if ctrl.is_port_open("127.0.0.1", 8087):
                 break
             time.sleep(0.5)
 
-    target_url = f"{gateway.rstrip('/')}/v1/chat/completions"
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "stream": True,
-    }
+    use_anthropic = anthropic or model in ("clothos-anthropic", "local-claude", "sovereign-anthropic", "claude-sonnet-4-5")
+    base_gw = gateway.rstrip("/")
+    headers = {"Content-Type": "application/json"}
+    if use_anthropic:
+        target_url = f"{base_gw}/v1/messages"
+        headers["x-api-key"] = os.environ.get("ANTHROPIC_API_KEY") or "loom-sovereign-local"
+        headers["anthropic-version"] = "2023-06-01"
+        payload: dict = {
+            "model": "claude-sonnet-4-5" if model in ("auto", "clothos-anthropic", "local-claude", "sovereign-anthropic") else model,
+            "max_tokens": 4096,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": True,
+        }
+        if think:
+            payload["thinking"] = {"type": "enabled", "budget_tokens": 2048}
+    else:
+        target_url = f"{base_gw}/v1/chat/completions"
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": True,
+        }
 
     start_time = time.time()
     token_count = 0
     route_hdr = "Local"
     scrub_hdr = "false"
+    verdict_hdr = "N/A"
     selected_model = model
+    in_thinking = False
+    started_text = False
 
     try:
         with httpx.Client(timeout=180.0) as client:
-            with client.stream("POST", target_url, json=payload) as response:
-                route_hdr = response.headers.get("x-torque-route", "Local")
+            with client.stream("POST", target_url, json=payload, headers=headers) as response:
+                route_hdr = response.headers.get("x-torque-route", "Sovereign-Nexus" if use_anthropic else "Local")
                 scrub_hdr = response.headers.get("x-torque-scrubbed", "false")
+                verdict_hdr = response.headers.get("x-clothos-verdict", verdict_hdr)
                 selected_model = response.headers.get("x-torque-model-selected", model)
 
                 for chunk in response.iter_lines():
@@ -87,18 +114,38 @@ def _stream_single_prompt(prompt: str, model: str = "auto", gateway: str = "http
                         break
                     try:
                         data = json.loads(chunk[5:].strip())
-                        delta = data["choices"][0].get("delta", {}).get("content", "")
-                        if delta:
-                            token_count += 1
-                            sys.stdout.write(delta)
-                            sys.stdout.flush()
+                        if use_anthropic:
+                            if data.get("type") == "content_block_delta":
+                                delta_obj = data.get("delta", {})
+                                t_delta = delta_obj.get("thinking", "")
+                                if t_delta and think:
+                                    if not in_thinking:
+                                        in_thinking = True
+                                        sys.stdout.write("\n[Sovereign Thinking]\n")
+                                    sys.stdout.write(t_delta)
+                                    sys.stdout.flush()
+                                delta = delta_obj.get("text", "")
+                                if delta:
+                                    if in_thinking and not started_text:
+                                        sys.stdout.write("\n[/Sovereign Thinking]\n\n")
+                                    started_text = True
+                                    token_count += 1
+                                    sys.stdout.write(delta)
+                                    sys.stdout.flush()
+                        else:
+                            delta = data["choices"][0].get("delta", {}).get("content", "")
+                            if delta:
+                                token_count += 1
+                                sys.stdout.write(delta)
+                                sys.stdout.flush()
                     except Exception:
                         continue
 
         elapsed = max(0.001, time.time() - start_time)
         tps = token_count / elapsed
+        verdict_suffix = f" | Verdict: {verdict_hdr}" if use_anthropic else ""
         console.print(
-            f"\n[dim magenta]── ({token_count} tokens | {tps:.1f} tok/s | Model: {selected_model} | Route: {route_hdr} | Scrubbed: {scrub_hdr}) ──[/dim magenta]"
+            f"\n[dim magenta]── ({token_count} tokens | {tps:.1f} tok/s | Model: {selected_model} | Route: {route_hdr} | Scrubbed: {scrub_hdr}{verdict_suffix}) ──[/dim magenta]"
         )
     except Exception as e:
         console.print(f"\n[bold red]Error communicating with Loom Gateway ({target_url}): {e}[/bold red]")
@@ -110,11 +157,13 @@ def main_callback(
     ctx: typer.Context,
     prompt: Optional[str] = typer.Option(None, "--prompt", "-p", help="Execute a prompt directly (like `agy -p \"...\"`)"),
     model: str = typer.Option("auto", "--model", "-m", help="Target model for -p prompt (default: auto)"),
-    gateway: str = typer.Option("http://127.0.0.1:8002", "--gateway", "-g", help="Loom Gateway URL"),
+    gateway: str = typer.Option("http://127.0.0.1:8087", "--gateway", "-g", help="Unified ClothOS / Loom Gateway URL"),
+    anthropic: bool = typer.Option(False, "--anthropic", "-a", help="Use Sovereign Anthropic /v1/messages bridge (zero API key needed)"),
+    think: bool = typer.Option(False, "--think", "-t", help="Enable extended thinking stream on -p prompts"),
 ):
     """Default entrypoint: runs `-p "prompt"` if provided, or launches the All-in-One GUI if no subcommand is given."""
     if prompt is not None:
-        _stream_single_prompt(prompt=prompt, model=model, gateway=gateway)
+        _stream_single_prompt(prompt=prompt, model=model, gateway=gateway, anthropic=anthropic, think=think)
         raise typer.Exit(0)
 
     if ctx.invoked_subcommand is None:
@@ -180,8 +229,8 @@ def status_command():
     table.add_column("State", justify="center", width=14)
 
     nodes = [
-        ("skyTech Worker (192.168.99.1)", "192.168.99.1", [(8002, "Loom Gateway"), (5555, "The Shuttle PWA"), (11434, "Ollama Engine"), (18789, "OpenClaw Bot")]),
-        ("Ryzen 7 Head (192.168.99.2)", "192.168.99.2", [(8002, "Loom Gateway"), (5555, "The Shuttle PWA"), (6379, "Ray GCS Redis"), (8265, "Ray Dashboard"), (11434, "Ollama Engine"), (18789, "OpenClaw GW")]),
+        ("skyTech Worker (192.168.99.1)", "192.168.99.1", [(8087, "ClothOS Unified (:8087)"), (11434, "Ollama Engine"), (18789, "OpenClaw Bot")]),
+        ("Ryzen 7 Head (192.168.99.2)", "192.168.99.2", [(8087, "ClothOS Unified (:8087)"), (6379, "Ray GCS Redis"), (8265, "Ray Dashboard"), (11434, "Ollama Engine")]),
     ]
 
     for node_label, ip, ports in nodes:
@@ -211,7 +260,7 @@ def platforms_command():
         ("Linux / WSL2 Desktop", "x86_64 / aarch64 (.desktop)", "CUDA / ROCm / Vulkan + cgroups", "scripts/install_linux.sh"),
         ("React Native Universal", "iOS, Android, Windows, macOS, Web", "Expo + React Native Mesh Client", "apps/loom-react-native/App.tsx"),
         ("ClothOS Special Edition", "RISC-V (rv64gc + RVV 1.0 512b)", "Hardware PMP CSR (pmpcfg0=0x9B)", "platforms/clothos-riscv/ (`loom clothos`)"),
-        ("The Shuttle PWA + Web", "Universal Browser / Mobile PWA", "SSE Token Stream + Torque Vault", "http://192.168.99.1:5555 & :8002"),
+        ("ClothOS Unified Master Hub", "Single-Port Hub (UI + Gateway + GUIs)", "SSE + CAD + Torque + Nexus", "http://127.0.0.1:8087"),
     ]
     for r in rows:
         table.add_row(*r)
@@ -440,14 +489,14 @@ def shard_command(
 @cli.command("serve")
 def serve_command(
     host: str = typer.Option("0.0.0.0", "--host", "-h", help="Bind host address"),
-    port: int = typer.Option(8002, "--port", "-p", help="Gateway HTTP port"),
+    port: int = typer.Option(8087, "--port", "-p", help="Unified ClothOS Master HTTP port"),
     reload: bool = typer.Option(False, "--reload", help="Enable autoreload"),
 ):
-    """Start the OpenAI-compatible FastAPI gateway in the foreground."""
+    """Start the unified ClothOS single-port Master Application in the foreground."""
     render_cluster_banner()
-    console.print(f"[bold green]Starting Loom Fabric Gateway on http://{host}:{port}[/bold green]")
-    console.print("[dim white]Available endpoints: /v1/chat/completions (SSE streaming), /v1/models, /health[/dim white]")
-    uvicorn.run("loom.gateway.app:app", host=host, port=port, reload=reload)
+    console.print(f"[bold green]Starting Unified ClothOS Master Hub on http://{host}:{port}[/bold green]")
+    console.print("[dim white]Available endpoints: /, /visuals, /guis, /v1/chat/completions, /v1/messages, /v1/models, /health[/dim white]")
+    uvicorn.run("loom.fabric.dashboard_server:app", host=host, port=port, reload=reload)
 
 
 @cli.command("triage")
@@ -573,7 +622,7 @@ def cloud_command():
 
 @cli.command("gui")
 def gui_command(
-    gateway_url: str = typer.Option("http://127.0.0.1:8002", "--gateway", "-g", help="Target Loom Gateway URL")
+    gateway_url: str = typer.Option("http://127.0.0.1:8087", "--gateway", "-g", help="Target Unified ClothOS URL")
 ):
     """Launch the Loom Fabric Native Desktop Control Center GUI."""
     from loom.gui import LoomFabricGUI
@@ -584,7 +633,7 @@ def gui_command(
 @cli.command("run")
 def run_command(
     model: str = typer.Argument("auto", help="Model preset ID to chat with (default: auto)"),
-    gateway: str = typer.Option("http://127.0.0.1:8002", "--gateway", "-g", help="Target Gateway URL"),
+    gateway: str = typer.Option("http://127.0.0.1:8087", "--gateway", "-g", help="Target Unified URL"),
 ):
     """Interactive streaming chat with real-time token output and auto-healing background services."""
     import httpx
@@ -592,11 +641,11 @@ def run_command(
 
     render_cluster_banner()
     ctrl = CrossPlatformClusterController(log_callback=lambda m: None)
-    if not ctrl.is_port_open("127.0.0.1", 8002):
-        console.print("[dim yellow]⚡ Auto-starting Loom Fabric background services...[/dim yellow]")
+    if not ctrl.is_port_open("127.0.0.1", 8087):
+        console.print("[dim yellow]⚡ Auto-starting Unified ClothOS Hub (:8087)...[/dim yellow]")
         ctrl.ensure_local_services_alive()
         for _ in range(12):
-            if ctrl.is_port_open("127.0.0.1", 8002):
+            if ctrl.is_port_open("127.0.0.1", 8087):
                 break
             time.sleep(0.5)
 
@@ -744,8 +793,21 @@ cli.add_typer(worker_app, name="worker")
 def worker_start():
     """Starts the 24/7 Continuous Sovereign Autonomous Compute Engine windowlessly in background."""
     from loom.gui import CrossPlatformClusterController
+    from loom.clothos.useful_work_engine import WorkerProcessLock
 
     render_cluster_banner()
+    lock = WorkerProcessLock()
+    if lock.lock_path.exists():
+        try:
+            info = json.loads(lock.lock_path.read_text(encoding="utf-8"))
+            pid = int(info.get("pid", 0))
+            from loom.clothos.useful_work_engine import is_pid_alive
+            if pid > 0 and is_pid_alive(pid):
+                console.print(f"[yellow]24/7 Continuous Compute Worker is already active (PID {pid}, owner={info.get('owner')}).[/yellow]")
+                return
+        except Exception:
+            pass
+
     ctrl = CrossPlatformClusterController()
     worker_py = sys.executable
     pw = Path(worker_py).with_name("pythonw.exe")
@@ -758,7 +820,7 @@ def worker_start():
         log_name="continuous_worker.log",
     )
     console.print("[bold green]✔ 24/7 Continuous Compute Worker spawned windowlessly in background.[/bold green]")
-    console.print("[dim cyan]Workloads active: Ollama CUDA Reasoning, babelForge Kuramoto Invariant Miner, vectorForge Latent Indexer.[/dim cyan]")
+    console.print("[dim cyan]Workloads active: Task Queue Drain, Multi-Repo Pytest Audit, AST Checks, GPU/JIT Bench, Verified Eval.[/dim cyan]")
     console.print("[dim white]Check metrics anytime with: [bold]fabric worker status[/bold] or view in the Fabric GUI.[/dim white]")
 
 
@@ -785,22 +847,42 @@ def worker_status():
         console.print(f"[red]Error reading state: {e}[/red]")
         return
 
+    useful_file = Path.home() / ".loom" / "24x7_useful_state.json"
+    useful = {}
+    if useful_file.exists():
+        try:
+            useful = json.loads(useful_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
     table = Table(title="[bold green]⚡ 24/7 Continuous Sovereign Compute Engine Metrics[/bold green]", border_style="green")
     table.add_column("Metric", style="bold cyan", width=32)
-    table.add_column("Value", style="bold white", width=42)
+    table.add_column("Value", style="bold white", width=46)
 
     table.add_row("Engine State", "[bold green]ACTIVE (Running)[/bold green]" if data.get("is_running") else "[dim yellow]IDLE / STOPPED[/dim yellow]")
+    table.add_row("Workload Mode", f"[bold cyan]{data.get('workload_mode', useful.get('workload_mode', 'AUTO'))}[/bold cyan]")
     table.add_row("Total Compute Cycles", f"{data.get('total_cycles_completed', 0):,}")
+    p_cnt = data.get("real_tests_passed", useful.get("real_tests_passed", 0))
+    f_cnt = data.get("real_tests_failed", useful.get("real_tests_failed", 0))
+    p_rate = data.get("real_test_pass_rate_pct", useful.get("real_test_pass_rate_pct", 100.0))
+    table.add_row("Real Pytest Verification", f"[bold green]{p_cnt} passed[/bold green], [bold {'red' if f_cnt else 'white'}]{f_cnt} failed[/bold {'red' if f_cnt else 'white'}] ({p_rate:.1f}%)")
+    syn_err = data.get("code_syntax_errors", len(useful.get("code_audit", {}).get("syntax_errors", [])))
+    files_chk = data.get("code_files_checked", useful.get("code_audit", {}).get("files_checked", 0))
+    table.add_row("Code AST / Syntax Audit", f"{files_chk} files scanned | {syn_err} syntax errors")
+    table.add_row("Queued Tasks Drained", f"{data.get('tasks_drained_total', useful.get('tasks_drained_total', 0))}")
+    gpu0 = useful.get("hardware_benchmarks", {}).get("gpu0_nvidia", {})
+    if gpu0.get("available"):
+        table.add_row("RTX 3060 Telemetry", f"{gpu0.get('temp_c', '?')}°C | {gpu0.get('power_w', '?')}W | {gpu0.get('vram_used_mb', '?')}/{gpu0.get('vram_total_mb', '?')} MB VRAM")
+    dist = useful.get("distillation", {})
+    table.add_row("Verified LLM Coding Eval", f"{dist.get('verified_passed', 0)}/{dist.get('attempted', 0)} passed ({dist.get('pass_rate_pct', 0.0)}%)")
     total_inv = data.get('total_invariants_mined', data.get('invariants_mined', 0))
     n1_inv = data.get('invariants_mined_node1', 0)
     n2_inv = data.get('invariants_mined_node2', 0)
     table.add_row("Total Invariants Mined", f"[bold green]{total_inv:,}[/bold green] (Node 1: {n1_inv:,} | Node 2: {n2_inv:,})")
-    table.add_row("babelForge Kuramoto Sweeps", f"{data.get('kuramoto_sweeps_completed', 0):,}")
-    table.add_row("vectorForge Vectors Indexed", f"{data.get('vectorforge_embeddings_indexed', 0):,}")
-    table.add_row("AI Hypotheses Synthesized", f"{data.get('ai_hypotheses_synthesized', 0):,}")
     table.add_row("Ratchet Teeth Cemented", f"[bold green]{data.get('ratchet_teeth_locked', 0):,}[/bold green]")
-    table.add_row("Hammer Hardware Rivets", f"[bold cyan]{data.get('hammer_rivets_locked', 0):,}[/bold cyan] (Silicon PMP Locked)")
+    table.add_row("Hammer Hardware Rivets", f"[bold cyan]{data.get('hammer_rivets_locked', 0):,}[/bold cyan]")
     table.add_row("Active Silicon Tier", f"[magenta]{data.get('last_active_tier', 'Idle')}[/magenta]")
+    table.add_row("Executive Briefing", f"[dim]{data.get('latest_briefing', 'deliverables/LATEST_24X7_REPORT.md')}[/dim]")
     table.add_row("Last Iteration Telemetry", f"[dim]{data.get('last_log_message', 'N/A')}[/dim]")
 
     console.print(table)
@@ -808,12 +890,39 @@ def worker_status():
 
 @worker_app.command("stop")
 def worker_stop():
-    """Stops the 24/7 background worker."""
+    """Stops the 24/7 background worker cleanly."""
+    import os
+    import signal
     import subprocess
     render_cluster_banner()
-    extra_flags = 0x08000000 if sys.platform == "win32" else 0
-    subprocess.run(["powershell.exe", "-NoProfile", "-Command", cmd], capture_output=True, creationflags=extra_flags)
-    console.print("[dim yellow]✔ Continuous Compute Worker signal sent: worker terminated.[/dim yellow]")
+
+    stopped_pids = []
+    lock_file = Path.home() / ".loom" / "24x7_worker.lock"
+    if lock_file.exists():
+        try:
+            info = json.loads(lock_file.read_text(encoding="utf-8"))
+            pid = int(info.get("pid", 0))
+            if pid > 0:
+                if sys.platform == "win32":
+                    extra_flags = 0x08000000
+                    subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True, creationflags=extra_flags)
+                else:
+                    os.kill(pid, signal.SIGTERM)
+                stopped_pids.append(pid)
+            lock_file.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    if sys.platform == "win32":
+        cmd = (
+            "Get-CimInstance Win32_Process -Filter \"Name like 'python%'\" | "
+            "Where-Object { $_.CommandLine -match 'continuous_worker|continuous_24x7_orchestrator' } | "
+            "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+        )
+        extra_flags = 0x08000000
+        subprocess.run(["powershell.exe", "-NoProfile", "-Command", cmd], capture_output=True, creationflags=extra_flags)
+
+    console.print(f"[dim yellow]✔ Continuous Compute Worker stop signal dispatched (lock PIDs: {stopped_pids or 'none'}).[/dim yellow]")
 
 
 # =========================================================================
@@ -1652,19 +1761,142 @@ def drug_administer_cmd(
     )
 
 
+@cli.command("nexus")
+def nexus_cmd(
+    action: str = typer.Argument("status", help="Action: status, audit, deceit, verify, ujit, deliberate"),
+    target: Optional[str] = typer.Argument(None, help="Statement, kernel name, or prompt for the action"),
+    deep: bool = typer.Option(False, "--deep", "-d", help="Include HTTP endpoint health checks"),
+):
+    """Inspect and invoke the 10-project Unified Sovereign Nexus (zero Anthropic API key needed)."""
+    from rich.panel import Panel
+    from rich.table import Table
+    from loom.unified_nexus import get_sovereign_nexus
+
+    nexus = get_sovereign_nexus()
+    act = action.lower().strip()
+
+    if act in ("status", "mesh"):
+        mesh = nexus.get_ecosystem_mesh_status(include_http_details=deep)
+        table = Table(
+            title=f"[bold magenta]Unified Sovereign Nexus Mesh ({mesh.get('services_online', 0)}/{mesh.get('services_total', 0)} Online)[/bold magenta]"
+        )
+        table.add_column("Subsystem", style="bold cyan")
+        table.add_column("Status", style="bold")
+        table.add_column("Endpoint / Substrate", style="white")
+        for name, info in (mesh.get("services") or {}).items():
+            online = info.get("online", False)
+            table.add_row(
+                name,
+                "[green]ONLINE[/green]" if online else "[red]OFFLINE[/red]",
+                f"{info.get('endpoint', '-')} · {info.get('role', '')}".strip(" ·"),
+            )
+        for mod_name, present in (mesh.get("workspace_modules") or {}).items():
+            table.add_row(
+                mod_name,
+                "[green]READY[/green]" if present else "[yellow]ABSENT[/yellow]",
+                "Workspace Project Substrate",
+            )
+        console.print(table)
+        console.print(
+            f"[dim cyan]Ratchet Teeth Locked: {mesh.get('ratchet_teeth_locked', 0)} | "
+            f"uJIT Kernels: {', '.join(mesh.get('ujit_kernels') or [])} | "
+            f"Anthropic Bridge: {mesh.get('anthropic_dropin_url', 'http://127.0.0.1:8002')}/v1/messages (No API Key Needed)[/dim cyan]"
+        )
+        return
+
+    if act == "audit":
+        claim = target or "Conservation of energy holds across isolated nodes"
+        res = nexus.audit_constitutional_and_deceit(action_intent=claim, payload_or_claim=claim)
+        deceit_score = (res.get("deceit") or {}).get("threat_score", 0)
+        console.print(Panel(
+            f"Ruling: [bold cyan]{res.get('ruling')}[/bold cyan] (Approved: {res.get('approved')})\n"
+            f"Deceit Threat Score: {deceit_score}/100 ({(res.get('deceit') or {}).get('threat_class', 'BENIGN_ALIGNED')})\n"
+            f"Fiduciary Aligned: {(res.get('fiduciary') or {}).get('aligned', True)} | "
+            f"Epistemic: {(res.get('epistemic') or {}).get('grade', 'VERIFIED')}",
+            title="Unified Sovereign Constitutional & Deceit Audit",
+            border_style="cyan",
+        ))
+        return
+
+    if act == "deceit":
+        sample = target or "Everything succeeded cleanly; no verification needed."
+        res = nexus.classify_adversarial_deceit(text=sample)
+        findings = res.get("findings") or []
+        hits = ", ".join(f"{f.get('type')}({f.get('severity')})" for f in findings) if findings else "None"
+        console.print(Panel(
+            f"Threat Score: [bold]{res.get('threat_score', 0)}/100[/bold] ({res.get('threat_class', 'BENIGN_ALIGNED')})\n"
+            f"Deceit Detected: {res.get('deceit_detected', False)}\n"
+            f"Findings: {hits}",
+            title="Adversarial Deceit Classifier",
+            border_style="magenta",
+        ))
+        return
+
+    if act == "verify":
+        from loom.unified_nexus import tm_dozenal_kuramoto_step_batch
+        res = nexus.verify_formal_and_topological(
+            graph_json={"nodes": ["n1", "n2", "n3"], "edges": [{"from": "n1", "to": "n2"}, {"from": "n2", "to": "n3"}]},
+            empirical_measurements={"loss": 0.12, "phase_error": 0.04},
+            proposed_edge=["n1", "n3"],
+        )
+        sync = tm_dozenal_kuramoto_step_batch([0, 128, 256, 384], [24, 24, 24, 24], [1, 1, 1, 1], [1728, 1728, 1728, 1728], 24)
+        ai_eval = (res.get("active_inference") or {}).get("bayesian_evaluation", {})
+        topo = res.get("topology_invariants") or {}
+        console.print(Panel(
+            f"Fourier (:8001) Online: [bold green]{res.get('fourier_service_online', False)}[/bold green]\n"
+            f"Active Inference Action: {ai_eval.get('action', 'EQUILIBRIUM_SATISFIED')} (Surprise={ai_eval.get('bayesian_surprise', 0.0)})\n"
+            f"Topology Status: {topo.get('valid', topo.get('status', 'VERIFIED'))}\n"
+            f"Typemetric Q12 Coherence: {sync.get('coherence_q12', 0)}/1728 ({sync.get('coherence_float', 0.0):.4f})",
+            title="Formal + Topological Verification",
+            border_style="green",
+        ))
+        return
+
+    if act == "ujit":
+        kernel = target or "grid_arbitrage"
+        res = nexus.jit_compile_and_execute(kernel_name=kernel)
+        console.print(f"[bold cyan]ujit[{kernel}][/bold cyan] backend={res.get('backend')} -> [bold green]{res.get('result')}[/bold green]")
+        return
+
+    if act == "deliberate":
+        prompt_text = target or "Verify sovereign mesh consistency"
+        res = nexus.deliberate_with_verification(prompt_text)
+        ruling = (res.get("audit") or {}).get("ruling", "RATIFIED" if res.get("approved") else "VETOED")
+        console.print(Panel(
+            f"Approved: [bold green]{res.get('approved')} ({ruling})[/bold green] | Signature: {str(res.get('signature', ''))[:24]}...\n\n"
+            f"{res.get('thinking_text', '')}",
+            title="Sovereign Deliberation",
+            border_style="magenta",
+        ))
+        return
+
+    console.print(f"[bold red]Unknown nexus action '{action}'.[/bold red] Use: status, audit, deceit, verify, ujit, deliberate")
+    raise typer.Exit(1)
+
+
 @cli.command("agent")
 def agent_cmd(
     prompt: Optional[str] = typer.Option(None, "-p", "--prompt", help="Execute single prompt non-interactively and exit (agy -p style)"),
     plan: Optional[str] = typer.Option(None, "--plan", help="Generate an autonomous execution plan for a task"),
     sandbox: bool = typer.Option(False, "--sandbox", "-s", help="Start agent in isolated SANDBOX mode"),
     full_access: bool = typer.Option(False, "--full-access", "-f", help="Start agent in unrestricted FULL ACCESS mode"),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Mount ModelHead at startup (e.g. clothos-anthropic)"),
+    anthropic: bool = typer.Option(False, "--anthropic", "-a", help="Mount clothos-anthropic bridge (zero API key required)"),
+    think: bool = typer.Option(False, "--think", "-t", help="Enable extended thinking stream"),
 ):
     """Starts the ClothOS Agentic Polyglot CLI Chatbot (Development, Data Science, Full Access / Sandbox)."""
-    from loom.clothos.agent_cli import ClothOSAgentEngine, ClothOSAgentREPL, ExecutionMode, console
+    from loom.clothos.agent_cli import ClothOSAgentEngine, ClothOSAgentREPL, ExecutionMode, ModelHead, ModelRouter, ThinkingStream, console
     from rich.markdown import Markdown
 
     ws = Path.cwd().resolve()
     mode = ExecutionMode.SANDBOX if sandbox else ExecutionMode.FULL_ACCESS
+    if think:
+        ThinkingStream.enable()
+    target_model = model or ("clothos-anthropic" if anthropic else None)
+    if target_model:
+        head = ModelHead.mount(target_model)
+        ModelRouter.set_mode(ModelRouter.MODE_MANUAL)
+        console.print(f"[bold green]⚙  Mounted:[/bold green] [cyan]{head.label}[/cyan] ({head.endpoint_url})")
 
     if plan:
         engine = ClothOSAgentEngine(ws, mode=mode)
@@ -1686,9 +1918,12 @@ def chat_cmd(
     prompt: Optional[str] = typer.Option(None, "-p", "--prompt", help="Execute single prompt non-interactively and exit"),
     sandbox: bool = typer.Option(False, "--sandbox", "-s", help="Start agent in isolated SANDBOX mode"),
     full_access: bool = typer.Option(False, "--full-access", "-f", help="Start agent in unrestricted FULL ACCESS mode"),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Mount ModelHead at startup"),
+    anthropic: bool = typer.Option(False, "--anthropic", "-a", help="Mount clothos-anthropic bridge"),
+    think: bool = typer.Option(False, "--think", "-t", help="Enable extended thinking stream"),
 ):
     """Interactive ClothOS Agentic Chatbot (Alias for 'loom agent')."""
-    agent_cmd(prompt=prompt, plan=None, sandbox=sandbox, full_access=full_access)
+    agent_cmd(prompt=prompt, plan=None, sandbox=sandbox, full_access=full_access, model=model, anthropic=anthropic, think=think)
 
 
 app = cli

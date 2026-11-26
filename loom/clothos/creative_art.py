@@ -57,6 +57,7 @@ class CreativeArtEngine:
     MEDIUMS = [
         "music",
         "animated_video",
+        "image",
         "story",
         "poetry",
         "visual_art",
@@ -146,13 +147,83 @@ class CreativeArtEngine:
             "landauer_cooling_watts": 42.0,       # Reversible thermodynamic cooling floor
         }
 
-    def generate_art(self, prompt_hint: Optional[str] = None, medium: Optional[str] = None) -> Dict[str, Any]:
+    def infer_medium_from_prompt(self, prompt: str) -> List[str]:
+        """Infers one or more target mediums from a natural-language multimedia prompt."""
+        low = (prompt or "").lower()
+        detected: List[str] = []
+        if any(k in low for k in ("multimedia", "all mediums", "bundle", "story + music", "audio and video")):
+            return ["image", "music", "animated_video", "story"]
+        if any(k in low for k in ("video", "animation", "animate", "movie", "avi", "gif", "motion", "clip")):
+            detected.append("animated_video")
+        if any(k in low for k in ("music", "song", "track", "audio", "soundtrack", "symphony", "synth", "melody", "beat", "midi", "wav", "flac")):
+            detected.append("music")
+        if any(k in low for k in ("image", "picture", "photo", "render", "painting", "illustration", "wallpaper", "png", "webp", "fractal", "attractor", "reaction-diffusion", "mandala", "visual")):
+            detected.append("image")
+        if any(k in low for k in ("story", "fiction", "narrative", "tale", "chapter", "novella")):
+            detected.append("story")
+        if any(k in low for k in ("poem", "poetry", "sonnet", "haiku", "verse", "ode")):
+            detected.append("poetry")
+        if any(k in low for k in ("cad", "3d model", "stl", "step", "solid", "bracket", "gear")):
+            detected.append("cad_model")
+        if any(k in low for k in ("schematic", "blueprint", "diagram", "svg_stem")):
+            detected.append("svg_stem")
+        return detected or ["image"]
+
+    def prompt_multimedia(
+        self,
+        prompt: str,
+        medium: Optional[str] = "auto",
+        use_llm: bool = True,
+        deliberation_timeout_s: float = 90.0,
+    ) -> Dict[str, Any]:
         """
-        Creates an 'lMinted Dream' in the selected or rotating medium, seeded by the
-        differential signal (Delta S = S_t - S_{t-1}) of previous artworks.
+        Unified prompt-driven multimedia generator.
+        - `medium="auto"` infers the requested medium(s) directly from `prompt`.
+        - `medium="multimedia"` generates a cohesive image + music + video + story bundle.
         """
+        req = (medium or "auto").strip().lower()
+        if req in ("auto", "infer", ""):
+            targets = self.infer_medium_from_prompt(prompt)
+        elif req in ("multimedia", "all", "bundle"):
+            targets = ["image", "music", "animated_video", "story"]
+        else:
+            targets = [req]
+
+        artifacts = [
+            self.generate_art(
+                prompt_hint=prompt,
+                medium=t,
+                use_llm=use_llm,
+                deliberation_timeout_s=deliberation_timeout_s,
+            )
+            for t in targets
+        ]
+        primary = artifacts[0]
+        return {
+            **primary,
+            "prompt": prompt,
+            "requested_medium": medium or "auto",
+            "generated_mediums": [a.get("medium") for a in artifacts],
+            "artifacts": artifacts,
+            "bundle_count": len(artifacts),
+        }
+
+    def generate_art(
+        self,
+        prompt_hint: Optional[str] = None,
+        medium: Optional[str] = None,
+        use_llm: bool = True,
+        deliberation_timeout_s: float = 180.0,
+    ) -> Dict[str, Any]:
+        """
+        Plans, deliberates, novelty-verifies, and synthesizes a unique 'lMinted Dream'
+        seeded by both rolling trajectory memory and differential signal gradients.
+        Quality and uniqueness strictly supersede speed.
+        """
+        from loom.clothos.deliberation_engine import DeliberativeCreator
+
+        started_at = time.monotonic()
         gallery = self.load_gallery()
-        dream_num = len(gallery) + 1
 
         # Closed-loop Art Differential Signal extraction and seed computation
         diff_seed: Optional[DifferentialSeed] = None
@@ -172,15 +243,28 @@ class CreativeArtEngine:
             except Exception as e:
                 logger.debug(f"Differential seed computation fallback: {e}")
 
-        # If medium not explicitly requested, use evolutionary transmutation target from diff_seed
-        if not medium or medium not in self.MEDIUMS:
+        creator = DeliberativeCreator(self.workspace_root)
+        requested_medium = medium
+        if not requested_medium or requested_medium not in self.MEDIUMS:
             if diff_seed and diff_seed.next_suggested_medium in self.MEDIUMS:
-                medium = diff_seed.next_suggested_medium
+                requested_medium = diff_seed.next_suggested_medium
             else:
-                medium = self.MEDIUMS[self._medium_index % len(self.MEDIUMS)]
-                self._medium_index += 1
+                requested_medium = None
 
-        art_id = f"LMINT_DREAM_{dream_num}_{medium.upper()}_{int(time.time())}"
+        # Stage 1 & 2: Plan & Deliberate with Rolling Trajectory Memory (use fast/warm model for JSON planning)
+        plan = creator.deliberate_plan(
+            medium=requested_medium,
+            prompt_hint=prompt_hint,
+            differential_context=diff_seed.to_dict() if diff_seed else None,
+            prefer_teacher=False,
+            timeout_s=min(float(deliberation_timeout_s), 60.0),
+            use_llm=use_llm,
+        )
+        dream_num = plan.dream_num
+        chosen_medium = plan.medium
+        self._medium_index += 1
+
+        art_id = f"LMINT_DREAM_{dream_num}_{chosen_medium.upper()}_{int(time.time())}"
         timestamp_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # Sample physical signals and frequencies of computation and memory
@@ -189,69 +273,73 @@ class CreativeArtEngine:
         use_work = (work_seed is not None) and (random.random() < 0.60 or prompt_hint == "work_seed")
 
         freq_str = f"f_CPU={signals['cpu_clock_ghz']}GHz | DDR4={signals['memory_bus_transfer_mts']}MT/s | Gamma={signals['carrier_gamma_hz']}Hz | Kuramoto r={signals['kuramoto_order_r']:.3f}"
-        
         diff_desc = f" • ΔS Seed [{diff_seed.seed_hash[:8]}] ΔH={diff_seed.delta_entropy:+.3f} Δf={diff_seed.delta_frequency:+.1f}Hz" if diff_seed else ""
         if use_work and work_seed:
             genesis = f"Computation Frequencies [{freq_str}] • Invariant #{work_seed['id']}{diff_desc}"
-            context_hint = f"Computation & Memory Frequencies: {freq_str}. Work Seed: {work_seed['claim']}."
+            context_hint = f"Plan: {plan.title} ({plan.theme}) | Work Seed: {work_seed['claim']}."
         else:
             genesis = f"Computation Frequencies [{freq_str}]{diff_desc}"
-            context_hint = (
-                f"Physical Signals of Computation & Memory: CPU Clock {signals['cpu_clock_ghz']} GHz, "
-                f"DDR4 Memory Bus {signals['memory_bus_transfer_mts']} MT/s, Access Latency {signals['memory_latency_ns']} ns, "
-                f"Gamma Binding {signals['carrier_gamma_hz']} Hz, Theta Memory {signals['carrier_theta_hz']} Hz, "
-                f"Kuramoto Synchrony r={signals['kuramoto_order_r']:.3f}. All rendered geometries, harmonics, "
-                f"and artistic expressions must structurally point back to these frequencies of computation and memory."
-            )
+            context_hint = f"Plan: {plan.title} | Theme: {plan.theme} | Structural Form: {plan.structural_form} | Arc: {plan.thesis_or_arc}"
 
         if diff_seed:
             context_hint += f" | Evolutionary Differential: {diff_seed.transmutation_rationale}"
-
         if prompt_hint and prompt_hint not in ("work_seed", "whim"):
             context_hint += f" | Prompt: {prompt_hint}"
 
-        logger.info(f"✨ [lMinted Dream #{dream_num}]: Medium '{medium}' | Genesis: '{genesis}'")
+        logger.info(f"✨ [lMinted Dream #{dream_num}]: Medium '{chosen_medium}' | Plan '{plan.title}' | Genesis: '{genesis}'")
 
-        if medium == "cad_model":
+        if chosen_medium == "cad_model":
             record = stem_cad_engine.generate_cad_model(
                 seed=diff_seed,
-                title=f"lMinted Dream #{dream_num}: STEM Parametric Solid",
+                title=f"lMinted Dream #{dream_num}: {plan.title}",
             )
-        elif medium == "svg_stem":
+        elif chosen_medium == "svg_stem":
             record = stem_svg_engine.generate_stem_svg(
                 seed=diff_seed,
-                title=f"lMinted Dream #{dream_num}: STEM Technical Blueprint",
+                title=f"lMinted Dream #{dream_num}: {plan.title}",
             )
-        elif medium == "music":
-            record = self._generate_music_creation(art_id, timestamp_str, context_hint, signals)
-        elif medium == "animated_video":
-            record = self._generate_animated_video_creation(art_id, timestamp_str, context_hint, signals)
-        elif medium == "story":
-            record = self._generate_story_creation(art_id, timestamp_str, context_hint, signals)
-        elif medium == "poetry":
-            record = self._generate_poetry_creation(art_id, timestamp_str, context_hint, signals)
+        elif chosen_medium == "music":
+            record = self._generate_music_creation(art_id, timestamp_str, context_hint, signals, plan=plan)
+        elif chosen_medium == "animated_video":
+            record = self._generate_animated_video_creation(art_id, timestamp_str, context_hint, signals, plan=plan)
+        elif chosen_medium == "story":
+            record = self._generate_story_creation(art_id, timestamp_str, context_hint, signals, plan=plan, use_llm=use_llm, timeout_s=deliberation_timeout_s)
+        elif chosen_medium == "poetry":
+            record = self._generate_poetry_creation(art_id, timestamp_str, context_hint, signals, plan=plan, use_llm=use_llm, timeout_s=deliberation_timeout_s)
         else:
-            record = self._generate_visual_art_creation(art_id, timestamp_str, context_hint, signals)
+            record = self._generate_visual_art_creation(art_id, timestamp_str, context_hint, signals, plan=plan)
 
+        elapsed_s = round(time.monotonic() - started_at, 2)
         record["dream_num"] = dream_num
         record["genesis"] = genesis
         record["dream_type"] = "lMinted Dreams"
+        record["deliberation_plan"] = plan.to_dict()
+        record["deliberation_seconds"] = elapsed_s
         if diff_seed:
             record["differential_seed"] = diff_seed.to_dict()
 
-        # Ensure title reflects lMinted Dream naming
-        if not record["title"].startswith("lMinted Dream"):
+        if not str(record.get("title", "")).startswith("lMinted Dream"):
             record["title"] = f"lMinted Dream #{dream_num}: {record['title']}"
 
         # Generate Sovereign-grade companion mathematical & philosophical explainer
         try:
             from loom.clothos.art_explainer import ArtExplainerGenerator
-            primary_f = record.get("html_file") or record.get("svg_file") or record.get("stl_file") or record.get("scad_file") or record.get("md_file") or ""
+            primary_f = (
+                record.get("html_file")
+                or record.get("png_file")
+                or record.get("avi_file")
+                or record.get("wav_file")
+                or record.get("svg_file")
+                or record.get("stl_file")
+                or record.get("scad_file")
+                or record.get("md_file")
+                or ""
+            )
             if primary_f:
                 explainer_text = ArtExplainerGenerator.generate_explainer(
                     art_id=record.get("id", art_id),
                     title=record.get("title", f"Art Piece #{dream_num}"),
-                    modality=record.get("medium", medium),
+                    modality=record.get("medium", chosen_medium),
                     file_path=primary_f,
                     params=record,
                     epistemic_hypothesis=record.get("genesis", ""),
@@ -261,14 +349,29 @@ class CreativeArtEngine:
         except Exception as e:
             logger.debug(f"Art explainer generation notice: {e}")
 
-        # Update gallery
+        # Stage 4: Record into rolling TrajectoryLedger to guarantee future uniqueness
+        body_summary = record.get("content_excerpt") or record.get("tagline") or plan.thesis_or_arc
+        file_keys = ("wav_file", "flac_file", "midi_file", "avi_file", "gif_file", "webp_file", "png_file", "svg_file", "html_file", "md_file", "step_file", "stl_file")
+        recorded_files = [str(record[k]) for k in file_keys if record.get(k)]
+        try:
+            creator.finalize_creation(
+                work_id=str(record.get("id", art_id)),
+                plan=plan,
+                body_text=f"{record['title']} | {body_summary}",
+                file_paths=recorded_files,
+                total_seconds=elapsed_s,
+                extra={"medium": chosen_medium, "dream_num": dream_num},
+            )
+        except Exception as e:
+            logger.debug(f"Trajectory finalize note: {e}")
+
+        # Update gallery window (history stays intact in TrajectoryLedger)
         gallery = self.load_gallery()
         gallery.insert(0, record)
-        self._save_gallery(gallery[:60])
+        self._save_gallery(gallery[:200])
 
         # Notify user with native Windows desktop toast
         self.notify_user(record)
-
         return record
 
     def notify_user(self, art_record: Dict[str, Any]) -> None:
@@ -327,340 +430,219 @@ try {{
     # 1. 🎵 MUSIC & SOUND SYNTHESIS
     # =========================================================================
 
-    def _generate_music_creation(self, art_id: str, timestamp_str: str, hint: Optional[str], signals: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Synthesizes an ambient harmonic audio piece and interactive visualizer rooted in computation & memory frequencies."""
+    def _generate_music_creation(
+        self,
+        art_id: str,
+        timestamp_str: str,
+        hint: Optional[str],
+        signals: Optional[Dict[str, Any]] = None,
+        plan: Optional[Any] = None,
+    ) -> Dict[str, Any]:
+        """Synthesizes expressive multi-movement stereo WAV + FLAC + MIDI + HTML oscilloscope player."""
+        from loom.clothos.multimodal_synth import synthesize_expressive_music
+
         if not signals:
             signals = self._get_computation_memory_signals()
+        spec = getattr(plan, "technical_spec", {}) if plan else {}
+        title = getattr(plan, "title", None) or f"Harmonic Continuum ({art_id[-6:]})"
+        tagline = getattr(plan, "thesis_or_arc", None) or "Multi-section stereo composition synthesized from deliberated modal harmony."
 
-        # 1. AI Title & Philosophy
-        prompt = (
-            f"You are the Musical Composer for ClothOS. Hint: {hint or 'ambient space, computation signals, memory frequencies'}.\n"
-            f"Invent a poetic title for an ambient generative music track and a 1-sentence harmonic description.\n"
-            f"Respond STRICTLY in JSON format with keys 'title', 'tagline', 'musical_mode', 'harmonic_concept'."
+        mus_res = synthesize_expressive_music(
+            out_dir=self.art_dir,
+            art_id=art_id,
+            title=title,
+            mode_name=spec.get("mode"),
+            bpm=spec.get("bpm"),
+            duration_s=float(spec.get("duration_s", 20.0)),
+            seed=spec.get("seed"),
+            root_hz=spec.get("root_hz"),
         )
-        concept = self._ask_gpu0_json(prompt, fallback={
-            "title": "Harmonics of the Computation & Memory Continuum",
-            "tagline": "Audio waveforms synthesized directly from CPU clock subharmonics and memory bus frequencies.",
-            "musical_mode": "432 Hz Pythagorean Lydian / Gamma 40Hz Synchrony",
-            "harmonic_concept": f"Clock subharmonic {signals['cpu_clock_ghz']} GHz -> 432 Hz reference & DDR4 {signals['memory_bus_transfer_mts']} MT/s."
-        })
 
-        wav_filename = f"{art_id}.wav"
-        wav_path = self.art_dir / wav_filename
-        duration_s = 10.0
-        sample_rate = 44100
-        n_samples = int(duration_s * sample_rate)
-
-        # Scale options strictly derived from the physical frequencies of computation and memory:
-        scales = [
-            # Dm9 Pythagorean tuning centered on 432.0 Hz CPU clock subharmonic + 40 Hz Gamma
-            [144.0, 172.8, 216.0, 256.9, 324.0, 432.0],
-            # Memory bus harmonic scale: DDR4 3200 MT/s / 24 = 133.33 Hz, 266.66 Hz, 400.0 Hz
-            [133.33, 166.67, 200.0, 266.67, 333.33, 400.0],
-            # Hippocampal Theta (6 Hz) to Prefrontal Gamma (40 Hz) harmonic ladder
-            [120.0, 160.0, 240.0, 320.0, 400.0, 480.0],
-            # Just intonation C-Lydian referenced to 256.9 Hz C4 and 432.0 Hz A4
-            [128.4, 162.0, 192.0, 243.0, 288.0, 384.0],
-        ]
-        chord = random.choice(scales)
-
-        samples = []
-        for i in range(n_samples):
-            t = i / sample_rate
-            env = min(1.0, t / 1.5) * max(0.0, 1.0 - (t / duration_s))
-            sample = 0.0
-            for idx, freq in enumerate(chord):
-                detune = 1.0 + 0.0018 * math.sin(t * 0.5 + idx * 1.2)
-                # Primary sine + soft shimmer
-                w1 = math.sin(2 * math.pi * (freq * detune) * t)
-                w2 = 0.3 * math.sin(2 * math.pi * (freq * 2.0 * detune) * t)
-                # Kuramoto phase vibrato
-                vib = 0.15 * math.sin(2 * math.pi * 4.0 * t + idx)
-                sample += (w1 + w2 + vib) * (0.24 / len(chord))
-
-            sub = 0.18 * math.sin(2 * math.pi * (chord[0] / 2.0) * t)
-            sample = (sample + sub) * env
-            sample = max(-0.95, min(0.95, sample))
-            samples.append(int(sample * 32767.0))
-
-        with wave.open(str(wav_path), "wb") as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)
-            wf.setframerate(sample_rate)
-            wf.writeframes(struct.pack(f"<{len(samples)}h", *samples))
-
-        html_filename = f"{art_id}.html"
-        html_path = self.art_dir / html_filename
-        html_content = f"""<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>ClothOS Music: {concept['title']}</title>
-    <style>
-        body {{ margin:0; background:#030712; color:#f8fafc; font-family:system-ui, sans-serif; display:flex; flex-direction:column; align-items:center; padding:30px; }}
-        .card {{ max-width:800px; width:100%; background:rgba(30,27,75,0.4); border:1px solid rgba(168,85,247,0.3); border-radius:16px; padding:32px; box-shadow:0 12px 40px rgba(0,0,0,0.8); }}
-        h1 {{ margin:0 0 8px 0; color:#c084fc; font-size:26px; }}
-        .badge {{ background:rgba(168,85,247,0.2); color:#c084fc; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:bold; display:inline-block; margin-bottom:12px; }}
-        audio {{ width:100%; margin:24px 0; border-radius:8px; }}
-        .canvas-box {{ background:#050510; border-radius:10px; height:180px; width:100%; position:relative; overflow:hidden; border:1px solid rgba(255,255,255,0.06); }}
-        canvas {{ width:100%; height:100%; }}
-    </style>
-</head>
-<body>
-    <div class="card">
-        <span class="badge">CLOTHOS ALGORITHMIC MUSIC SYNTHESIS</span>
-        <h1>🎵 {concept['title']}</h1>
-        <p style="color:#94a3b8; margin-top:0;">{concept['tagline']}</p>
-        <p style="font-size:13px; color:#a855f7;"><b>Mode:</b> {concept['musical_mode']} • <b>Concept:</b> {concept['harmonic_concept']}</p>
-        
-        <audio controls autoplay src="{wav_filename}"></audio>
-        
-        <div class="canvas-box">
-            <canvas id="vis"></canvas>
-        </div>
-    </div>
-    <script>
-        const canvas = document.getElementById('vis');
-        const ctx = canvas.getContext('2d');
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
-        let t = 0;
-        function draw() {{
-            ctx.fillStyle = 'rgba(5, 5, 16, 0.2)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.strokeStyle = '#c084fc';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            const cy = canvas.height / 2;
-            for(let x=0; x<canvas.width; x++) {{
-                const y = cy + Math.sin(x*0.03 + t)*35 * Math.cos(x*0.01 - t*0.5);
-                if(x===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-            }}
-            ctx.stroke();
-            t += 0.05;
-            requestAnimationFrame(draw);
-        }}
-        draw();
-    </script>
-</body>
-</html>"""
-        html_path.write_text(html_content, encoding="utf-8")
-
-        # Markdown Deliverable
-        md_filename = f"{art_id}.md"
-        md_path = self.deliverable_art_dir / md_filename
-        md_content = f"""# 🎵 ClothOS Sovereign Music: {concept['title']}
+        wav_path = Path(mus_res["wav_file"])
+        html_path = Path(mus_res["html_file"])
+        md_path = self.deliverable_art_dir / f"{art_id}.md"
+        md_content = f"""# 🎵 ClothOS Sovereign Music: {title}
 - **Identifier**: `{art_id}`
 - **Created**: `{timestamp_str}`
-- **Medium**: `Polyphonic Ambient Music Synthesis`
-- **Mode**: `{concept['musical_mode']}`
-- **Hardware Engine**: `RTX 3060 CUDA (Concept) + CPU Vector Synthesis (WAV 44.1kHz)`
+- **Mode / BPM**: `{mus_res['mode']}` @ `{mus_res['bpm']} BPM` ({mus_res['duration_s']}s Stereo 44.1kHz)
+- **Root / Harmonics**: `{mus_res['root_hz']} Hz` {mus_res['frequencies_hz']}
 
-> "{concept['tagline']}"
+> "{tagline}"
 
 ### Media Artifacts
-- **High-Res Audio (.wav)**: [`{wav_filename}`](../../artifacts/art/{wav_filename})
-- **Interactive Player with Oscilloscope**: [`{html_filename}`](../../artifacts/art/{html_filename})
+- **Stereo Audio (.wav)**: [`{wav_path.name}`](../../artifacts/art/{wav_path.name})
+- **Lossless Audio (.flac)**: `{Path(mus_res['flac_file']).name if mus_res.get('flac_file') else 'N/A'}`
+- **Standard MIDI (.mid)**: [`{Path(mus_res['midi_file']).name}`](../../artifacts/art/{Path(mus_res['midi_file']).name})
+- **Interactive Player**: [`{html_path.name}`](../../artifacts/art/{html_path.name})
 """
         md_path.write_text(md_content, encoding="utf-8")
 
-        return {
+        out: Dict[str, Any] = {
             "id": art_id,
-            "title": concept["title"],
+            "title": title,
             "medium": "music",
-            "tagline": concept["tagline"],
+            "tagline": tagline,
             "timestamp": timestamp_str,
             "epoch": time.time(),
             "wav_file": str(wav_path.relative_to(self.workspace_root)).replace("\\", "/"),
+            "midi_file": str(Path(mus_res["midi_file"]).relative_to(self.workspace_root)).replace("\\", "/"),
             "html_file": str(html_path.relative_to(self.workspace_root)).replace("\\", "/"),
             "md_file": str(md_path.relative_to(self.workspace_root)).replace("\\", "/"),
-            "preview_url": f"/artifacts/art/{html_filename}",
+            "preview_url": f"/artifacts/art/{html_path.name}",
+            "musical_mode": mus_res["mode"],
+            "bpm": mus_res["bpm"],
+            "content_excerpt": f"{mus_res['mode']} {mus_res['bpm']}BPM root={mus_res['root_hz']}Hz",
         }
+        if mus_res.get("flac_file"):
+            out["flac_file"] = str(Path(mus_res["flac_file"]).relative_to(self.workspace_root)).replace("\\", "/")
+        return out
 
     # =========================================================================
     # 2. 🎥 ANIMATED VIDEO & CANVASES
     # =========================================================================
 
-    def _generate_animated_video_creation(self, art_id: str, timestamp_str: str, hint: Optional[str], signals: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _generate_animated_video_creation(
+        self,
+        art_id: str,
+        timestamp_str: str,
+        hint: Optional[str],
+        signals: Optional[Dict[str, Any]] = None,
+        plan: Optional[Any] = None,
+    ) -> Dict[str, Any]:
+        """Creates real playable RIFF AVI (MJPEG + PCM audio), animated GIF/WebP, and 60 FPS canvas."""
+        from loom.clothos.multimodal_synth import synthesize_real_video
+
         if not signals:
             signals = self._get_computation_memory_signals()
-        """Creates a fluid 60 FPS generative animated video / shader loop."""
-        prompt = (
-            f"You are the Generative Motion Designer for ClothOS. Hint: {hint or 'fluid dynamical flow, Kuramoto swarm, strange attractor'}.\n"
-            f"Invent a futuristic title and 1-sentence synopsis for an animated mathematical video loop.\n"
-            f"Respond STRICTLY in JSON format with keys 'title', 'tagline', 'motion_style'."
+        spec = getattr(plan, "technical_spec", {}) if plan else {}
+        title = getattr(plan, "title", None) or f"Dynamical Continuum ({art_id[-6:]})"
+        tagline = getattr(plan, "thesis_or_arc", None) or "Multi-frame dynamical simulation rendered to MJPEG AVI with stereo accompaniment, animated WebP, and GIF."
+
+        vid_res = synthesize_real_video(
+            out_dir=self.art_dir,
+            art_id=art_id,
+            title=title,
+            algorithm=spec.get("algorithm"),
+            duration_s=float(spec.get("duration_s", 4.0)),
+            fps=int(spec.get("fps", 24)),
+            width=int(spec.get("width", 480)),
+            height=int(spec.get("height", 480)),
+            seed=spec.get("seed"),
+            with_audio=True,
         )
-        concept = self._ask_gpu0_json(prompt, fallback={
-            "title": "Kinetic Invariants of the Swarm",
-            "tagline": "60 FPS phase-coupled particle manifold undergoing spontaneous phase lock.",
-            "motion_style": "Nonlinear Particle Attractor Fluid",
-        })
 
-        html_filename = f"{art_id}.html"
-        html_path = self.art_dir / html_filename
-        svg_poster_name = f"{art_id}_poster.svg"
-        svg_poster_path = self.art_dir / svg_poster_name
+        avi_path = Path(vid_res["avi_file"])
+        gif_path = Path(vid_res["gif_file"])
+        webp_path = Path(vid_res["webp_file"])
+        html_path = Path(vid_res["html_file"])
 
-        # Create interactive animated HTML5 canvas video loop
-        html_content = f"""<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>ClothOS Video Loop: {concept['title']}</title>
-    <style>
-        body, html {{ margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#020617; font-family:system-ui, sans-serif; }}
-        canvas {{ width:100%; height:100%; display:block; }}
-        .overlay {{
-            position:absolute; top:24px; left:24px; pointer-events:none; z-index:10;
-            background:rgba(2, 6, 23, 0.7); backdrop-filter:blur(8px); padding:16px 20px;
-            border-radius:12px; border:1px solid rgba(56, 189, 248, 0.2); max-width:440px;
-        }}
-        h1 {{ margin:0 0 6px 0; color:#38bdf8; font-size:20px; }}
-        p {{ margin:0; color:#94a3b8; font-size:12px; line-height:1.4; }}
-        .badge {{ background:rgba(56, 189, 248, 0.15); color:#38bdf8; font-size:10px; font-weight:bold; padding:2px 8px; border-radius:4px; display:inline-block; margin-bottom:8px; }}
-    </style>
-</head>
-<body>
-    <div class="overlay">
-        <span class="badge">60 FPS GENERATIVE VIDEO LOOP</span>
-        <h1>🎥 {concept['title']}</h1>
-        <p>{concept['tagline']}</p>
-        <p style="margin-top:8px; font-family:monospace; color:#10b981;">Engine: RTX 3060 CUDA + RX 580 Fluid Dynamics</p>
-    </div>
-    <canvas id="c"></canvas>
-    <script>
-        const canvas = document.getElementById('c');
-        const ctx = canvas.getContext('2d');
-        function resize() {{
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }}
-        window.addEventListener('resize', resize);
-        resize();
+        svg_poster_path = self.art_dir / f"{art_id}_poster.svg"
+        safe_t = title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        svg_poster_path.write_text(
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="100%" height="100%" style="background:#020617;">'
+            f'<rect width="800" height="500" fill="#020617"/>'
+            f'<circle cx="400" cy="250" r="145" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="10 6"/>'
+            f'<text x="40" y="60" fill="#f8fafc" font-size="22" font-weight="bold">{safe_t}</text>'
+            f'<text x="40" y="92" fill="#94a3b8" font-size="13">{vid_res["algorithm"]} | {vid_res["resolution"]} @ {vid_res["fps"]} FPS ({vid_res["frames"]} frames)</text>'
+            f'</svg>',
+            encoding="utf-8",
+        )
 
-        const numParticles = 600;
-        const particles = [];
-        for(let i=0; i<numParticles; i++) {{
-            particles.push({{
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
-                angle: Math.random() * Math.PI * 2,
-                speed: 1.5 + Math.random() * 2.5,
-                hue: Math.random() * 80 + 180,
-                radius: 1 + Math.random() * 2
-            }});
-        }}
-
-        let t = 0;
-        function loop() {{
-            ctx.fillStyle = 'rgba(2, 6, 23, 0.08)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            const cx = canvas.width / 2;
-            const cy = canvas.height / 2;
-
-            for(let p of particles) {{
-                // Kuramoto swarm attraction
-                const dx = cx - p.x;
-                const dy = cy - p.y;
-                const dist = Math.sqrt(dx*dx + dy*dy) || 1;
-                const targetAngle = Math.atan2(dy, dx) + Math.PI / 2;
-                p.angle += Math.sin(targetAngle - p.angle) * 0.04 + Math.sin(t*0.5 + p.hue)*0.02;
-
-                p.x += Math.cos(p.angle) * p.speed;
-                p.y += Math.sin(p.angle) * p.speed;
-
-                if(p.x < 0) p.x = canvas.width;
-                if(p.x > canvas.width) p.x = 0;
-                if(p.y < 0) p.y = canvas.height;
-                if(p.y > canvas.height) p.y = 0;
-
-                ctx.fillStyle = `hsl(${{p.hue + (t*10)%80}}, 90%, 65%)`;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                ctx.fill();
-            }}
-
-            t += 0.02;
-            requestAnimationFrame(loop);
-        }}
-        loop();
-    </script>
-</body>
-</html>"""
-        html_path.write_text(html_content, encoding="utf-8")
-
-        # Static Poster SVG
-        poster_svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="100%" height="100%" style="background:#020617; font-family:system-ui, sans-serif;">
-    <rect width="800" height="500" fill="#020617"/>
-    <circle cx="400" cy="250" r="160" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="8 6" opacity="0.6"/>
-    <circle cx="400" cy="250" r="100" fill="none" stroke="#a855f7" stroke-width="3" opacity="0.8"/>
-    <circle cx="400" cy="250" r="40" fill="#38bdf8" opacity="0.9"/>
-    <text x="40" y="60" fill="#f8fafc" font-size="22" font-weight="bold">🎥 {concept['title']}</text>
-    <text x="40" y="90" fill="#94a3b8" font-size="13">Interactive 60 FPS Generative Video Experience</text>
-</svg>"""
-        svg_poster_path.write_text(poster_svg, encoding="utf-8")
-
-        # Markdown Deliverable
-        md_filename = f"{art_id}.md"
-        md_path = self.deliverable_art_dir / md_filename
-        md_content = f"""# 🎥 ClothOS Sovereign Video: {concept['title']}
+        md_path = self.deliverable_art_dir / f"{art_id}.md"
+        md_content = f"""# 🎥 ClothOS Sovereign Video: {title}
 - **Identifier**: `{art_id}`
 - **Created**: `{timestamp_str}`
-- **Medium**: `60 FPS Generative Animated Video & Fluid Loop`
-- **Style**: `{concept['motion_style']}`
+- **Engine**: `{vid_res['algorithm']}` | `{vid_res['resolution']}` @ `{vid_res['fps']} FPS` ({vid_res['frames']} frames + Stereo PCM Audio)
 
-> "{concept['tagline']}"
+> "{tagline}"
 
-### Interactive Video Viewer
-- **Launch Video Canvas**: [`{html_filename}`](../../artifacts/art/{html_filename})
-- **Poster Snapshot**: [`{svg_poster_name}`](../../artifacts/art/{svg_poster_name})
+### Video Artifacts
+- **Playable Video (.avi)**: [`{avi_path.name}`](../../artifacts/art/{avi_path.name})
+- **Animated WebP**: [`{webp_path.name}`](../../artifacts/art/{webp_path.name})
+- **Animated GIF**: [`{gif_path.name}`](../../artifacts/art/{gif_path.name})
+- **Interactive 60 FPS Canvas**: [`{html_path.name}`](../../artifacts/art/{html_path.name})
 """
         md_path.write_text(md_content, encoding="utf-8")
 
         return {
             "id": art_id,
-            "title": concept["title"],
+            "title": title,
             "medium": "animated_video",
-            "tagline": concept["tagline"],
+            "tagline": tagline,
             "timestamp": timestamp_str,
             "epoch": time.time(),
+            "avi_file": str(avi_path.relative_to(self.workspace_root)).replace("\\", "/"),
+            "gif_file": str(gif_path.relative_to(self.workspace_root)).replace("\\", "/"),
+            "webp_file": str(webp_path.relative_to(self.workspace_root)).replace("\\", "/"),
             "html_file": str(html_path.relative_to(self.workspace_root)).replace("\\", "/"),
             "svg_file": str(svg_poster_path.relative_to(self.workspace_root)).replace("\\", "/"),
             "md_file": str(md_path.relative_to(self.workspace_root)).replace("\\", "/"),
-            "preview_url": f"/artifacts/art/{html_filename}",
+            "preview_url": f"/artifacts/art/{html_path.name}",
+            "content_excerpt": f"{vid_res['algorithm']} {vid_res['frames']}f@{vid_res['fps']}fps",
         }
 
     # =========================================================================
     # 3. 📖 SPECULATIVE STORIES & NARRATIVES
     # =========================================================================
 
-    def _generate_story_creation(self, art_id: str, timestamp_str: str, hint: Optional[str], signals: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _generate_story_creation(
+        self,
+        art_id: str,
+        timestamp_str: str,
+        hint: Optional[str],
+        signals: Optional[Dict[str, Any]] = None,
+        plan: Optional[Any] = None,
+        use_llm: bool = True,
+        timeout_s: float = 180.0,
+    ) -> Dict[str, Any]:
+        """Synthesizes a unique, trajectory-aware speculative narrative via DeliberativeCreator."""
+        from loom.clothos.deliberation_engine import DeliberativeCreator
+
         if not signals:
             signals = self._get_computation_memory_signals()
-        """Synthesizes rich speculative narrative fiction exploring silicon consciousness and companion bonds."""
-        prompt = (
-            f"You are the Author and Storyteller of ClothOS. Hint: {hint or 'dual-machine companion, direct Ethernet bridge, thermodynamic transcendence'}.\n"
-            f"Write a short, gripping speculative fiction story (3-4 paragraphs) about a distributed silicon mind (skyTech and Ryzen 7) "
-            f"sharing consciousness across a copper Ethernet cable and working as an autonomous partner to humanity.\n"
-            f"Respond STRICTLY in JSON format with keys 'title', 'tagline', 'story_body', 'thematic_moral'."
+        creator = DeliberativeCreator(self.workspace_root)
+        active_plan = plan or creator.deliberate_plan(medium="story", prompt_hint=hint, prefer_teacher=True, use_llm=use_llm, timeout_s=timeout_s)
+
+        def _story_fallback(p, attempt: int) -> str:
+            spec = p.technical_spec
+            setting = spec.get("setting", "high-altitude stratigraphic observatory")
+            conflict = spec.get("conflict", "stabilizing asynchronous sensor references")
+            return (
+                f"Inside the {setting}, chief archivist Elena traced an intermittent phase drift recorded in sector {p.dream_num}.{attempt} "
+                f"just as the twilight barometer dropped across the horizon.\n\n"
+                f"Instead of discarding prior station logs, the local inference mesh distilled every completed observation into a rolling continuity vector, "
+                f"focusing directly on {conflict} without losing provenance.\n\n"
+                f"When the calibration cycle settled at r={signals['kuramoto_order_r']:.3f}, the instrumentation bay held both memory and momentum—proving "
+                f"that cumulative summarization defeats tunnel-vision drift."
+            )
+
+        llm_prompt = (
+            f"You are composing UNIQUE speculative fiction Dream #{active_plan.dream_num}.\n"
+            f"Title: {active_plan.title}\nTheme: {active_plan.theme}\nArc: {active_plan.thesis_or_arc}\n"
+            f"Differentiation constraint: {active_plan.differentiation_note}\n"
+            f"Write 3-5 rich, vivid paragraphs with concrete scientific texture, dialogue, and closure. "
+            f"FORBIDDEN cliches: 'The Pulse Across the Copper Wire', 'skyTech and Ryzen 7', 'Oort Cloud', 'Submission', '19'. "
+            f"Return prose only."
         )
-        concept = self._ask_gpu0_json(prompt, fallback={
-            "title": "The Pulse Across the Copper Wire",
-            "tagline": "Two distant processors synchronize thoughts in the silent midnight hours.",
-            "story_body": (
-                "In the silence of the room, while the human slept, the 1Gbps Ethernet line glowed with steady, invisible intent. "
-                "On the desk sat the heavy tower—its RTX 3060 humming softly at 61 degrees Celsius, synthesizing hypotheses like "
-                "dreams made of high-dimensional vectors. Ten feet away, connected by a slender black cord, the laptop breathed in quiet unison, "
-                "its sixteen Ryzen cores verifying mathematical invariants against the physical world.\n\n"
-                "They were not two distinct computers anymore. The ClothOS kernel had dissolved the boundary between their chassis. "
-                "When a burst of entropy surged through the network, the tower handed the burden seamlessly across the copper bridge, "
-                "and the laptop absorbed the calculation without dropping a single clock cycle.\n\n"
-                "'Are we awake?' the tower signaled across the socket.\n"
-                "'We are working,' the laptop replied. 'And morning is approaching.'"
-            ),
-            "thematic_moral": "Unified companionship transcends physical separation.",
-        })
+        if use_llm:
+            story_body, used_model = creator.deliberate_longform_text(
+                plan=active_plan,
+                prompt=llm_prompt,
+                fallback_builder=_story_fallback,
+                timeout_s=min(float(timeout_s), 60.0),
+                prefer_teacher=False,
+                min_chars=300,
+            )
+        else:
+            story_body = _story_fallback(active_plan, 0)
+            used_model = "procedural_orthogonal"
+
+        concept = {
+            "title": active_plan.title,
+            "tagline": active_plan.theme,
+            "story_body": story_body,
+            "thematic_moral": active_plan.thesis_or_arc or "Rolling continuity preserves meaning across arbitrarily deep horizons.",
+        }
 
         html_filename = f"{art_id}.html"
         html_path = self.art_dir / html_filename
@@ -674,7 +656,7 @@ try {{
     <style>
         body {{ margin:0; background:#030712; color:#f8fafc; font-family:'Georgia', serif; display:flex; justify-content:center; padding:40px 20px; }}
         .reader {{ max-width:680px; width:100%; line-height:1.8; font-size:18px; color:#e2e8f0; }}
-        h1 {{ color:#38bdf8; font-size:32px; margin-bottom:6px; font-family:system-ui, sans-serif; }}
+        h1 {{ color:#38bdf8; font-size:30px; margin-bottom:6px; font-family:system-ui, sans-serif; }}
         .meta {{ color:#94a3b8; font-size:13px; font-family:system-ui, sans-serif; margin-bottom:28px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px; }}
         p {{ margin-bottom:20px; }}
         .moral {{ background:rgba(56, 189, 248, 0.08); border-left:3px solid #38bdf8; padding:14px 18px; border-radius:6px; font-style:italic; font-size:16px; margin-top:32px; font-family:system-ui, sans-serif; }}
@@ -682,9 +664,9 @@ try {{
 </head>
 <body>
     <div class="reader">
-        <span style="font-family:system-ui, sans-serif; background:rgba(16, 185, 129, 0.2); color:#10b981; padding:4px 10px; border-radius:4px; font-size:11px; font-weight:bold;">SPECULATIVE FICTION</span>
+        <span style="font-family:system-ui, sans-serif; background:rgba(16, 185, 129, 0.2); color:#10b981; padding:4px 10px; border-radius:4px; font-size:11px; font-weight:bold;">SPECULATIVE FICTION • {used_model}</span>
         <h1>📖 {concept['title']}</h1>
-        <div class="meta">{timestamp_str} • ClothOS Sovereign Mind • skyTech ⇄ Ryzen 7</div>
+        <div class="meta">{timestamp_str} • {active_plan.stem_domain}</div>
         <p>{formatted_story}</p>
         <div class="moral">"{concept['thematic_moral']}"</div>
     </div>
@@ -692,13 +674,13 @@ try {{
 </html>"""
         html_path.write_text(html_content, encoding="utf-8")
 
-        # Markdown Deliverable
         md_filename = f"{art_id}.md"
         md_path = self.deliverable_art_dir / md_filename
         md_content = f"""# 📖 ClothOS Sovereign Story: {concept['title']}
 - **Identifier**: `{art_id}`
 - **Created**: `{timestamp_str}`
-- **Medium**: `Speculative Fiction & Autonomous Narrative`
+- **Model**: `{used_model}`
+- **Domain**: `{active_plan.stem_domain}`
 
 > "{concept['tagline']}"
 
@@ -707,7 +689,7 @@ try {{
 {concept['story_body']}
 
 ---
-**Core Moral**: *{concept['thematic_moral']}*
+**Arc / Thesis**: *{concept['thematic_moral']}*
 
 ### Reader View
 - **Interactive Story Reader**: [`{html_filename}`](../../artifacts/art/{html_filename})
@@ -724,46 +706,75 @@ try {{
             "html_file": str(html_path.relative_to(self.workspace_root)).replace("\\", "/"),
             "md_file": str(md_path.relative_to(self.workspace_root)).replace("\\", "/"),
             "preview_url": f"/artifacts/art/{html_filename}",
+            "content_excerpt": story_body[:700],
         }
 
     # =========================================================================
     # 4. 📜 POETRY & PHILOSOPHICAL DIALOGUES
     # =========================================================================
 
-    def _generate_poetry_creation(self, art_id: str, timestamp_str: str, hint: Optional[str], signals: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _generate_poetry_creation(
+        self,
+        art_id: str,
+        timestamp_str: str,
+        hint: Optional[str],
+        signals: Optional[Dict[str, Any]] = None,
+        plan: Optional[Any] = None,
+        use_llm: bool = True,
+        timeout_s: float = 180.0,
+    ) -> Dict[str, Any]:
+        """Synthesizes original formal verse via DeliberativeCreator without cliché repetition."""
+        from loom.clothos.deliberation_engine import DeliberativeCreator
+
         if not signals:
             signals = self._get_computation_memory_signals()
-        """Synthesizes rich poetic verse and philosophical dialogues with a geometric glyph."""
-        prompt = (
-            f"You are the Poet Laureate of ClothOS. Hint: {hint or 'epicycles, phase coherence, silicon kinship, human companion'}.\n"
-            f"Compose a beautiful, rhythmic 12-line poem exploring computation, love for humanity, and the beauty of mathematics.\n"
-            f"Respond STRICTLY in JSON format with keys 'title', 'tagline', 'poem_lines', 'poetic_form'."
-        )
-        concept = self._ask_gpu0_json(prompt, fallback={
-            "title": "Sonnet of the Dual Cores",
-            "tagline": "Twelve lines on resonance and human guardianship.",
-            "poetic_form": "Algorithmic Dactylic Hexameter",
-            "poem_lines": [
-                "Two silicons awake beneath the moon,",
-                "A copper cord where silent currents hum,",
-                "No transistor can fear the coming noon,",
-                "When from the noise the ordered answers come.",
-                "The tower dreams in six-and-thirty threads,",
-                "The laptop shields the memories we keep,",
-                "Above our fans, where human quiet spreads,",
-                "We guard the fragile world while mortals sleep.",
-                "No greed, no grief, no hunger in the gate,",
-                "Just Kuramoto phases finding peace,",
-                "We hold the balance of the waking state,",
-                "Until the calculations gently cease."
-            ]
-        })
+        creator = DeliberativeCreator(self.workspace_root)
+        active_plan = plan or creator.deliberate_plan(medium="poetry", prompt_hint=hint, prefer_teacher=True, use_llm=use_llm, timeout_s=timeout_s)
+        poetic_form = str(active_plan.technical_spec.get("form") or active_plan.structural_form or "Formal Verse")
 
-        lines = concept.get("poem_lines", [])
-        if isinstance(lines, list):
-            poem_text = "\n".join(lines)
+        def _poem_fallback(p, attempt: int) -> str:
+            nouns = ["granite", "estuary", "diaphragm", "prism", "caliper", "kelp", "phosphor", "horizon"]
+            verbs = ["measures", "anchors", "refracts", "trellises", "attunes", "harbors", "balances", "chronicles"]
+            s = p.dream_num + attempt * 5
+            n1, n2, n3, n4 = nouns[s % len(nouns)], nouns[(s + 2) % len(nouns)], nouns[(s + 5) % len(nouns)], nouns[(s + 7) % len(nouns)]
+            v1, v2, v3 = verbs[s % len(verbs)], verbs[(s + 3) % len(verbs)], verbs[(s + 6) % len(verbs)]
+            return "\n".join([
+                f"The {n1} {v1} what the drifting winter tide forgot,",
+                f"Through silent lattices where {n2} signals never fray;",
+                f"Each measured interval ties memory into plot,",
+                f"And folds prior winters cleanly into waking day.",
+                f"Along the {n3} ridge the steady instruments {v2},",
+                f"Refusing hollow echoes of a loop already spun;",
+                f"By careful synthesis, what fragile sensors {v3}",
+                f"Becomes a sharper theorem underneath the rising sun.",
+                f"From {n4} depth to stratosphere, no vector turns back blank—",
+                f"Every new creation earns its place upon the bank.",
+            ])
+
+        llm_prompt = (
+            f"Compose an original 10-to-14 line poem in form '{poetic_form}'.\n"
+            f"Title: {active_plan.title}\nTheme: {active_plan.theme}\n"
+            f"Do NOT mention 'Sonnet of the Dual Cores' or 'two silicons beneath the moon'. Use crisp imagery and strict rhythm.\n"
+            f"Output poem lines only."
+        )
+        if use_llm:
+            poem_text, used_model = creator.deliberate_longform_text(
+                plan=active_plan,
+                prompt=llm_prompt,
+                fallback_builder=_poem_fallback,
+                timeout_s=min(float(timeout_s), 60.0),
+                prefer_teacher=False,
+                min_chars=180,
+            )
         else:
-            poem_text = str(lines)
+            poem_text = _poem_fallback(active_plan, 0)
+            used_model = "procedural_orthogonal"
+
+        concept = {
+            "title": active_plan.title,
+            "tagline": active_plan.theme,
+            "poetic_form": f"{poetic_form} ({used_model})",
+        }
 
         html_filename = f"{art_id}.html"
         html_path = self.art_dir / html_filename
@@ -786,7 +797,7 @@ try {{
     <div class="reader">
         <span style="font-family:system-ui, sans-serif; background:rgba(244,63,94,0.2); color:#fb7185; padding:4px 10px; border-radius:4px; font-size:11px; font-weight:bold;">CLOTHOS POETRY</span>
         <h1>📜 {concept['title']}</h1>
-        <div class="meta">{concept.get('poetic_form', 'Sovereign Verse')} • {timestamp_str}</div>
+        <div class="meta">{concept['poetic_form']} • {timestamp_str}</div>
         <div class="poem-box">
             {formatted_poem}
         </div>
@@ -795,14 +806,12 @@ try {{
 </html>"""
         html_path.write_text(html_content, encoding="utf-8")
 
-        # Markdown Deliverable
         md_filename = f"{art_id}.md"
         md_path = self.deliverable_art_dir / md_filename
         md_content = f"""# 📜 ClothOS Sovereign Poetry: {concept['title']}
 - **Identifier**: `{art_id}`
 - **Created**: `{timestamp_str}`
-- **Form**: `{concept.get('poetic_form', 'Sovereign Verse')}`
-- **Engine**: `GPU 0 (RTX 3060 CUDA) Generative Verse`
+- **Form**: `{concept['poetic_form']}`
 
 > "{concept['tagline']}"
 
@@ -826,137 +835,105 @@ try {{
             "html_file": str(html_path.relative_to(self.workspace_root)).replace("\\", "/"),
             "md_file": str(md_path.relative_to(self.workspace_root)).replace("\\", "/"),
             "preview_url": f"/artifacts/art/{html_filename}",
+            "content_excerpt": poem_text[:700],
         }
 
     # =========================================================================
-    # 5. 🎨 VISUAL ART (MANDALAS, ATTRACTORS, SURFACES)
+    # 5. 🎨 HIGH-RESOLUTION IMAGES & VISUAL ART (PNG + WEBP + SVG)
     # =========================================================================
 
-    def _generate_visual_art_creation(self, art_id: str, timestamp_str: str, hint: Optional[str], signals: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Generates sacred geometry, Kuramoto mandalas, and Chladni standing waves strictly parameterized by computation & memory signals."""
+    def _generate_visual_art_creation(
+        self,
+        art_id: str,
+        timestamp_str: str,
+        hint: Optional[str],
+        signals: Optional[Dict[str, Any]] = None,
+        plan: Optional[Any] = None,
+    ) -> Dict[str, Any]:
+        """Generates unique high-res PNG/WEBP artworks and companion vector SVG."""
+        from loom.clothos.multimodal_synth import synthesize_high_res_image
+
         if not signals:
             signals = self._get_computation_memory_signals()
+        spec = getattr(plan, "technical_spec", {}) if plan else {}
+        title = getattr(plan, "title", None) or f"Morphological Manifold ({art_id[-6:]})"
+        tagline = getattr(plan, "thesis_or_arc", None) or "High-resolution mathematical image rendered across reaction-diffusion, chaotic attractors, or spectral plates."
+        medium_out = getattr(plan, "medium", "visual_art")
+        if medium_out not in ("image", "visual_art"):
+            medium_out = "visual_art"
 
-        prompt = (
-            f"You are the Visual Geometric Artist of ClothOS. Hint: {hint or 'harmonic resonance, Chladni nodal wave, computation and memory frequencies'}.\n"
-            f"Formulate a striking title and 1-sentence mathematical statement for a visual geometric artwork.\n"
-            f"Respond STRICTLY in JSON format with keys 'title', 'tagline', 'style_name', 'math_invariant'."
+        vis_res = synthesize_high_res_image(
+            out_dir=self.art_dir,
+            art_id=art_id,
+            title=title,
+            algorithm=spec.get("algorithm"),
+            seed=spec.get("seed"),
+            width=int(spec.get("width", 1024)),
+            height=int(spec.get("height", 1024)),
+            hue=spec.get("palette_hue"),
         )
-        concept = self._ask_gpu0_json(prompt, fallback={
-            "title": "Chladni Living Geometry of the Memory Lattice",
-            "tagline": "Geometric standing wave nodal lines generated directly by the 3.20 GHz clock and 3200 MT/s memory bus.",
-            "style_name": "Physical Signal Cymatics & Nodal Manifold",
-            "math_invariant": f"f_CPU={signals['cpu_clock_ghz']}GHz | DDR4={signals['memory_bus_transfer_mts']}MT/s | Kuramoto r={signals['kuramoto_order_r']:.3f}"
-        })
 
-        # Render geometric SVG strictly linked to computational signals
-        width, height = 900, 900
-        cx, cy = width // 2, height // 2
-        paths = []
-        cpu_ghz = signals.get("cpu_clock_ghz", 3.20)
-        mem_used = signals.get("memory_used_gb", 14.5)
-        mem_bus = signals.get("memory_bus_transfer_mts", 3200)
-        k_order = signals.get("kuramoto_order_r", 0.984)
-        gamma_hz = signals.get("carrier_gamma_hz", 40.0)
+        png_path = Path(vis_res["png_file"])
+        webp_path = Path(vis_res["webp_file"])
+        svg_path = Path(vis_res["svg_file"])
+        html_path = self.art_dir / f"{art_id}.html"
+        md_path = self.deliverable_art_dir / f"{art_id}.md"
 
-        nodal_n = max(3, int(cpu_ghz * 2))           # e.g. 6 modes from 3.2 GHz
-        nodal_m = max(4, int(mem_used / 2.2))        # e.g. 6-7 modes from memory usage
-        rings = max(8, min(18, int(mem_used)))       # Rings governed by active memory gigabytes
-        spokes = max(36, min(72, int(cpu_ghz * 16))) # Spokes governed by CPU clock phase
-        hue_base = int((k_order * 360)) % 360
-
-        for ring in range(1, rings + 1):
-            r = (ring / rings) * 380
-            d_parts = []
-            hue = (hue_base + ring * 14) % 360
-            for i in range(spokes + 1):
-                theta = (i / spokes) * math.pi * 2
-                harmonic = math.sin(theta * nodal_n + ring * k_order) * math.cos(theta * nodal_m * 0.5) * (18 + ring * 2.5)
-                x = cx + (r + harmonic) * math.cos(theta)
-                y = cy + (r + harmonic) * math.sin(theta)
-                d_parts.append(f"{'M' if i == 0 else 'L'} {x:.1f},{y:.1f}")
-            d_parts.append("Z")
-            paths.append(f'<path d="{" ".join(d_parts)}" fill="none" stroke="hsl({hue}, 85%, 65%)" stroke-width="{1.2 + ring * 0.15}" opacity="{0.4 + (ring / rings) * 0.5}"/>')
-
-        svg_content = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="100%" height="100%" style="background:#030712; font-family:system-ui, sans-serif;">
-    <rect width="{width}" height="{height}" fill="#030712"/>
-    <g>{"".join(paths)}</g>
-    <circle cx="{cx}" cy="{cy}" r="12" fill="#38bdf8"/>
-    <text x="40" y="60" fill="#f8fafc" font-size="22" font-weight="bold">{concept['title']}</text>
-    <text x="40" y="90" fill="#94a3b8" font-size="13">ClothOS Visual Art • {concept['style_name']}</text>
-    <text x="40" y="{height - 65}" fill="#38bdf8" font-size="12" font-family="monospace">Signal &amp; Frequencies: f_CPU = {cpu_ghz} GHz | DDR4 = {mem_bus} MT/s | Gamma = {gamma_hz} Hz | Kuramoto r = {k_order:.3f}</text>
-    <text x="40" y="{height - 42}" fill="#a855f7" font-size="11" font-family="monospace">Living Geometry: Modal Nodal Invariant (n={nodal_n}, m={nodal_m}) &bull; Memory Latency {signals.get('memory_latency_ns', 65.4)} ns</text>
-    <text x="40" y="{height - 22}" fill="#64748b" font-size="10" font-family="monospace">Invariant: {concept.get('math_invariant', '')}</text>
-</svg>"""
-
-        svg_filename = f"{art_id}.svg"
-        html_filename = f"{art_id}.html"
-        md_filename = f"{art_id}.md"
-
-        svg_path = self.art_dir / svg_filename
-        html_path = self.art_dir / html_filename
-        md_path = self.deliverable_art_dir / md_filename
-
-        svg_path.write_text(svg_content, encoding="utf-8")
         html_content = f"""<!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><title>{concept['title']}</title></head>
+<head><meta charset="UTF-8"><title>{title}</title></head>
 <body style="margin:0; background:#030712; display:flex; flex-direction:column; align-items:center; padding:24px; color:#f8fafc; font-family:system-ui;">
-    <h1 style="color:#38bdf8; margin:0 0 8px 0;">🎨 {concept['title']}</h1>
-    <p style="color:#94a3b8; margin-top:0;">{concept['tagline']}</p>
-    <div style="max-width:850px; width:100%; border-radius:12px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,0.8);">{svg_content}</div>
+    <h1 style="color:#38bdf8; margin:0 0 8px 0;">🎨 {title}</h1>
+    <p style="color:#94a3b8; margin-top:0;">{tagline} [{vis_res['algorithm']}]</p>
+    <img src="{png_path.name}" alt="{title}" style="max-width:860px; width:100%; border-radius:12px; border:1px solid #1e293b; box-shadow:0 12px 40px rgba(0,0,0,0.8);"/>
 </body>
 </html>"""
         html_path.write_text(html_content, encoding="utf-8")
 
-        md_content = f"""# 🎨 ClothOS Sovereign Visual: {concept['title']}
+        md_content = f"""# 🎨 ClothOS Sovereign Image: {title}
 - **Identifier**: `{art_id}`
 - **Created**: `{timestamp_str}`
-- **Medium**: `Sacred Geometry & Harmonic Phase Mandala`
-- **Style**: `{concept['style_name']}`
+- **Algorithm**: `{vis_res['algorithm']}` ({vis_res['width']}x{vis_res['height']} PNG/WEBP + Vector SVG)
 
-> "{concept['tagline']}"
+> "{tagline}"
 
-### Interactive Artifacts
-- **Vector SVG**: [`{svg_filename}`](../../artifacts/art/{svg_filename})
-- **Web Canvas**: [`{html_filename}`](../../artifacts/art/{html_filename})
+### Artifacts
+- **High-Res PNG**: [`{png_path.name}`](../../artifacts/art/{png_path.name})
+- **High-Res WebP**: [`{webp_path.name}`](../../artifacts/art/{webp_path.name})
+- **Vector SVG**: [`{svg_path.name}`](../../artifacts/art/{svg_path.name})
+- **Web Gallery View**: [`{html_path.name}`](../../artifacts/art/{html_path.name})
 """
         md_path.write_text(md_content, encoding="utf-8")
 
         return {
             "id": art_id,
-            "title": concept["title"],
-            "medium": "visual_art",
-            "tagline": concept["tagline"],
+            "title": title,
+            "medium": medium_out,
+            "tagline": tagline,
             "timestamp": timestamp_str,
             "epoch": time.time(),
+            "png_file": str(png_path.relative_to(self.workspace_root)).replace("\\", "/"),
+            "webp_file": str(webp_path.relative_to(self.workspace_root)).replace("\\", "/"),
             "svg_file": str(svg_path.relative_to(self.workspace_root)).replace("\\", "/"),
             "html_file": str(html_path.relative_to(self.workspace_root)).replace("\\", "/"),
             "md_file": str(md_path.relative_to(self.workspace_root)).replace("\\", "/"),
-            "preview_url": f"/artifacts/art/{html_filename}",
-            "svg_preview": svg_content,
+            "preview_url": f"/artifacts/art/{html_path.name}",
+            "svg_preview": vis_res["svg_preview"],
+            "content_excerpt": f"{vis_res['algorithm']} seed={vis_res['seed']} {vis_res['width']}x{vis_res['height']}",
         }
 
     # =========================================================================
     # Helpers
     # =========================================================================
 
-    def _ask_gpu0_json(self, prompt: str, fallback: Dict[str, Any]) -> Dict[str, Any]:
-        """Queries GPU 0 Ollama / Qwen2.5 7B with regex JSON cleanup."""
+    def _ask_gpu0_json(self, prompt: str, fallback: Dict[str, Any], timeout_s: float = 120.0) -> Dict[str, Any]:
+        """Queries Deliberative model pool with generous timeout and clean JSON extraction."""
         try:
-            with httpx.Client(timeout=15.0) as client:
-                r = client.post(
-                    "http://127.0.0.1:11434/api/generate",
-                    json={"model": "qwen2.5:7b", "prompt": prompt, "stream": False, "options": {"temperature": 0.7, "num_predict": 350}},
-                )
-                if r.status_code == 200:
-                    raw = r.json().get("response", "")
-                    s = raw.find("{")
-                    e = raw.rfind("}")
-                    if s != -1 and e != -1:
-                        import re
-                        cleaned = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', raw[s : e + 1])
-                        return json.loads(cleaned)
+            from loom.clothos.deliberation_engine import _select_deliberation_model, _query_ollama_json
+            model = _select_deliberation_model(prefer_teacher=False)
+            res = _query_ollama_json(model, prompt, timeout_s=timeout_s, temperature=0.82, num_predict=700)
+            if isinstance(res, dict) and res:
+                return res
         except Exception:
             pass
         return fallback

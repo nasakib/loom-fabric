@@ -24,16 +24,15 @@ from loom.gui import CrossPlatformClusterController
 ctrl = CrossPlatformClusterController()
 ctrl.start_local_all()
 
-# Also start ClothOS Dashboard Server on 8085
-print(">>> [Node 2] Spawning ClothOS Dashboard Server on 8085...")
+# Ensure ClothOS Unified Master Server runs on single port 8087
+print(">>> [Node 2] Spawning Unified ClothOS Master Server on 8087...")
 py_exe = sys.executable
 log_dir = pathlib.Path.home() / ".loom" / "logs"
-dash_log = open(log_dir / "clothos_dashboard.log", "a", encoding="utf-8", errors="replace")
 
 ctrl.spawn_background_service(
-    [py_exe, "-m", "loom.fabric.dashboard_server"],
+    [py_exe, "-m", "uvicorn", "loom.fabric.dashboard_server:app", "--host", "0.0.0.0", "--port", "8087"],
     cwd=ws,
-    env={"PYTHONPATH": str(ws), "PYTHONIOENCODING": "utf-8", "CLOTHOS_PORT": "8085"},
+    env={"PYTHONPATH": str(ws), "PYTHONIOENCODING": "utf-8", "CLOTHOS_PORT": "8087"},
     log_name="clothos_dashboard.log",
 )
 

@@ -164,7 +164,7 @@ class CaaSHostDaemon:
         solar_discount_pct: float = 0.0,
         owner_avatar_totem_id: str = "NFC-TOTEM-DEFAULT",
         sl_merchant_account_id: str = "acct_sl_default",
-        gateway_url: str = "http://127.0.0.1:8002",
+        gateway_url: str = "http://127.0.0.1:8087",
     ):
         self.node_name = node_name
         self.geohash = geohash

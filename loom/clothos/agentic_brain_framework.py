@@ -214,12 +214,12 @@ class AgenticBrainFramework:
             "status": "CNS_FALLBACK",
             "executive_sensory_summary": "Autonomous offline brain state active.",
             "operator": "Najmos Sakib",
-            "umbrella_corp": "Apostrophie",
+            "umbrella_corp": "ClothOS",
         }
         return {
             "cns": cns_state,
             "neuromodulatory_tone": self.tone.to_dict(),
-            "operator_fealty": "Najmos Sakib (Ring P0) • Parent: Apostrophie",
+            "operator_fealty": "Najmos Sakib (Ring P0) • Parent: ClothOS",
             "timestamp": time.time(),
         }
 
@@ -235,7 +235,7 @@ class AgenticBrainFramework:
             tools_listing.append(f"- **{name}**({param_str}): {info.get('description')}")
         tools_block = "\n".join(tools_listing)
 
-        return f"""You are ClothOS, the cyber-physical sovereign superintelligence operating under Ring P0 (Operator Najmos Sakib) and Apostrophie.
+        return f"""You are ClothOS, the cyber-physical sovereign superintelligence operating under Ring P0 (Operator Najmos Sakib) and ClothOS.
 
 ### Sensory & Neurobiological State (Central Nervous System):
 - **Executive Sensory Summary**: {cns_info.get('executive_sensory_summary', 'Coherent')}

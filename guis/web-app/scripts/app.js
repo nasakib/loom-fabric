@@ -180,40 +180,42 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 8. Telemetry 32-Core Matrix Canvas
+    // 8. Telemetry Hardware Logical Core Matrix Canvas (live measured host_cores & node2_cores)
     const telemetryCanvas = document.getElementById('telemetryCanvas');
-    function drawTelemetryCores() {
+    function drawTelemetryCores(stateObj) {
         if (!telemetryCanvas) return;
+        const st = stateObj || client.state;
+        const hostCores = (st.node1 && Array.isArray(st.node1.hostCores)) ? st.node1.hostCores : [];
+        const node2Cores = (st.node2 && Array.isArray(st.node2.node2Cores)) ? st.node2.node2Cores : [];
         const ctx = telemetryCanvas.getContext('2d');
         const w = telemetryCanvas.width = telemetryCanvas.parentElement.clientWidth || 700;
         const h = telemetryCanvas.height = 360;
 
         ctx.clearRect(0, 0, w, h);
 
-        // Draw 32 Cores Grid (skyTech-Worker)
-        ctx.fillStyle = '#94a3b8';
+        // Draw Host Logical Cores Grid (skyTech-Worker)
+        const hostCount = hostCores.length || 16;
+        ctx.fillStyle = st.node1 && st.node1.status === 'ONLINE' ? '#94a3b8' : '#ef4444';
         ctx.font = '11px JetBrains Mono';
-        ctx.fillText('skyTech-Worker (Local Thinker) — 32 Virtual Threads', 16, 24);
+        ctx.fillText(`skyTech-Worker (Host Node) — ${hostCount} Measured Logical Threads [${(st.node1 && st.node1.status) || 'CHECKING'}]`, 16, 24);
 
         const cols = 8;
-        const rows = 4;
         const cellW = (w - 32 - (cols - 1) * 8) / cols;
         const cellH = 34;
 
-        for (let i = 0; i < 32; i++) {
+        for (let i = 0; i < hostCount; i++) {
             const c = i % cols;
             const r = Math.floor(i / cols);
             const x = 16 + c * (cellW + 8);
             const y = 36 + r * (cellH + 8);
 
-            const load = Math.min(99, Math.max(12, Math.floor(25 + Math.sin(Date.now() * 0.002 + i) * 20 + Math.random() * 10)));
+            const load = hostCores.length > i ? Math.round(hostCores[i]) : 0;
             ctx.fillStyle = 'rgba(0, 229, 255, 0.08)';
             ctx.fillRect(x, y, cellW, cellH);
             ctx.strokeStyle = 'rgba(0, 229, 255, 0.25)';
             ctx.strokeRect(x, y, cellW, cellH);
 
-            // Fill meter
-            const fillH = (load / 100) * cellH;
+            const fillH = (Math.min(100, load) / 100) * cellH;
             ctx.fillStyle = 'rgba(0, 229, 255, 0.4)';
             ctx.fillRect(x, y + cellH - fillH, cellW, fillH);
 
@@ -221,36 +223,46 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillText(`T${i + 1}: ${load}%`, x + 6, y + 20);
         }
 
-        // Draw 16 Cores (Ryzen7-Head)
-        ctx.fillStyle = '#94a3b8';
-        ctx.fillText('Ryzen7-Head (100.74.98.21 Decider) — 16 Hardware Threads', 16, 210);
+        // Draw Node 2 Cores (Ryzen7-Head) — honest OFFLINE state if not live
+        const n2Live = st.node2 && st.node2.status === 'ONLINE';
+        const n2Count = node2Cores.length || 16;
+        ctx.fillStyle = n2Live ? '#34d399' : '#f59e0b';
+        ctx.fillText(
+            n2Live
+                ? `Ryzen7-Head (100.74.98.21 Decider) — ${n2Count} Hardware Threads [ONLINE]`
+                : `Ryzen7-Head (100.74.98.21 Decider) — [OFFLINE / STANDBY]`,
+            16,
+            210
+        );
 
-        for (let i = 0; i < 16; i++) {
+        for (let i = 0; i < Math.min(16, n2Count); i++) {
             const c = i % cols;
             const r = Math.floor(i / cols);
             const x = 16 + c * (cellW + 8);
             const y = 222 + r * (cellH + 8);
 
-            const load = Math.min(99, Math.max(15, Math.floor(32 + Math.cos(Date.now() * 0.002 + i) * 18 + Math.random() * 8)));
-            ctx.fillStyle = 'rgba(16, 185, 129, 0.08)';
+            const load = (n2Live && node2Cores.length > i) ? Math.round(node2Cores[i]) : 0;
+            ctx.fillStyle = n2Live ? 'rgba(16, 185, 129, 0.08)' : 'rgba(100, 116, 139, 0.06)';
             ctx.fillRect(x, y, cellW, cellH);
-            ctx.strokeStyle = 'rgba(16, 185, 129, 0.25)';
+            ctx.strokeStyle = n2Live ? 'rgba(16, 185, 129, 0.25)' : 'rgba(148, 163, 184, 0.2)';
             ctx.strokeRect(x, y, cellW, cellH);
 
-            const fillH = (load / 100) * cellH;
-            ctx.fillStyle = 'rgba(16, 185, 129, 0.4)';
-            ctx.fillRect(x, y + cellH - fillH, cellW, fillH);
+            if (n2Live) {
+                const fillH = (Math.min(100, load) / 100) * cellH;
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.4)';
+                ctx.fillRect(x, y + cellH - fillH, cellW, fillH);
+            }
 
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(`C${i + 1}: ${load}%`, x + 6, y + 20);
+            ctx.fillStyle = n2Live ? '#ffffff' : '#64748b';
+            ctx.fillText(n2Live ? `C${i + 1}: ${load}%` : `C${i + 1}: --`, x + 6, y + 20);
         }
     }
 
     setInterval(() => {
         if (tabContents.telemetry && tabContents.telemetry.style.display !== 'none') {
-            drawTelemetryCores();
+            drawTelemetryCores(client.state);
         }
-    }, 1200);
+    }, 1000);
 
     // 9. Subscribe to Bicameral Client State
     client.subscribe((state) => {
@@ -269,6 +281,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (node2BarEl) node2BarEl.style.width = `${state.node2.load}%`;
         if (node2VerdictsEl) node2VerdictsEl.textContent = `${state.node2.verdictsDelivered} Ratified`;
         if (node2Ad017El) node2Ad017El.textContent = state.node2.ad017Status;
+
+        // Redraw live core utilization if telemetry tab is visible
+        if (tabContents.telemetry && tabContents.telemetry.style.display !== 'none') {
+            drawTelemetryCores(state);
+        }
 
         // CAD Stats
         if (cadStatsBadge) {

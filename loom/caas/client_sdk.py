@@ -48,7 +48,7 @@ class ClothosCaaSClient:
         consumer_id: str,
         bank_vault: Optional[VectorCoreBankVault] = None,
         auction: Optional[P2PComputeAuction] = None,
-        gateway_url: str = "http://127.0.0.1:8002",
+        gateway_url: str = "http://127.0.0.1:8087",
         consumer_geohash: str = "dn5bpq",
     ):
         self.consumer_id = consumer_id

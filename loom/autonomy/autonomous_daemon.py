@@ -3,7 +3,7 @@
 """
 ClothOS Sovereign Autonomous Mind Daemon (`loom/autonomy/autonomous_daemon.py`).
 
-The turnkey autonomous execution brain for Vector Core Holdings / Apostrophie:
+The turnkey autonomous execution brain for Vector Core Holdings / ClothOS:
 - Turn it on, authenticate with session key, provide high-level goals.
 - Autonomously plans, writes code, executes across dual-node cluster, and debugs.
 - Continuous self-healing, self-aligning, self-criticism, self-updating, and self-design.
@@ -143,7 +143,7 @@ class AutonomousMindDaemon:
                 "node2_sync": sync_result["status"],
                 "evolution_generation": evol_report.generation,
                 "operator": "Najmos Sakib",
-                "entity": "Vector Core Holdings / Apostrophie",
+                "entity": "Vector Core Holdings / ClothOS",
             }
 
             self.execution_log.append(summary)
@@ -233,7 +233,7 @@ class AutonomousMindDaemon:
                 "current_goal": self.current_goal,
                 "active_steps_count": len(self.active_steps),
                 "operator_authenticated": credential_vault.is_unlocked,
-                "entity": "Vector Core Holdings / Apostrophie",
+                "entity": "Vector Core Holdings / ClothOS",
                 "healer": self_healer.get_status(),
                 "aligner": self_aligner.get_status(),
                 "critic": self_critic.get_status(),

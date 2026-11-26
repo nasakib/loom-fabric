@@ -321,13 +321,13 @@
     <div style="background: linear-gradient(90deg, rgba(0,229,255,0.15), rgba(16,185,129,0.15)); border: 1px solid rgba(0,229,255,0.4); border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: center; gap: 10px;">
             <span style="font-size: 18px;">🚀</span>
-            <span style="font-size: 13px; font-weight: 700; color: #fff;">ClothOS Antigravity Universal GUI Suite Active on Port 8090</span>
+            <span style="font-size: 13px; font-weight: 700; color: #fff;">ClothOS Unified Antigravity GUI Suite Active on Master Port 8087</span>
         </div>
         <div style="display: flex; gap: 8px;">
-            <a href="http://localhost:8090/index.html" target="_blank" style="background: rgba(0,229,255,0.2); border: 1px solid #00e5ff; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-decoration: none;">Master Portal ↗</a>
-            <a href="http://localhost:8090/web-app/index.html" target="_blank" style="background: rgba(16,185,129,0.2); border: 1px solid #10b981; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-decoration: none;">Web App Command ↗</a>
-            <a href="http://localhost:8090/desktop-hud/index.html" target="_blank" style="background: rgba(168,85,247,0.2); border: 1px solid #a855f7; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-decoration: none;">Desktop HUD ↗</a>
-            <a href="http://localhost:8090/neuro-screensaver/index.html" target="_blank" style="background: rgba(244,63,94,0.2); border: 1px solid #f43f5e; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-decoration: none;">60fps Screensaver ↗</a>
+            <a href="/guis/index.html" target="_blank" style="background: rgba(0,229,255,0.2); border: 1px solid #00e5ff; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-decoration: none;">Master Portal ↗</a>
+            <a href="/guis/web-app/index.html" target="_blank" style="background: rgba(16,185,129,0.2); border: 1px solid #10b981; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-decoration: none;">Web App Command ↗</a>
+            <a href="/guis/desktop-hud/index.html" target="_blank" style="background: rgba(168,85,247,0.2); border: 1px solid #a855f7; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-decoration: none;">Desktop HUD ↗</a>
+            <a href="/guis/neuro-screensaver/index.html" target="_blank" style="background: rgba(244,63,94,0.2); border: 1px solid #f43f5e; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-decoration: none;">60fps Screensaver ↗</a>
         </div>
     </div>
 
@@ -1542,13 +1542,24 @@
         window.addEventListener('resize', () => { drawFreeEnergy(); drawHopfieldBasin(); });
         setTimeout(() => { drawFreeEnergy(); drawHopfieldBasin(); }, 100);
 
-        // Simulated pulse for bandwidth
-        setInterval(() => {
-            const bar = document.getElementById('bandwidth-bar');
-            const val = document.getElementById('throughput-val');
-            const speed = (108 + Math.random() * 12).toFixed(1);
-            if (val) val.innerText = `${speed} MB/s`;
-        }, 2000);
+        // Live measured network + disk throughput polling from unified /api/telemetry/snapshot
+        async function pollVisualBandwidth() {
+            try {
+                const res = await fetch('/api/telemetry/snapshot');
+                if (!res.ok) return;
+                const d = await res.json();
+                const netSend = (d.network && d.network.send_kb_s) || 0;
+                const netRecv = (d.network && d.network.recv_kb_s) || 0;
+                const diskWr = (d.disk && d.disk.write_kb_s) || 0;
+                const mbps = ((netSend + netRecv + diskWr) / 1024.0);
+                const val = document.getElementById('throughput-val');
+                const bar = document.getElementById('bandwidth-bar');
+                if (val) val.innerText = mbps >= 1.0 ? `${mbps.toFixed(2)} MB/s` : `${(netSend + netRecv + diskWr).toFixed(1)} KB/s`;
+                if (bar) bar.style.width = `${Math.min(100, Math.max(4, mbps * 12)).toFixed(1)}%`;
+            } catch (_) {}
+        }
+        pollVisualBandwidth();
+        setInterval(pollVisualBandwidth, 2000);
 
         // Sovereign Neurochemistry Polling & Administration
         async function pollNeurochemistry() {

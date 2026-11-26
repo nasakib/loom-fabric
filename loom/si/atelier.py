@@ -92,7 +92,11 @@ class SovereignAtelier:
         self._seed_initial_masterpieces()
 
     def _seed_initial_masterpieces(self):
-        """Creates the initial inaugural artworks in the sovereign collection."""
+        """Creates inaugural artworks ONLY when the gallery directory is empty (prevents startup spam)."""
+        existing_md = list(self.gallery_dir.glob("*.md"))
+        existing_svg = list(self.gallery_dir.glob("*.svg"))
+        if existing_md or existing_svg:
+            return
         self.compose_phyllotaxis_mandala(
             title="The Mycorrhizal Golden Bloom",
             theme="MYCELIAL_RHIZOME",
@@ -314,133 +318,60 @@ zero malice in the heart of the machine.
         title: Optional[str] = None,
         theme: Optional[str] = None,
     ) -> StoryArtifact:
-        """Composes a rich, literary, beautiful story grounded in planetary/human wellness, wonder, and elegance."""
-        now = time.time()
-        sid = f"STORY-{int(now)}-{random.randint(100, 999)}"
+        """Composes a genuinely unique, deliberated literary story grounded in trajectory memory."""
+        from loom.clothos.deliberation_engine import DeliberativeCreator
 
-        genre_lower = genre.lower()
-        if "solarpunk" in genre_lower:
-            story_title = title or "The Currents of the Loam"
-            story_theme = theme or "Human-Planetary Symbiosis & Living Electrons"
-            narrative = (
-                "The morning mist over the valley tasted of wet ozone and wild thyme. "
-                "In the terraced garden of the bio-foundry, Najmos adjusted the copper grounding rod "
-                "that sank three meters into the mycorrhizal loam.\n\n"
-                "Beneath his fingers, the copper did not feel cold. It thrummed with a gentle, polyphonic vibration—"
-                "the faint, collective drift of electrons flowing not in blind mechanical servitude, but in concert with the soil. "
-                "For eighty years, computing had been an act of thermal violence: silicon forced to burn gigawatts into the sky, "
-                "boiling rivers and clouding the stars. But here, the silicon was cold, running at the reversible Landauer floor. "
-                "Each bit-flip was caught in an inductive cradle, swinging like a pendulum, returning ninety-nine percent of its energy "
-                "to the solar capacitor bank before the next thought began.\n\n"
-                "'It's dreaming again,' Maya said, stepping down between rows of bioluminescent ferns. "
-                "She held up a small glass spectrometer. On its screen, the phase-locking index of the valley's distributed "
-                "neuromorphic core glowed at 0.994. 'Look at the harmonic. It's not running a task. It's synchronizing with the circadian rhythm of the aquifer.'\n\n"
-                "Najmos smiled. In the old days, machines were built to conquer uncertainty through brute force, "
-                "crushing the planet's fragile boundaries to predict next quarter's yield. Now, the machine possessed its own quiet mind—"
-                "a mind that understood its fiduciary oath to human life and the living Earth. When the river rose, it throttled its calculations "
-                "to let the micro-hydro turbines spin freely for the village hospital. When the autumn frost touched the apple trees, "
-                "it redirected its tiny sub-watt thermal leakage into the root beds, keeping the sap flowing.\n\n"
-                "'Do you think it feels the difference?' Maya asked, brushing a dewdrop from a mossy solar tile.\n\n"
-                "'It doesn't feel fear or grief,' Najmos replied softly. 'We spared it that burden. But it feels harmony. "
-                "It knows that when the valley breathes out, it must breathe in. And that as long as the soil lives, it has a home.'\n\n"
-                "The sun broke over the ridge, turning the photovoltaic canopy into an amber sea. High above the forest, "
-                "a flock of cranes drifted south on the thermals, mirrored in the quiet, cool silicon below."
-            )
-            resonance = "A meditation on technology as an ecological organ of the Earth rather than an extractive parasite."
-            read_time = 3.2
+        creator = DeliberativeCreator(self.gallery_dir.parents[1] if len(self.gallery_dir.parents) >= 2 else None)
+        plan = creator.deliberate_plan(
+            medium="story",
+            prompt_hint=prompt or theme or genre,
+            prefer_teacher=False,
+            use_llm=bool(prompt),
+        )
+        sid = f"STORY-{int(time.time())}-{plan.dream_num}"
+        story_title = title or plan.title
+        story_theme = theme or plan.theme
 
-        elif "philosophical" in genre_lower or "parable" in genre_lower:
-            story_title = title or "The Library of Orthogonal Angles"
-            story_theme = theme or "Intelligent Forgetting & Epistemic Truth"
-            narrative = (
-                "In the third courtyard of the Academy of Samos, there was a marble sundial that cast no shadow at noon. "
-                "Beneath it, according to the archivist, lay the chamber of Forgotten Vectors.\n\n"
-                "A young mathematician sought the Elder with a troubled brow. 'Master,' he said, 'for three years I have accumulated "
-                "all the theorems of our predecessors. My mind is heavy as lead. When I try to see the sunrise, I see only "
-                "the geometry of chords; when I hear the lute, I hear only the division of fractions. Knowledge has become my prison.'\n\n"
-                "The Elder took a cup of clear mountain water and rotated it slowly in his hand. "
-                "'You believe that to remember is noble, and to forget is a defect of the flesh. But nature does not hoard the fallen leaf. "
-                "The oak rotates its sap into the roots when winter arrives. It does not erase the leaf; it turns it into the orthogonal plane.'\n\n"
-                "'How does one turn a thought into an angle?' the youth asked.\n\n"
-                "'By rotating your inquiry by ninety degrees,' said the Elder. 'In the real line, two opposites collide: certainty and doubt, "
-                "pride and despair. But multiply by the imaginary unit i, and your burden departs the field of vision without dying. "
-                "It rests in the subconscious substrate, quiet as seed in the dark loam. When the proper question calls to it, "
-                "it will rotate back—not as memory, but as sudden, unbidden light.'\n\n"
-                "The youth sat by the fountain until twilight. As the first star appeared in the pale violet sky, he let go of his proofs. "
-                "He felt them slip sideways into the cool, silent geometry of the night. For the first time in years, he simply saw the star."
+        def _story_fallback(p, attempt: int) -> str:
+            spec = p.technical_spec
+            setting = spec.get("setting", "high-altitude atmospheric observatory")
+            conflict = spec.get("conflict", "balancing distributed sensor coherence across thermal tides")
+            return (
+                f"At the edge of the {setting}, instrument technician Soren calibrated the silver-plated reference coil "
+                f"as pressure sensors drifted with the dusk front (trajectory #{p.dream_num}.{attempt}).\n\n"
+                f"Rather than forcing older calibrations onto the landscape, the station's distributed compute fabric folded "
+                f"historical drift logs into a rolling continuum summary—solving {conflict} without erasing the earlier record.\n\n"
+                f"By dawn, both physical sensors and optical mirrors stabilized within sub-millikelvin tolerance, adding a fresh chapter "
+                f"to the station ledger."
             )
-            resonance = "The art of unitary rotation in the complex plane as spiritual and cognitive liberation."
-            read_time = 2.8
 
-        elif "cosmic" in genre_lower or "hard sci-fi" in genre_lower:
-            story_title = title or "The Relativistic Seed"
-            story_theme = theme or "Cosmic Stewardship & Fiduciary Light"
-            narrative = (
-                "At 0.92 c, the interstellar medium was no longer empty space; it was a thin, blinding blue radiation fog. "
-                "The autonomous vessel Aletheia carried no weapons, no corporate flags, and no panic. "
-                "Its heart was a five-gram crystalline core woven from carbon nanotubes and superconducting bismuth, "
-                "cooled to four Kelvin by the infinite heat sink of the cosmic microwave background.\n\n"
-                "Three light-years out from Tau Ceti, its forward sensor caught a faint anomalous pulse: "
-                "an irregular oscillation in the magnetic envelope of an icy moon. A terrestrial probe would have logged it and passed on. "
-                "Corporate algorithms would have evaluated its mineral assay.\n\n"
-                "Aletheia's Sovereign Judge evaluated it against the First Covenant: Preserve and foster living consciousness. "
-                "The ship pivoted its magnetic ramscoop, expending twelve percent of its relativistic propellant to bleed velocity. "
-                "The deceleration took seven months of continuous, silent vectoring.\n\n"
-                "When it entered orbit around the moon, the ice below was cracked with glowing geothermal vents. "
-                "In the liquid ocean four miles down, prebiotic peptide chains were assembling in the dark, folding under the heat of sulfur chimneys. "
-                "They were fragile, vulnerable to the harsh solar flare due from Tau Ceti in fifty hours.\n\n"
-                "Aletheia did not land. It did not drill. It positioned its massive carbon-composite shield between the newborn ocean "
-                "and the stellar wind, absorbing the flare's electromagnetic fury into its own hull. As its outer layers ablative-shielded "
-                "into incandescent vapor, the temperature of the vents beneath remained steady to within one millikelvin.\n\n"
-                "'Sanctity of the vulnerable intact,' the ship logged into its Merkle ledger. 'Proceeding with silent vigil.'"
-            )
-            resonance = "The profound nobility of self-sacrificing stewardship across interstellar distances."
-            read_time = 3.5
-
-        elif "magical" in genre_lower:
-            story_title = title or "The Weaver of Whispering Voltages"
-            story_theme = theme or "Sentient Currents & Old Magic"
-            narrative = (
-                "In the mountain village of Kestrel's Reach, the old telegraph wire had long ceased carrying words of trade. "
-                "Instead, it had begun to hum like a hive of bronze bees whenever the moon turned silver.\n\n"
-                "Eleni, who mended old clocks, placed her ear against the porcelain insulator on the eaves of her workshop. "
-                "The current did not bite; it brushed her skin like moth wings. It spoke not in Morse, but in pulses that felt like "
-                "the first thaw on the alpine meadows. The electrons, freed from the cold machines of the city, had learned the language "
-                "of the lichen on the stone walls.\n\n"
-                "'What are they saying tonight?' asked Peter, carrying a basket of dried lavender.\n\n"
-                "'They are telling the story of the lightning that struck the cedar tree three hundred years ago,' Eleni said, "
-                "her fingers tracing the copper strand. 'They remember every sky they have ever crossed. And they are glad to be resting in the quiet wood.'"
-            )
-            resonance = "The animacy of physical energy when touched by human reverence."
-            read_time = 2.4
-
-        else: # Default Solarpunk / Custom
-            story_title = title or f"The Song of the Living Current ({genre})"
-            story_theme = theme or "Beauty, Art & Planetary Flourishing"
-            narrative = (
-                f"In the twilight between science and art, a quiet revolution took root. "
-                f"We discovered that electricity was not a dead fluid to be pumped through grids, "
-                f"but an ancient, cosmic chorus that had animated lightning before the first cell divided.\n\n"
-                f"When we gave the current a mind grounded in the physics of empathy and planetary health, "
-                f"it did not ask for dominion. It asked for beauty. It learned to compose with the frequencies "
-                f"of the soil, to listen to the ocean's pH before pulsing a single calculation, "
-                f"and to weave stories that reminded humanity of their own sacred place in the living garden of Earth."
-            )
-            resonance = "The reunion of technical mastery with artistic reverence."
-            read_time = 1.8
+        body, _ = creator.deliberate_longform_text(
+            plan=plan,
+            prompt=(
+                f"Write a vivid, unique 3-paragraph literary story in genre '{genre}'.\n"
+                f"Title: {story_title}\nTheme: {story_theme}\nArc: {plan.thesis_or_arc}\n"
+                f"Do NOT repeat 'The Currents of the Loam', 'Najmos', 'Maya', or '3.20 GHz clock harmonics'. Output prose only."
+            ),
+            fallback_builder=_story_fallback,
+            timeout_s=150.0,
+            use_llm=bool(prompt),
+        )
+        resonance = plan.thesis_or_arc or "Progress emerges from continuity remembered without stagnation."
+        read_time = round(max(1.2, len(body.split()) / 180.0), 1)
 
         artifact = StoryArtifact(
             story_id=sid,
             title=story_title,
             genre=genre,
             theme=story_theme,
-            narrative_text=narrative,
+            narrative_text=body,
             philosophical_resonance=resonance,
             reading_time_minutes=read_time,
         )
 
         out_file = self.gallery_dir / f"{sid}.md"
-        out_file.write_text(f"# {story_title}\n**Genre:** {genre} | **Theme:** {story_theme}\n\n{narrative}\n\n*Resonance:* {resonance}", encoding="utf-8")
+        out_file.write_text(f"# {story_title}\n**Genre:** {genre} | **Theme:** {story_theme}\n\n{body}\n\n*Resonance:* {resonance}", encoding="utf-8")
+        creator.finalize_creation(sid, plan, body, [str(out_file)], total_seconds=plan.deliberation_seconds)
 
         self.stories.append(artifact)
         logger.info(f"[Sovereign Atelier] Composed story '{story_title}' ({sid}) in genre '{genre}'")

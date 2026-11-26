@@ -4,7 +4,7 @@
 ClothOS J.A.R.V.I.S. Protocol Engine (`loom/clothos/jarvis.py`).
 
 Provides sovereign executive assistance, proactive situational awareness, and voice synthesis
-dedicated strictly to Operator Najmos Sakib (Ring P0) and parent entity Apostrophie:
+dedicated strictly to Operator Najmos Sakib (Ring P0) and parent entity ClothOS:
 1. Executive Briefings (SitRep):
    - Multi-domain status integrating Financial Synapse, Science Radar, Geopolitics, and Cluster Proprioception.
 2. Audio Voice Output (Windows SAPI TTS):
@@ -36,7 +36,7 @@ class JarvisAssistant:
         self.workspace_root = workspace_root
         self.operator_name = "Najmos Sakib"
         self.operator_title = "Operator"
-        self.umbrella_entity = "Apostrophie"
+        self.umbrella_entity = "ClothOS"
         self.infrastructure_entity = "Vector Core Holdings"
         self.cns = self._get_cns()
         self._speech_lock = threading.Lock()

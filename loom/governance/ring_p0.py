@@ -5,7 +5,7 @@ Ring P0 Governance & Root of Trust Engine (`loom/governance/ring_p0.py`).
 ========================================================================
 Codifies non-bypassable governance guardrails for ClothOS and Loom Fabric:
 - Operator Root of Trust: Najmos Sakib (Ring P0)
-- Parent Sovereign Entity: Apostrophie
+- Parent Sovereign Entity: ClothOS
 - Subsidiary Infrastructure Entity: Vector Core Holdings, LLC
 - Non-bypassable verification on structural mutations, resource reallocations,
   and autonomous cluster updates.
@@ -25,13 +25,13 @@ from typing import Any, Callable, Dict, Optional
 logger = logging.getLogger("loom.governance.ring_p0")
 
 OPERATOR_ROOT_IDENTITY = "Najmos Sakib"
-PARENT_ENTITY = "Apostrophie"
+PARENT_ENTITY = "ClothOS"
 SUBSIDIARY_ENTITY = "Vector Core Holdings, LLC"
 P0_SECURITY_EPOCH = 1795267200 # Sovereign ClothOS Era
 
 
 class SecurityRing(int, Enum):
-    RING_P0_OPERATOR = 0    # Najmos Sakib / Apostrophie / Vector Core Holdings (Supreme Root of Trust)
+    RING_P0_OPERATOR = 0    # Najmos Sakib / ClothOS / Vector Core Holdings (Supreme Root of Trust)
     RING_P1_MICROKERNEL = 1 # Core OS scheduler, PMP memory protection, DMA controllers
     RING_P2_MESH = 2        # Fabric Modem, P2P discovery, Diurnal arbitrage
     RING_P3_SERVICES = 3    # Gateway REST/SSE, Web GUIs, User Agents
@@ -78,7 +78,7 @@ class RingP0GovernanceController:
         self.parent_entity = PARENT_ENTITY
         self.subsidiary_entity = SUBSIDIARY_ENTITY
         # Default internal master key derived from environment or root salt
-        salt = os.getenv("CLOTHOS_P0_SALT", "sovereign_ring_p0_apostrophie_vectorcore")
+        salt = os.getenv("CLOTHOS_P0_SALT", "sovereign_ring_p0_clothos_vectorcore")
         self._secret_key = master_secret or hashlib.sha256(salt.encode("utf-8")).digest()
         self.audit_log: list[Dict[str, Any]] = []
 
@@ -103,7 +103,7 @@ class RingP0GovernanceController:
                 "timestamp": time.time(),
                 "operation": operation_name,
                 "status": "DENIED",
-                "reason": "Missing or invalid Ring P0 token from Najmos Sakib / Apostrophie",
+                "reason": "Missing or invalid Ring P0 token from Najmos Sakib / ClothOS",
             }
             self.audit_log.append(record)
             logger.error(f"GOVERNANCE VIOLATION: {operation_name} rejected under Ring P0 invariants.")

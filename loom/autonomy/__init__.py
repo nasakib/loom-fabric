@@ -3,10 +3,10 @@
 """
 ClothOS Sovereign Autonomy & Self-Everything Matrix (`loom/autonomy/__init__.py`).
 
-The sovereign autonomous operating architecture for Apostrophie (Umbrella Corporation)
+The sovereign autonomous operating architecture for ClothOS (Umbrella Corporation)
 and Operator Najmos Sakib:
 - Self-Healing: Proactive fault detection and zero-panic remediation.
-- Self-Aligning: Operator Fealty (Najmos Sakib > Apostrophie > USA > Allies > Commons).
+- Self-Aligning: Operator Fealty (Najmos Sakib > ClothOS > USA > Allies > Commons).
 - Self-Critical: Active Dissipative Fourier Transform S(ω_0) >= 1 - α truth radiance.
 - Self-Updating: Dual-node zero-drift differential sync & hot module reloads.
 - Self-Improvement: Hebbian neuroplastic connectome adaptation and teacher-critic distillation.

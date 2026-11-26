@@ -82,7 +82,7 @@ class ClothOSGarment:
         return {
             "status": "GARMENT_TAILORED_AND_RATIFIED",
             "operator": self.operator,
-            "fealty": "Najmos Sakib > Apostrophie (Umbrella Corp) > USA > Strategic Allies > Global Commons",
+            "fealty": "Najmos Sakib > ClothOS (Umbrella Corp) > USA > Strategic Allies > Global Commons",
             "compute_time_ms": dt_ms,
             "tapestry_id": tapestry.tapestry_id,
             "prompt": prompt,

@@ -155,7 +155,7 @@ class ArtLearningFeedbackEngine:
             ],
             "spatial_binaural_beat_hz": 7.83,  # Schumann Earth resonance
             "shuttle_flight_timing_ms": round(1000.0 / 432.0, 4),
-            "operator_fealty": "Ring P0 Najmos Sakib / Apostrophie",
+            "operator_fealty": "Ring P0 Najmos Sakib / ClothOS",
         }
 
         title = f"432Hz Lydian Resonator Opus #{int(seed * 500) % 8888}"
@@ -196,7 +196,7 @@ Translating thought to action true.
 
 Operator Najmos guides the loom,
 Dispelling computational gloom;
-Apostrophie holds the sovereign throne,
+ClothOS holds the sovereign throne,
 Where art and reason merge as one.
 ========================================================================
 Seed: {seed:.4f} // Stanza Ratios: 4:6:4 // Epoch: 2026.10
@@ -269,33 +269,94 @@ Seed: {seed:.4f} // Stanza Ratios: 4:6:4 // Epoch: 2026.10
     # -------------------------------------------------------------------------
 
     def create_artwork(self, modality: Optional[str] = None) -> ArtPiece:
-        """Creates a new piece of art in the selected or randomly rotated modality."""
+        """Creates a genuinely unique artwork routed through DeliberativeCreator & MultimodalSynth."""
+        from loom.clothos.deliberation_engine import DeliberativeCreator
+        from loom.clothos.multimodal_synth import synthesize_expressive_music, synthesize_high_res_image
+
         modalities = ["VISUAL_GEOMETRY", "SONIC_HARMONIC", "LITERARY_POETRY", "BIOMOLECULAR_STRUCTURE"]
         chosen_modality = modality.upper() if modality and modality.upper() in modalities else random.choice(modalities)
 
-        seed = time.time() + random.uniform(0.1, 99.9)
-        self.generation_count += 1
+        creator = DeliberativeCreator(self.workspace_root)
+        med_map = {
+            "VISUAL_GEOMETRY": "image",
+            "SONIC_HARMONIC": "music",
+            "LITERARY_POETRY": "poetry",
+            "BIOMOLECULAR_STRUCTURE": "svg_stem",
+        }
+        plan = creator.deliberate_plan(medium=med_map[chosen_modality], use_llm=False)
+        seed = float(plan.dream_num) + random.uniform(0.11, 9.89)
+        self.generation_count = max(self.generation_count + 1, plan.dream_num)
         timestamp = time.time()
         art_id = f"art_{int(timestamp)}_{self.generation_count:04d}"
-
-        if chosen_modality == "VISUAL_GEOMETRY":
-            content, title, ratios, hyp, target = self._generate_sacred_geometry_svg(seed)
-            ext = "svg"
-        elif chosen_modality == "SONIC_HARMONIC":
-            content, title, ratios, hyp, target = self._generate_sonic_harmonic_manifest(seed)
-            ext = "json"
-        elif chosen_modality == "LITERARY_POETRY":
-            content, title, ratios, hyp, target = self._generate_epistemic_poetry(seed)
-            ext = "txt"
-        else:
-            content, title, ratios, hyp, target = self._generate_biomolecular_structure_cif(seed)
-            ext = "cif"
-
         modality_dir = self.art_dir / chosen_modality.lower()
         modality_dir.mkdir(parents=True, exist_ok=True)
-        art_file = modality_dir / f"{art_id}.{ext}"
-        with open(art_file, "w", encoding="utf-8") as f:
-            f.write(content)
+
+        if chosen_modality == "VISUAL_GEOMETRY":
+            vis_res = synthesize_high_res_image(
+                out_dir=modality_dir,
+                art_id=art_id,
+                title=plan.title,
+                algorithm=plan.technical_spec.get("algorithm"),
+                seed=int(plan.technical_spec.get("seed", plan.dream_num)),
+                width=768,
+                height=768,
+            )
+            content = vis_res["svg_preview"]
+            title = plan.title
+            ratios = {"phi_ratio": 1.618033988749895, "algorithm": vis_res["algorithm"], "seed": float(vis_res["seed"]), "resolution": 768.0}
+            hyp = f"Morphological topology under {vis_res['algorithm']} exhibits scale-free entropy bounds."
+            target = f"Spectral density & topological invariant study: {vis_res['algorithm']}"
+            art_file = Path(vis_res["svg_file"])
+        elif chosen_modality == "SONIC_HARMONIC":
+            mus_res = synthesize_expressive_music(
+                out_dir=modality_dir,
+                art_id=art_id,
+                title=plan.title,
+                mode_name=plan.technical_spec.get("mode"),
+                bpm=plan.technical_spec.get("bpm"),
+                duration_s=12.0,
+                seed=int(plan.technical_spec.get("seed", plan.dream_num)),
+                root_hz=plan.technical_spec.get("root_hz"),
+            )
+            title = plan.title
+            ratios = {"bpm": float(mus_res["bpm"]), "root_hz": float(mus_res["root_hz"]), "duration_s": float(mus_res["duration_s"])}
+            hyp = f"Polyphonic intervals in {mus_res['mode']} at {mus_res['bpm']} BPM lock cross-band harmonics."
+            target = f"Psychoacoustic 432Hz harmonic phase-coherence sweep across {mus_res['mode']}"
+            manifest = {"title": title, **mus_res, "hypothesis": hyp}
+            content = json.dumps(manifest, indent=2)
+            art_file = modality_dir / f"{art_id}.json"
+            art_file.write_text(content, encoding="utf-8")
+        elif chosen_modality == "LITERARY_POETRY":
+            forms = ["Topological Villanelle", "Thermodynamic Sonnet", "Acoustic Haibun", "Symmetric Ghazal"]
+            form = forms[plan.dream_num % len(forms)]
+            anchors = ["basalt", "mycelium", "ferrite", "estuary", "glacier", "photon", "obsidian", "verdigris"]
+            w1, w2, w3 = anchors[plan.dream_num % len(anchors)], anchors[(plan.dream_num + 3) % len(anchors)], anchors[(plan.dream_num + 5) % len(anchors)]
+            content = (
+                f"# {plan.title}\nForm: {form} | Trajectory #{plan.dream_num}\n\n"
+                f"Across the {w1} threshold, quiet current measures drift,\n"
+                f"Where {w2} lattice memories hold what fragile instruments lift;\n"
+                f"No theorem repeats an exhausted crest when {w3} signals shift,\n"
+                f"For conserved invariants carry forward every gift.\n"
+            )
+            title = plan.title
+            ratios = {"stanza_count": 1.0, "dream_num": float(plan.dream_num)}
+            hyp = f"Constraint prosody ({form}) preserves long-horizon semantic novelty without collapse."
+            target = "Narrative forward-vector preservation & rolling memory distillation"
+            art_file = modality_dir / f"{art_id}.txt"
+            art_file.write_text(content, encoding="utf-8")
+        else:
+            content, title, ratios, hyp, target = self._generate_biomolecular_structure_cif(seed)
+            title = f"{plan.title} — {title}"
+            art_file = modality_dir / f"{art_id}.cif"
+            art_file.write_text(content, encoding="utf-8")
+
+        creator.finalize_creation(
+            work_id=art_id,
+            plan=plan,
+            body_text=content[:1200],
+            file_paths=[str(art_file)],
+            total_seconds=plan.deliberation_seconds,
+        )
 
         piece = ArtPiece(
             art_id=art_id,

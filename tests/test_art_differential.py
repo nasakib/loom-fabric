@@ -169,3 +169,54 @@ def test_dashboard_differential_endpoints(test_client):
     res_svg = test_client.post("/api/art/compose/svg_stem", json={"title": "API Test SVG"})
     assert res_svg.status_code == 200
     assert res_svg.json()["success"] is True
+
+
+def test_parametric_cad_kernel_and_viewer_apis(test_client):
+    """Verifies real multi-facet 3D CAD generation across all 5 STEM archetypes,
+    AP214 BREP STEP + binary STL roundtrip parsing, and interactive viewer endpoints."""
+    from loom.clothos.cad_kernel import load_stl_as_mesh
+
+    engine = StemCadEngine()
+    for arch in StemCadEngine.ARCHETYPES:
+        cad = engine.generate_cad_model(archetype=arch, title=f"Parametric {arch}", scale_mm=1.1, resolution=14)
+        stl_path = engine.workspace_root / cad["stl_file"]
+        step_path = engine.workspace_root / cad["step_file"]
+        parsed = load_stl_as_mesh(stl_path)
+
+        assert parsed["triangle_count"] >= 100
+        assert parsed["volume_mm3"] > 0.0
+        assert parsed["surface_area_mm2"] > 0.0
+        assert len(parsed["normals"]) == parsed["triangle_count"]
+
+        step_text = step_path.read_text(encoding="utf-8")
+        assert "ISO-10303-21;" in step_text
+        assert "CLOSED_SHELL" in step_text
+        assert "CARTESIAN_POINT" in step_text
+
+    # Test REST CAD endpoints
+    for mtype in ["flexure", "cavity", "rotor", "gyroid", "microfluidic"]:
+        r = test_client.get(f"/api/cad/mesh/{mtype}?scale_mm=1.0&resolution=12")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["triangle_count"] >= 100
+        assert len(data["normals"]) == data["triangle_count"]
+        assert data["volume_mm3"] > 0.0
+
+    r_synth = test_client.post(
+        "/api/cad/synthesize",
+        json={"archetype": "GYROID_TPMS_HEAT_EXCHANGER", "scale_mm": 1.0, "resolution": 12},
+    )
+    assert r_synth.status_code == 200
+    s_data = r_synth.json()
+    assert s_data["success"] is True
+    assert s_data["triangle_count"] >= 500
+    assert s_data["artifact"]["stl_url"].startswith("/artifacts/art/")
+    stl_name = Path(s_data["artifact"]["stl_url"]).name
+
+    r_list = test_client.get("/api/cad/stl/list")
+    assert r_list.status_code == 200
+    assert any(f["filename"] == stl_name for f in r_list.json()["files"])
+
+    r_load = test_client.get(f"/api/cad/stl/load?filename={stl_name}")
+    assert r_load.status_code == 200
+    assert r_load.json()["triangle_count"] == s_data["triangle_count"]

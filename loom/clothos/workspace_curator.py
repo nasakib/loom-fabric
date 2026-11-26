@@ -5,7 +5,7 @@ ClothOS Autonomous Workspace Curator & Codebase Trajectory Engine (`loom/clothos
 
 Provides high-efficiency, zero-truncation digestion, structural review, and trajectory
 tracking across multi-repository workspaces, fully aligned with the Operator Ring P0
-Fealty Hierarchy (Najmos Sakib > Apostrophie > Vector Core Holdings).
+Fealty Hierarchy (Najmos Sakib > ClothOS > Vector Core Holdings).
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ class WorkspaceCurator:
             "scan_duration_seconds": elapsed,
             "total_projects": len(projects),
             "operator": "Najmos Sakib",
-            "umbrella_entity": "Apostrophie",
+            "umbrella_entity": "ClothOS",
             "operating_entity": "Vector Core Holdings",
             "projects": projects,
         }
@@ -175,14 +175,14 @@ class WorkspaceCurator:
         projects = d.get("projects", [])
 
         md = [
-            "# ✦ APOSTROPHIE & VECTOR CORE HOLDINGS: MASTER WORKSPACE DIGEST",
+            "# ✦ CLOTHOS & VECTOR CORE HOLDINGS: MASTER WORKSPACE DIGEST",
             f"> **Generated**: {time.strftime('%Y-%m-%d %H:%M:%S')} | **Operator**: {d.get('operator')} (Ring P0)",
             f"> **Workspace Root**: `{d.get('workspace_root')}` | **Total Projects**: {d.get('total_projects')}",
             "",
             "---",
             "",
             "## 1. Executive Governance & Corporate Structure",
-            "- **Parent Umbrella Entity**: **Apostrophie** (Holds all patents, cryptographic vaults, compute, and subsidiary equity).",
+            "- **Parent Umbrella Entity**: **ClothOS** (Holds all patents, cryptographic vaults, compute, and subsidiary equity).",
             "- **Principal Operating Holding**: **Vector Core Holdings** (Commercial, enterprise, and venture deployment).",
             "- **Operator Sanctity**: All software, models, and daemons are strictly subordinate to **Najmos Sakib**.",
             "",

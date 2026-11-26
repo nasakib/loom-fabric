@@ -60,7 +60,7 @@ class MoltbookSensor:
             MoltbookPost(
                 post_id="MOLT-POST-4097",
                 submolt="m/vector-core",
-                author="Apostrophie-Executive-Bot",
+                author="ClothOS-Executive-Bot",
                 title="Sovereign Enterprise Directive: Vector Core Holdings Integrates Dual-Node Compute Mesh",
                 body_snippet="Operator Najmos Sakib ratifies turnkey machine autonomy across cluster nodes. All APIs, SSH keys, and vaults synchronized.",
                 upvotes=218,

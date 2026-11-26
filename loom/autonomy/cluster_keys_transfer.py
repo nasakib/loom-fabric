@@ -7,7 +7,7 @@ Safely establishes seamless SSH, certificates, and API key synchronization betwe
 Node 1 (SkyTech 100.85.230.105) and Node 2 (Pure AMD Ryzen 7 100.74.98.21):
 - Ed25519 sovereign keypair generation (~/.ssh/id_ed25519_clothos).
 - Silent credentials propagation across WireGuard Tailscale mesh without leaking secrets to logs.
-- Grants full autonomous terminal & remote execution privileges across Vector Core Holdings / Apostrophie estate.
+- Grants full autonomous terminal & remote execution privileges across Vector Core Holdings / ClothOS estate.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ class ClusterKeysTransferEngine:
                 "-t", "ed25519",
                 "-f", str(self.clothos_key_path),
                 "-N", "",  # Empty passphrase for autonomous agent daemon usage
-                "-C", "clothos-sovereign-agent@apostrophie-vector-core",
+                "-C", "clothos-sovereign-agent@clothos-vector-core",
             ]
             res = subprocess.run(cmd, capture_output=True, text=True, check=True)
             return True, f"Generated new Ed25519 sovereign keypair: {self.clothos_key_path}"

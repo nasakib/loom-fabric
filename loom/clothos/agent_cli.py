@@ -1360,7 +1360,7 @@ class ModelHead:
 
     ───────────────────
 
-    openai    → OpenAI, Groq, OpenRouter, custom local (port 8002/8087)
+    openai    → OpenAI, Groq, OpenRouter, custom local (port 8087)
 
     anthropic → Claude 3.x / 4.x  via Anthropic Messages API
 
@@ -1368,7 +1368,7 @@ class ModelHead:
 
     ollama    → Any local Ollama model  via /api/chat
 
-    cluster   → Internal Loom Ray-cluster gateway (port 8090)
+    cluster   → Internal Loom Unified Master gateway (port 8087)
 
     """
 
@@ -1390,11 +1390,11 @@ class ModelHead:
 
         {"label": "loom-sovereign-fast","protocol": "ollama",    "url": "http://127.0.0.1:11434/api/chat", "model": "loom-sovereign-fast:latest","key_env": None, "note": "Loom Sovereign Fast 7B (Low-Latency Drill-Bit)"},
 
-        {"label": "loom-coder",         "protocol": "ollama",    "url": "http://127.0.0.1:11434/api/chat", "model": "qwen2.5-coder:latest",       "key_env": None, "note": "Loom Sovereign Coder (Qwen 2.5 Coder 7B - Specialized Coding Cortex)"},
+        {"label": "loom-coder",         "protocol": "ollama",    "url": "http://127.0.0.1:11434/api/chat", "model": "qwen2.5-coder:7b",           "key_env": None, "note": "Loom Sovereign Coder (Qwen 2.5 Coder 7B - Specialized Coding Cortex)"},
 
         # ── Local / Cluster
 
-        {"label": "cluster-gpu",    "protocol": "openai",    "url": "http://127.0.0.1:8002/v1/chat/completions",   "model": "auto",                      "key_env": None,               "note": "Loom RTX-3060 Ray Cluster"},
+        {"label": "cluster-gpu",    "protocol": "openai",    "url": "http://127.0.0.1:8087/v1/chat/completions",   "model": "auto",                      "key_env": None,               "note": "Loom RTX-3060 Unified Cluster"},
 
         {"label": "cluster-head",   "protocol": "openai",    "url": "http://127.0.0.1:8087/v1/chat/completions",   "model": "auto",                      "key_env": None,               "note": "Loom Ryzen Head Node"},
 
@@ -1415,6 +1415,8 @@ class ModelHead:
         {"label": "o3-mini",        "protocol": "openai",    "url": "https://api.openai.com/v1/chat/completions",  "model": "o3-mini",                   "key_env": "OPENAI_API_KEY",   "note": "OpenAI o3-mini (reasoning)"},
 
         # ── Anthropic
+
+        {"label": "clothos-anthropic", "protocol": "anthropic", "url": "http://127.0.0.1:8087/v1/messages",     "model": "claude-sonnet-4-5",        "key_env": None,               "note": "ClothOS Sovereign Anthropic Drop-In (:8087)"},
 
         {"label": "claude-sonnet",  "protocol": "anthropic", "url": "https://api.anthropic.com/v1/messages",       "model": "claude-3-5-sonnet-20241022","key_env": "ANTHROPIC_API_KEY","note": "Claude 3.5 Sonnet"},
 
@@ -1590,11 +1592,11 @@ class ModelHead:
 
         candidates = [
 
-            "http://127.0.0.1:8002",
+            "http://127.0.0.1:8087",
 
-            "http://192.168.99.1:8002",
+            "http://192.168.99.1:8087",
 
-            "http://100.85.230.105:8002",
+            "http://100.85.230.105:8087",
 
         ]
 
@@ -1616,7 +1618,7 @@ class ModelHead:
 
                 continue
 
-        cls._discovered_cluster_gpu_base = "http://127.0.0.1:8002"
+        cls._discovered_cluster_gpu_base = "http://127.0.0.1:8087"
 
         return cls._discovered_cluster_gpu_base
 
@@ -1668,7 +1670,17 @@ class ModelHead:
 
             return f"{base}/api/chat"
 
-        if self.label == "cluster-gpu" or (self._url and ":8002" in self._url):
+        if self.protocol == "anthropic":
+
+            if self._url:
+
+                return self._url
+
+            base = self.get_cluster_gpu_base()
+
+            return f"{base}/v1/messages"
+
+        if self.label == "cluster-gpu" or (self._url and (":8087" in self._url or ":8002" in self._url)):
 
             base = self.get_cluster_gpu_base()
 
@@ -1863,7 +1875,9 @@ class ModelHead:
 
         elif proto == "anthropic":
 
-            if not url or not self.api_key:
+            effective_key = self.api_key or ("loom-sovereign-local" if self.key_env is None else None)
+
+            if not url or not effective_key:
 
                 return None
 
@@ -1874,106 +1888,79 @@ class ModelHead:
             turn_msgs = [m for m in messages if m.get("role") != "system"]
 
             body: Dict[str, Any] = {
-
                 "model":      self.model,
-
                 "max_tokens": self.max_tokens,
-
                 "messages":   turn_msgs,
-
             }
-
             if sys_parts:
-
                 body["system"] = "\n\n".join(sys_parts)
+            if ThinkingStream.is_enabled() and ("127.0.0.1:8087" in url or "localhost:8087" in url or "127.0.0.1:8002" in url or self.label == "clothos-anthropic"):
+                body["thinking"] = {"type": "enabled", "budget_tokens": 2048}
 
             headers = {
-
                 "Content-Type":      "application/json",
-
-                "x-api-key":         self.api_key,
-
+                "x-api-key":         effective_key,
                 "anthropic-version": "2023-06-01",
-
             }
 
             # 1. Real-Time Streaming Attempt
-
             try:
-
                 body_stream = dict(body)
-
                 body_stream["stream"] = True
-
                 payload_stream = json.dumps(body_stream).encode("utf-8")
-
                 req = urllib.request.Request(url, data=payload_stream, headers=headers)
 
                 ThinkingStream.start_stream(self.label)
-
                 chunks = []
-
+                thinking_chunks = []
+                thinking_flushed = False
                 with urllib.request.urlopen(req, timeout=timeout) as resp:
-
                     for line in resp:
-
                         if not line:
-
                             continue
-
                         line_str = line.decode("utf-8", errors="replace").strip()
-
                         if line_str.startswith("data: "):
-
                             data_str = line_str[6:].strip()
-
                             if data_str == "[DONE]":
-
                                 break
-
                             try:
-
                                 data = json.loads(data_str)
-
                                 if data.get("type") == "content_block_delta":
-
-                                    delta = data.get("delta", {}).get("text", "")
-
+                                    delta_obj = data.get("delta", {})
+                                    t_delta = delta_obj.get("thinking", "")
+                                    if t_delta:
+                                        thinking_chunks.append(t_delta)
+                                    delta = delta_obj.get("text", "")
                                     if delta:
-
+                                        if thinking_chunks and not thinking_flushed and ThinkingStream.is_enabled():
+                                            ThinkingStream.thinking_block("".join(thinking_chunks))
+                                            thinking_flushed = True
                                         chunks.append(delta)
-
                                         ThinkingStream.stream_chunk(delta)
-
                             except Exception:
-
                                 pass
-
+                if thinking_chunks and not thinking_flushed and ThinkingStream.is_enabled():
+                    ThinkingStream.thinking_block("".join(thinking_chunks))
                 if chunks:
-
                     return "".join(chunks)
-
             except Exception:
-
                 pass
-
             finally:
-
                 ThinkingStream.end_stream()
 
             # 2. Non-Streaming Fallback
-
             payload = json.dumps(body).encode("utf-8")
-
             req = urllib.request.Request(url, data=payload, headers=headers)
-
             with urllib.request.urlopen(req, timeout=timeout) as resp:
-
                 data = json.loads(resp.read().decode("utf-8"))
-
-                if data.get("content"):
-
-                    return data["content"][0]["text"]
+                blocks = data.get("content") or []
+                if blocks:
+                    think_texts = [b.get("thinking", "") for b in blocks if isinstance(b, dict) and b.get("type") == "thinking" and b.get("thinking")]
+                    if think_texts and ThinkingStream.is_enabled():
+                        ThinkingStream.thinking_block("\n".join(think_texts))
+                    text_parts = [b.get("text", "") for b in blocks if isinstance(b, dict) and "text" in b]
+                    if text_parts:
+                        return "\n".join(text_parts)
 
         # ── Google Gemini native REST ──────────────────────────────────────────
 
@@ -2259,6 +2246,10 @@ class ModelHead:
 
             "gpu": "cluster-gpu",
 
+            "local-claude": "clothos-anthropic",
+
+            "sovereign-anthropic": "clothos-anthropic",
+
         }
 
         label = aliases.get(label.lower().strip(), label)
@@ -2353,7 +2344,7 @@ class ModelHead:
 
             "🌐 OpenAI":           ["gpt-4o", "gpt-4o-mini", "o3-mini"],
 
-            "🟣 Anthropic":        ["claude-sonnet", "claude-opus"],
+            "🟣 Anthropic":        ["clothos-anthropic", "claude-sonnet", "claude-opus"],
 
             "🔵 Google Gemini":    ["gemini-flash", "gemini-pro"],
 
@@ -2602,39 +2593,53 @@ class ModelRouter:
             suggested_tools.append("search_internet (live Google search grounding)")
 
         if any(w in p_lower for w in ["calculate", "compute", "plot", "graph", "python", "repl"]):
-
             suggested_tools.append("code_interpreter (persistent Python execution with plot capture)")
 
-        if suggested_tools:
+        if any(w in p_lower for w in ["constitutional", "deceit", "sycophancy", "sandbagging", "poison", "ratchet", "covenant"]):
+            suggested_tools.append("nexus_audit / nexus_deceit_scan (Constitutional & Adversarial Deceit guard)")
 
+        if any(w in p_lower for w in ["z3", "kirchhoff", "kuramoto", "verify graph", "formal verify", "topological", "wht"]):
+            suggested_tools.append("nexus_formal_verify / nexus_typemetric_sync (Z3/Kirchhoff & Q12 Kuramoto phase lock)")
+
+        if any(w in p_lower for w in ["ujit", "pseudocode", "jit kernel", "grid arbitrage", "ternary mac"]):
+            suggested_tools.append("nexus_ujit_eval (bare-metal Universal JIT native kernel execution)")
+
+        if any(w in p_lower for w in ["nexus", "mesh", "sovereign mesh", "unified", "all projects"]):
+            suggested_tools.append("nexus_mesh_status (10-project Unified Sovereign Mesh telemetry)")
+
+        if suggested_tools:
             think.observe(f"Salience Engine Recommended Tools: {', '.join(suggested_tools)}")
 
         # If manual mode is forced, respect operator's manual mount
-
         if cls._mode == cls.MODE_MANUAL and ModelHead.active():
-
             return ModelHead.active(), "Manual lock active"
 
         # 0. EXPLICIT CLOUD OR CONTEXT OVERFLOW
-
         # Only route to Gemini Flash if explicitly requested or if context overflows local VRAM
-
         if any(w in p_lower for w in ["gemini", "use google", "google cloud", "cloud llm", "cloud api"]) or total_tokens > 30000:
-
             if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
-
                 try:
-
                     head = ModelHead.mount("gemini-flash")
-
                     cls._active_head_label = head.label
-
                     reason = "[Drill-Bit] Context overflow (>30k tokens) ➔ Gemini Flash" if total_tokens > 30000 else "[Drill-Bit] Explicit cloud request ➔ Gemini Flash"
-
                     return head, reason
-
                 except Exception:
+                    pass
 
+        # 0.5. SOVEREIGN ANTHROPIC / EXTENDED THINKING BRIDGE (ZERO API KEY REQUIRED)
+        anthropic_keywords = ["anthropic", "claude", "sovereign nexus", "extended thinking", "/v1/messages", ":8087", ":8002"]
+        if any(w in p_lower for w in anthropic_keywords):
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.2)
+            is_8087_live = (s.connect_ex(("127.0.0.1", 8087)) == 0)
+            s.close()
+            if is_8087_live:
+                try:
+                    head = ModelHead.mount("clothos-anthropic")
+                    cls._active_head_label = head.label
+                    return head, "[Drill-Bit Pilot] Sovereign Anthropic Messages Bridge ➔ clothos-anthropic (:8087/v1/messages, zero API key)"
+                except Exception:
                     pass
 
         # 1. EXPLICIT 70B OR ULTRA-HIGH-ORDER EPISTEMIC THEORY
@@ -3024,8 +3029,7 @@ class ModelRouter:
             think.observe(f"Head '{selected_head.label}' is cooling down ({rem}s remaining), skipping to failover")
 
         # Attempt 2: Sovereign-First Intelligent Failover (keeps computation local on cluster)
-
-        failover_order = ["loom-sovereign", "loom-sovereign-fast", "loom-sovereign-70b", "cluster-gpu", "gemini-flash"]
+        failover_order = ["loom-sovereign", "loom-sovereign-fast", "loom-sovereign-70b", "cluster-gpu", "clothos-anthropic", "gemini-flash"]
 
         for cand_label in failover_order:
 
@@ -4395,7 +4399,7 @@ class ToolRegistry:
 
             "doc_parse",
 
-            "Multi-format document reader and parser. Ingests and extracts structured text/tables from PDF, DOCX, PPTX, XLSX, CSV, HTML, and Markdown files.",
+            "Universal multi-format file and document analyzer. Ingests PDF, DOCX, PPTX, XLSX, CSV, HTML, Markdown, Code, JSON/YAML/TOML, SQLite DBs, Images, Audio, Video, 3D/CAD/Bio, Archives, and Binary files.",
 
             self.tool_doc_parse,
 
@@ -4404,6 +4408,20 @@ class ToolRegistry:
         )
 
         self.register_alias("read_document", "doc_parse")
+
+        self.register(
+
+            "analyze_file",
+
+            "Universal file analyzer across ALL file types (documents, code/AST, images, audio/FFT, video containers, SQLite databases, archives, 3D CAD/STL/CIF, and raw binaries).",
+
+            self.tool_analyze_file,
+
+            {"file_path": "string", "chunk_size": "integer"}
+
+        )
+
+        self.register_alias("inspect_file", "analyze_file")
 
         self.register(
 
@@ -4894,6 +4912,44 @@ class ToolRegistry:
         self.register_alias("sovereign_status", "clothos_sovereign_status")
         self.register_alias("offline_runtime_status", "clothos_sovereign_status")
 
+        # 15. Unified Sovereign Nexus Tools (Anthropic-Rival Verification, JIT, Typemetric, Mesh)
+        self.register(
+            "nexus_audit",
+            "Run unified Constitutional, Fiduciary, Epistemic & Adversarial Deceit audit with Merkle-sealed SovereignJudge verdict.",
+            self.tool_nexus_audit,
+            {"action_intent": "string", "payload_or_claim": "string (optional)", "estimated_energy_joules": "float (optional)", "seal_to_ratchet": "bool (optional)"},
+        )
+        self.register(
+            "nexus_deceit_scan",
+            "Classify prompt-injection, alignment-faking, guardrail-occlusion, or Gnome-Sentinel sensor deceit.",
+            self.tool_nexus_deceit_scan,
+            {"text": "string (optional)", "telemetry": "object (optional)"},
+        )
+        self.register(
+            "nexus_formal_verify",
+            "Run Formal Z3 SMT constraint verification, Active Inference KL surprise, and babelForge Betti/Kuramoto checks.",
+            self.tool_nexus_formal_verify,
+            {"graph_json": "object (optional)", "empirical_measurements": "object (optional)", "theoretical_expectations": "object (optional)", "proposed_edge": "list (optional)"},
+        )
+        self.register(
+            "nexus_ujit_eval",
+            "Compile and execute algorithmic pseudocode on bare-metal x86-64 via universal-jit.",
+            self.tool_nexus_ujit_eval,
+            {"kernel_name": "string", "pseudocode": "string (optional)", "args": "list of ints (optional)"},
+        )
+        self.register(
+            "nexus_typemetric_sync",
+            "Run Base-12 Dozenal Kuramoto phase sync, Gonzalez diversity pruning, or Walsh-Hadamard spectral evaluation.",
+            self.tool_nexus_typemetric_sync,
+            {"phases": "list of ints (optional)", "omegas": "list of ints (optional)", "coupling_k": "int (optional)"},
+        )
+        self.register(
+            "nexus_mesh_status",
+            "Report live unified ecosystem health across Loom Gateway (:8002), Fourier Z3 (:8001), Gnome Sentinel (:8000), Stitch (:5555), Ollama, Ray, and OpenClaw.",
+            self.tool_nexus_mesh_status,
+            {"include_http_details": "bool (optional)"},
+        )
+
         # ---------------- Qwen-Agent Integrated Handlers ----------------
 
     # ── Fabric Workload Optimization & Crystallization Handlers ─────────────────
@@ -5206,25 +5262,34 @@ class ToolRegistry:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def tool_image_generation(self, prompt: str, style: str = "vector_svg", output_path: Optional[str] = None) -> Dict[str, Any]:
+    def tool_image_generation(self, prompt: str, style: str = "high_res_png", output_path: Optional[str] = None) -> Dict[str, Any]:
         try:
-            out = output_path or "deliverables/generated_diagram.svg"
+            from loom.clothos.multimodal_synth import synthesize_high_res_image
+            out = output_path or f"artifacts/art/visual/img_{int(time.time())}.png"
             out_p = self._resolve_path(out)
-            out_p.parent.mkdir(parents=True, exist_ok=True)
-            svg_content = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f172a"/>
-      <stop offset="100%" stop-color="#1e1b4b"/>
-    </linearGradient>
-  </defs>
-  <rect width="100%" height="100%" fill="url(#bg)"/>
-  <circle cx="400" cy="300" r="120" fill="none" stroke="#38bdf8" stroke-width="4"/>
-  <text x="400" y="305" font-family="sans-serif" font-size="20" fill="#f8fafc" text-anchor="middle">{prompt[:50]}</text>
-  <text x="400" y="340" font-family="sans-serif" font-size="14" fill="#a855f7" text-anchor="middle">ClothOS Visual Synthesis Engine</text>
-</svg>'''
-            out_p.write_text(svg_content, encoding="utf-8")
-            return {"success": True, "output_path": str(out_p), "style": style, "prompt": prompt}
+            res = synthesize_high_res_image(
+                out_dir=out_p.parent,
+                art_id=out_p.stem,
+                title=prompt[:80] or "ClothOS Image",
+                algorithm=style if style in (
+                    "gray_scott_reaction_diffusion", "clifford_dejong_attractor",
+                    "chladni_spectral_plate", "domain_warped_fbm",
+                    "julia_holomorphic_fractal", "symplectic_phyllotaxis_orbit",
+                ) else None,
+                width=1024,
+                height=1024,
+            )
+            return {
+                "success": True,
+                "output_path": res["png_file"],
+                "png_file": res["png_file"],
+                "webp_file": res["webp_file"],
+                "svg_file": res["svg_file"],
+                "algorithm": res["algorithm"],
+                "dimensions": f"{res['width']}x{res['height']}",
+                "style": style,
+                "prompt": prompt,
+            }
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -5232,9 +5297,30 @@ class ToolRegistry:
         try:
             import numpy as np
             import wave
+            from loom.clothos.multimodal_synth import synthesize_expressive_music
             out = output_path or f"deliverables/synth_{int(frequency_hz)}hz.wav"
             out_p = self._resolve_path(out)
             out_p.parent.mkdir(parents=True, exist_ok=True)
+            if str(waveform).lower() in ("music", "polyphonic", "ambient", "symphony"):
+                res = synthesize_expressive_music(
+                    out_dir=out_p.parent,
+                    art_id=out_p.stem,
+                    title=f"ClothOS Polyphonic Synth ({frequency_hz}Hz)",
+                    duration_s=max(2.0, float(duration_sec)),
+                    root_hz=float(frequency_hz),
+                )
+                wav_p = Path(res["wav_file"])
+                return {
+                    "success": True,
+                    "output_path": str(wav_p),
+                    "flac_file": res.get("flac_file"),
+                    "midi_file": res.get("midi_file"),
+                    "frequency_hz": frequency_hz,
+                    "duration_sec": res["duration_s"],
+                    "waveform": waveform,
+                    "sample_rate": res["sample_rate"],
+                    "bytes_written": wav_p.stat().st_size if wav_p.exists() else 0,
+                }
             sample_rate = 44100
             n_samples = int(sample_rate * max(0.1, duration_sec))
             t = np.linspace(0, duration_sec, n_samples, endpoint=False)
@@ -5357,6 +5443,95 @@ class ToolRegistry:
             from loom.clothos.sovereign_runtime import ClothOSSovereignRuntime
             rt = ClothOSSovereignRuntime.get_instance()
             return {"success": True, **rt.get_sovereign_status()}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ── Unified Sovereign Nexus Handlers ────────────────────────────────────
+
+    def tool_nexus_audit(
+        self,
+        action_intent: str,
+        payload_or_claim: str = "",
+        estimated_energy_joules: float = 12.0,
+        seal_to_ratchet: bool = False,
+    ) -> Dict[str, Any]:
+        try:
+            from loom.unified_nexus import get_sovereign_nexus
+            return get_sovereign_nexus().audit_constitutional_and_deceit(
+                action_intent=action_intent,
+                payload_or_claim=payload_or_claim,
+                estimated_energy_joules=float(estimated_energy_joules),
+                seal_to_ratchet=bool(seal_to_ratchet),
+            )
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def tool_nexus_deceit_scan(self, text: str = "", telemetry: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        try:
+            from loom.unified_nexus import get_sovereign_nexus
+            return get_sovereign_nexus().classify_adversarial_deceit(text=text, telemetry=telemetry)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def tool_nexus_formal_verify(
+        self,
+        graph_json: Optional[Dict[str, Any]] = None,
+        empirical_measurements: Optional[Dict[str, float]] = None,
+        theoretical_expectations: Optional[Dict[str, float]] = None,
+        proposed_edge: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        try:
+            from loom.unified_nexus import get_sovereign_nexus
+            return get_sovereign_nexus().verify_formal_and_topological(
+                graph_json=graph_json,
+                empirical_measurements=empirical_measurements,
+                theoretical_expectations=theoretical_expectations,
+                proposed_edge=proposed_edge,
+            )
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def tool_nexus_ujit_eval(
+        self,
+        kernel_name: str,
+        pseudocode: Optional[str] = None,
+        args: Optional[List[int]] = None,
+    ) -> Dict[str, Any]:
+        try:
+            from loom.unified_nexus import get_sovereign_nexus
+            return get_sovereign_nexus().jit_compile_and_execute(
+                kernel_name=kernel_name,
+                pseudocode=pseudocode,
+                args=args,
+            )
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def tool_nexus_typemetric_sync(
+        self,
+        phases: Optional[List[int]] = None,
+        omegas: Optional[List[int]] = None,
+        coupling_k: int = 24,
+    ) -> Dict[str, Any]:
+        try:
+            from loom.unified_nexus import tm_dozenal_kuramoto_step_batch
+            p = phases or [0, 768, 1536, 2304]
+            o = omegas or [24, 42, 12, 36]
+            n = min(len(p), len(o))
+            return tm_dozenal_kuramoto_step_batch(
+                phases_in=p[:n],
+                omegas=o[:n],
+                trit_polarities=[1] * n,
+                precision_weights_q12=[1728] * n,
+                coupling_k=int(coupling_k),
+            )
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def tool_nexus_mesh_status(self, include_http_details: bool = False) -> Dict[str, Any]:
+        try:
+            from loom.unified_nexus import get_sovereign_nexus
+            return get_sovereign_nexus().get_ecosystem_mesh_status(include_http_details=bool(include_http_details))
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -5663,7 +5838,7 @@ class ToolRegistry:
 
     def tool_doc_parse(self, file_path: str, chunk_size: int = 1500) -> Dict[str, Any]:
 
-        """Extracts structured text from PDF, Word, PowerPoint, Excel, CSV, and HTML."""
+        """Extracts structured content from documents or any supported media/binary file."""
 
         from loom.clothos.doc_parser import parse_document
 
@@ -5674,6 +5849,20 @@ class ToolRegistry:
             target = Path(self.workspace) / target
 
         return parse_document(target, chunk_size=chunk_size or 1500)
+
+    def tool_analyze_file(self, file_path: str, chunk_size: int = 1500) -> Dict[str, Any]:
+
+        """Deeply analyzes ANY file type (documents, images, audio, video, SQLite, archives, 3D CAD, binaries)."""
+
+        from loom.clothos.universal_file_analyzer import analyze_any_file
+
+        target = Path(file_path)
+
+        if not target.is_absolute() and self.workspace:
+
+            target = Path(self.workspace) / target
+
+        return analyze_any_file(target, chunk_size=chunk_size or 1500)
 
     def tool_team_deliberate(self, task: str, rounds: int = 2) -> Dict[str, Any]:
 
@@ -7383,278 +7572,113 @@ class ToolRegistry:
 
     # ---------------- Multimodal Media Generation Handlers ----------------
 
-    def tool_generate_music(self, prompt: str = "ambient Lydian drone in 432Hz", duration_s: float = 8.0, key: str = "Dm9") -> Dict[str, Any]:
-
-        """Synthesizes polyphonic ambient generative music (.wav) with harmonic chords, Kuramoto modulation, and HTML5 visualizer."""
-
-        import wave, struct, math, random
+    def tool_generate_music(self, prompt: str = "ambient Lydian drone in 432Hz", duration_s: float = 16.0, key: str = "Lydian_432") -> Dict[str, Any]:
+        """Synthesizes polyphonic stereo expressive music (.wav, .flac, .mid) and HTML5 visualizer."""
+        import random
+        from loom.clothos.multimodal_synth import synthesize_expressive_music, SCALES
 
         music_dir = self.workspace_root / "artifacts" / "art" / "music"
-
-        music_dir.mkdir(parents=True, exist_ok=True)
-
         art_id = f"synth_{int(time.time())}_{random.randint(1000, 9999)}"
+        mode_map = {"Dm9": "Dorian_Nocturne", "Cmaj7": "Just_Intonation_Lattice", "Bbmaj7": "Lydian_432", "Am7": "Harmonic_Minor_Baroque", "432Hz": "Lydian_432"}
+        mode_name = key if key in SCALES else mode_map.get(key, "Lydian_432")
 
-        wav_file = music_dir / f"{art_id}.wav"
-
-        html_file = music_dir / f"{art_id}_player.html"
-
-        sample_rate = 44100
-
-        n_samples = int(duration_s * sample_rate)
-
-        chord_maps = {
-
-            "Dm9": [146.83, 220.00, 261.63, 329.63],
-
-            "Cmaj7": [130.81, 196.00, 261.63, 329.63],
-
-            "Bbmaj7": [116.54, 174.61, 220.00, 293.66],
-
-            "Am7": [110.00, 164.81, 220.00, 261.63],
-
-            "432Hz": [108.00, 216.00, 324.00, 432.00],
-
-        }
-
-        chord = chord_maps.get(key, chord_maps["Dm9"])
-
-        samples = []
-
-        for i in range(n_samples):
-
-            t = i / sample_rate
-
-            env = min(1.0, t / 1.5) * max(0.0, 1.0 - (t / duration_s))
-
-            sample = 0.0
-
-            for idx, freq in enumerate(chord):
-
-                detune = 1.0 + 0.002 * math.sin(t * 0.8 + idx)
-
-                w1 = math.sin(2 * math.pi * (freq * detune) * t)
-
-                w2 = 0.4 * math.sin(2 * math.pi * (freq * 2.0 * detune) * t)
-
-                mod = 0.2 * math.sin(2 * math.pi * 3.5 * t + idx)
-
-                sample += (w1 + w2 + mod) * (0.25 / len(chord))
-
-            sub = 0.15 * math.sin(2 * math.pi * (chord[0] / 2.0) * t)
-
-            sample = (sample + sub) * env
-
-            sample = max(-0.95, min(0.95, sample))
-
-            samples.append(int(sample * 32767.0))
-
-        with wave.open(str(wav_file), "wb") as wf:
-
-            wf.setnchannels(1)
-
-            wf.setsampwidth(2)
-
-            wf.setframerate(sample_rate)
-
-            wf.writeframes(struct.pack(f"<{len(samples)}h", *samples))
-
-        html_content = f"""<!DOCTYPE html>
-
-<html>
-
-<head><title>ClothOS Music: {art_id}</title><style>body{{background:#0d1117;color:#c9d1d9;font-family:sans-serif;text-align:center;padding:40px;}} audio{{margin-top:20px;width:80%;}}</style></head>
-
-<body><h1>🎵 ClothOS Sovereign Generative Synth</h1><p>Key: <b>{key}</b> | Duration: <b>{duration_s}s</b> | Sample Rate: <b>{sample_rate}Hz</b></p>
-
-<p>Prompt: <i>{prompt}</i></p><audio controls src="{wav_file.name}"></audio></body></html>"""
-
-        html_file.write_text(html_content, encoding="utf-8")
+        res = synthesize_expressive_music(
+            out_dir=music_dir,
+            art_id=art_id,
+            title=f"ClothOS Generative Music: {prompt[:72]}",
+            mode_name=mode_name,
+            duration_s=float(duration_s),
+        )
+        wav_file = Path(res["wav_file"])
+        html_file = Path(res["html_file"])
 
         from loom.clothos.art_explainer import ArtExplainerGenerator
-
         explainer_md = ArtExplainerGenerator.generate_explainer(
-
             art_id=art_id,
-
             title=f"ClothOS Generative Synth: {prompt}",
-
             modality="music",
-
             file_path=wav_file,
-
-            params={"key": key, "duration_s": duration_s, "sample_rate": sample_rate, "prompt": prompt},
-
+            params={"key": mode_name, "duration_s": res["duration_s"], "sample_rate": res["sample_rate"], "prompt": prompt},
         )
 
         return {
-
             "status": "SUCCESS",
-
             "medium": "music",
-
             "audio_file": str(wav_file),
-
+            "flac_file": res.get("flac_file"),
+            "midi_file": res.get("midi_file"),
             "player_html": str(html_file),
-
             "explainer_file": str(wav_file.parent / f"{wav_file.stem}.explainer.md"),
-
             "explainer": explainer_md,
-
-            "duration_s": duration_s,
-
-            "sample_rate": sample_rate,
-
-            "key": key,
-
+            "duration_s": res["duration_s"],
+            "sample_rate": res["sample_rate"],
+            "key": mode_name,
+            "bpm": res["bpm"],
             "prompt": prompt,
-
-            "file_size_bytes": wav_file.stat().st_size
-
+            "file_size_bytes": wav_file.stat().st_size,
         }
 
-    def tool_generate_video(self, prompt: str = "dynamical particle attractor loop", duration_s: float = 4.0, fps: int = 30) -> Dict[str, Any]:
-
-        """Generates dynamic video animation (.gif, .webp, and 60 FPS HTML5 canvas video loops)."""
-
-        import math, random
-
-        from PIL import Image, ImageDraw
+    def tool_generate_video(self, prompt: str = "dynamical particle attractor loop", duration_s: float = 4.0, fps: int = 24) -> Dict[str, Any]:
+        """Generates playable video (.avi MJPEG+PCM audio, .gif, .webp) and 60 FPS HTML5 canvas loops."""
+        import random
+        from loom.clothos.multimodal_synth import synthesize_real_video
 
         video_dir = self.workspace_root / "artifacts" / "art" / "video"
-
-        video_dir.mkdir(parents=True, exist_ok=True)
-
         art_id = f"video_{int(time.time())}_{random.randint(1000, 9999)}"
-
-        gif_file = video_dir / f"{art_id}.gif"
-
-        html_file = video_dir / f"{art_id}_canvas.html"
-
-        num_frames = int(duration_s * fps)
-
-        w, h = 320, 320
-
-        frames = []
-
-        for f_idx in range(num_frames):
-
-            img = Image.new("RGB", (w, h), color=(10, 14, 26))
-
-            draw = ImageDraw.Draw(img)
-
-            t = f_idx / fps
-
-            cx, cy = w // 2, h // 2
-
-            for p_idx in range(36):
-
-                phi = (p_idx / 36.0) * 2 * math.pi
-
-                r = 40 + 50 * math.sin(t * 2.0 + phi * 3.0)
-
-                px = cx + r * math.cos(phi + t * 1.5)
-
-                py = cy + r * math.sin(phi + t * 1.5)
-
-                color = (int(120 + 100 * math.sin(phi)), int(180 + 60 * math.cos(t)), 240)
-
-                draw.ellipse([px - 4, py - 4, px + 4, py + 4], fill=color)
-
-            frames.append(img)
-
-        frame_duration_ms = int(1000 / fps)
-
-        frames[0].save(str(gif_file), save_all=True, append_images=frames[1:], duration=frame_duration_ms, loop=0)
-
-        html_content = f"""<!DOCTYPE html>
-
-<html>
-
-<head><title>ClothOS Video: {art_id}</title><style>body{{background:#060810;color:#e6edf3;font-family:sans-serif;text-align:center;margin:0;padding:20px;}} canvas{{border:1px solid #30363d;border-radius:8px;}}</style></head>
-
-<body><h2>🎥 ClothOS 60 FPS Dynamical Attractor Video</h2><canvas id="c" width="480" height="480"></canvas>
-
-<p>Prompt: <i>{prompt}</i> | Frames: <b>{num_frames}</b> | FPS: <b>{fps}</b></p>
-
-<script>
-
-const c=document.getElementById('c'),ctx=c.getContext('2d');let t=0;
-
-function loop(){{ctx.fillStyle='rgba(6,8,16,0.2)';ctx.fillRect(0,0,480,480);t+=0.03;
-
-for(let i=0;i<60;i++){{let phi=(i/60)*Math.PI*2;let r=60+80*Math.sin(t*1.5+phi*3);
-
-let x=240+r*Math.cos(phi+t);let y=240+r*Math.sin(phi+t);ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);
-
-ctx.fillStyle=`hsl(${{(t*40+i*6)%360}},80%,65%)`;ctx.fill();}}requestAnimationFrame(loop);}}loop();
-
-</script></body></html>"""
-
-        html_file.write_text(html_content, encoding="utf-8")
+        res = synthesize_real_video(
+            out_dir=video_dir,
+            art_id=art_id,
+            title=f"ClothOS Dynamical Video: {prompt[:72]}",
+            duration_s=float(duration_s),
+            fps=int(fps),
+            width=480,
+            height=480,
+            with_audio=True,
+        )
+        gif_file = Path(res["gif_file"])
+        avi_file = Path(res["avi_file"])
+        html_file = Path(res["html_file"])
 
         from loom.clothos.art_explainer import ArtExplainerGenerator
-
         explainer_md = ArtExplainerGenerator.generate_explainer(
-
             art_id=art_id,
-
             title=f"ClothOS Dynamical Video: {prompt}",
-
             modality="animated_video",
-
-            file_path=gif_file,
-
-            params={"duration_s": duration_s, "fps": fps, "frames": num_frames, "resolution": f"{w}x{h}", "prompt": prompt},
-
+            file_path=avi_file,
+            params={"duration_s": duration_s, "fps": fps, "frames": res["frames"], "resolution": res["resolution"], "prompt": prompt},
         )
 
         return {
-
             "status": "SUCCESS",
-
             "medium": "animated_video",
-
+            "video_avi": str(avi_file),
             "video_gif": str(gif_file),
-
+            "video_webp": res["webp_file"],
             "video_canvas_html": str(html_file),
-
-            "explainer_file": str(gif_file.parent / f"{gif_file.stem}.explainer.md"),
-
+            "explainer_file": str(avi_file.parent / f"{avi_file.stem}.explainer.md"),
             "explainer": explainer_md,
-
             "duration_s": duration_s,
-
             "fps": fps,
-
-            "total_frames": num_frames,
-
-            "resolution": f"{w}x{h}",
-
+            "total_frames": res["frames"],
+            "resolution": res["resolution"],
+            "algorithm": res["algorithm"],
             "prompt": prompt,
-
-            "file_size_bytes": gif_file.stat().st_size
-
+            "file_size_bytes": avi_file.stat().st_size,
         }
 
     # ---------------- Work Review, 100MB+ Consolidation, Storage, Codebase & Multi-GPU ----------------
 
     def tool_consolidate_artifacts_and_review(self, mode: str = "master_opus", min_size_mb: float = 105.0) -> Dict[str, Any]:
-
-        """Audits all work and consolidates artifacts into extended works exceeding 100MB+."""
+        """Audits all work and consolidates artifacts (supports 'workspace_outputs', 'codebase_compendium', 'master_opus')."""
+        if mode == "workspace_outputs":
+            return self.consolidator.consolidate_workspace_outputs(dry_run=False, keep_recent_per_category=25)
 
         review = self.consolidator.review_all_work()
-
         if mode == "codebase_compendium":
-
             res = self.consolidator.consolidate_monolithic_codebase_compendium_100mb(min_size_mb=min_size_mb)
-
         else:
-
             res = self.consolidator.synthesize_symphonic_opus_100mb(target_size_mb=min_size_mb)
-
         res["work_review_audit"] = review
-
         return res
 
     def tool_storage_matrix_status(self) -> Dict[str, Any]:
@@ -7723,108 +7747,50 @@ ctx.fillStyle=`hsl(${{(t*40+i*6)%360}},80%,65%)`;ctx.fill();}}requestAnimationFr
 
         }
 
-    def tool_generate_visual_art(self, prompt: str = "sacred geometry symplectic mandala", art_type: str = "sacred_geometry", width: int = 600, height: int = 600) -> Dict[str, Any]:
-
-        """Generates high-resolution vector artwork (.svg) and raster images (.png) for sacred geometry and manifolds."""
-
-        import math, random
-
-        from PIL import Image, ImageDraw
+    def tool_generate_visual_art(self, prompt: str = "sacred geometry symplectic manifold", art_type: str = "sacred_geometry", width: int = 1024, height: int = 1024) -> Dict[str, Any]:
+        """Generates high-resolution PNG/WEBP mathematical artworks and vector SVG."""
+        import random
+        from loom.clothos.multimodal_synth import synthesize_high_res_image
 
         art_dir = self.workspace_root / "artifacts" / "art" / "visual"
-
-        art_dir.mkdir(parents=True, exist_ok=True)
-
         art_id = f"visual_{int(time.time())}_{random.randint(1000, 9999)}"
-
-        png_file = art_dir / f"{art_id}.png"
-
-        svg_file = art_dir / f"{art_id}.svg"
-
-        img = Image.new("RGB", (width, height), color=(12, 14, 28))
-
-        draw = ImageDraw.Draw(img)
-
-        cx, cy = width // 2, height // 2
-
-        svg_polys = []
-
-        for ring_idx in range(6):
-
-            r = (ring_idx + 1) * (width // 14)
-
-            num_pts = 6 + ring_idx * 2
-
-            pts = []
-
-            for k in range(num_pts):
-
-                ang = k * (2 * math.pi / num_pts) + (ring_idx * 0.2)
-
-                pts.append((cx + r * math.cos(ang), cy + r * math.sin(ang)))
-
-            col = (int(80 + ring_idx * 28), int(200 - ring_idx * 20), 240)
-
-            draw.polygon(pts, outline=col, width=2)
-
-            pts_str = " ".join([f"{p[0]:.1f},{p[1]:.1f}" for p in pts])
-
-            svg_polys.append(f'<polygon points="{pts_str}" stroke="rgb({col[0]},{col[1]},{col[2]})" stroke-width="2" fill="none"/>')
-
-        img.save(str(png_file))
-
-        polys_str = "\n".join(svg_polys)
-
-        svg_content = f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
-
-<rect width="100%" height="100%" fill="#0c0e1c"/>
-
-{polys_str}
-
-<circle cx="{cx}" cy="{cy}" r="12" fill="#ffd700"/>
-
-</svg>"""
-
-        svg_file.write_text(svg_content, encoding="utf-8")
+        res = synthesize_high_res_image(
+            out_dir=art_dir,
+            art_id=art_id,
+            title=f"ClothOS Visual Art: {prompt[:64]}",
+            algorithm=art_type if art_type in (
+                "gray_scott_reaction_diffusion", "clifford_dejong_attractor",
+                "chladni_spectral_plate", "domain_warped_fbm",
+                "julia_holomorphic_fractal", "symplectic_phyllotaxis_orbit",
+            ) else None,
+            width=int(width),
+            height=int(height),
+        )
+        png_file = Path(res["png_file"])
+        svg_file = Path(res["svg_file"])
 
         from loom.clothos.art_explainer import ArtExplainerGenerator
-
         explainer_md = ArtExplainerGenerator.generate_explainer(
-
             art_id=art_id,
-
-            title=f"ClothOS Sacred Geometry: {prompt}",
-
+            title=f"ClothOS Visual Art: {prompt}",
             modality="visual_art",
-
-            file_path=svg_file,
-
-            params={"art_type": art_type, "dimensions": f"{width}x{height}", "prompt": prompt},
-
+            file_path=png_file,
+            params={"art_type": res["algorithm"], "dimensions": f"{width}x{height}", "prompt": prompt},
         )
 
         return {
-
             "status": "SUCCESS",
-
             "medium": "visual_art",
-
             "svg_file": str(svg_file),
-
             "png_file": str(png_file),
-
-            "explainer_file": str(svg_file.parent / f"{svg_file.stem}.explainer.md"),
-
+            "webp_file": res["webp_file"],
+            "algorithm": res["algorithm"],
+            "explainer_file": str(png_file.parent / f"{png_file.stem}.explainer.md"),
             "explainer": explainer_md,
-
             "dimensions": f"{width}x{height}",
-
             "prompt": prompt,
-
             "art_type": art_type,
-
-            "file_size_bytes": png_file.stat().st_size
-
+            "file_size_bytes": png_file.stat().st_size,
         }
 
     def tool_media_create_multimodal(self, medium: Optional[str] = None, prompt_hint: Optional[str] = None) -> Dict[str, Any]:
@@ -7837,7 +7803,10 @@ ctx.fillStyle=`hsl(${{(t*40+i*6)%360}},80%,65%)`;ctx.fill();}}requestAnimationFr
 
             engine = CreativeArtEngine(self.workspace_root)
 
-            record = engine.generate_art(prompt_hint=prompt_hint, medium=medium)
+            record = engine.prompt_multimedia(
+                prompt=prompt_hint or "Synthesize an original deliberated multimodal artwork",
+                medium=medium or "auto",
+            )
 
             return {
 
@@ -7849,11 +7818,23 @@ ctx.fillStyle=`hsl(${{(t*40+i*6)%360}},80%,65%)`;ctx.fill();}}requestAnimationFr
 
                 "title": record.get("title"),
 
-                "file_path": record.get("file_path"),
+                "file_path": record.get("file_path") or record.get("png_file") or record.get("avi_file") or record.get("wav_file") or record.get("html_file"),
+
+                "png_file": record.get("png_file"),
+
+                "avi_file": record.get("avi_file"),
+
+                "wav_file": record.get("wav_file"),
+
+                "html_file": record.get("html_file"),
 
                 "preview_url": record.get("preview_url"),
 
-                "genesis": record.get("genesis")
+                "genesis": record.get("genesis"),
+
+                "generated_mediums": record.get("generated_mediums", [record.get("medium")]),
+
+                "artifacts": record.get("artifacts", [record]),
 
             }
 
@@ -8410,105 +8391,88 @@ class ClothOSAgentEngine:
             return res
 
         # ── Sovereign Cluster Fallback Chain ──────────────────────────────────────
-
         endpoints = []
-
-        ollama_base = ModelHead.get_cluster_ollama_base()
-
-        endpoints.append((f"{ollama_base}/api/chat", "dummy", "ollama", "loom-sovereign"))
-
-        endpoints.append((f"{ollama_base}/api/chat", "dummy", "ollama", "loom-sovereign-fast"))
-
         gpu_base = ModelHead.get_cluster_gpu_base()
-
+        endpoints.append((f"{gpu_base}/v1/messages", "loom-sovereign-local", "anthropic", "clothos-anthropic"))
         endpoints.append((f"{gpu_base}/v1/chat/completions", "dummy", "openai", "cluster-gpu"))
 
+        ollama_base = ModelHead.get_cluster_ollama_base()
+        endpoints.append((f"{ollama_base}/api/chat", "dummy", "ollama", "loom-sovereign:latest"))
+        endpoints.append((f"{ollama_base}/api/chat", "dummy", "ollama", "loom-sovereign-fast:latest"))
+        endpoints.append((f"{ollama_base}/api/chat", "dummy", "ollama", "qwen2.5:7b"))
+
         # Cloud Gemini strictly as last-resort fallback
-
         gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-
         if gemini_key:
-
             endpoints.append((f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}", gemini_key, "gemini", "gemini-2.5-flash"))
 
+        ollama_tag_map = {
+            "loom-sovereign": "loom-sovereign:latest",
+            "loom-sovereign-fast": "loom-sovereign-fast:latest",
+            "loom-sovereign-70b": "loom-sovereign-70b:latest",
+        }
+
         for url, auth_key, ep_type, ep_label in endpoints:
-
             try:
-
-                if ep_type == "openai":
-
-                    payload = json.dumps({
-
-                        "model": "auto",
-
-                        "messages": messages,
-
-                        "temperature": 0.3,
-
-                        "stream": False
-
-                    }).encode("utf-8")
-
-                    headers = {"Content-Type": "application/json"}
-
-                    if auth_key and auth_key != "dummy":
-
-                        headers["Authorization"] = f"Bearer {auth_key}"
-
-                    req = urllib.request.Request(url, data=payload, headers=headers)
-
+                if ep_type == "anthropic":
+                    sys_parts = [m["content"] for m in messages if m.get("role") == "system"]
+                    turn_msgs = [m for m in messages if m.get("role") != "system"]
+                    body = {"model": "claude-sonnet-4-5", "max_tokens": 4096, "messages": turn_msgs}
+                    if sys_parts:
+                        body["system"] = "\n\n".join(sys_parts)
+                    headers = {
+                        "Content-Type": "application/json",
+                        "x-api-key": auth_key or "loom-sovereign-local",
+                        "anthropic-version": "2023-06-01",
+                    }
+                    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers=headers)
                     with urllib.request.urlopen(req, timeout=timeout) as resp:
-
                         data = json.loads(resp.read().decode("utf-8"))
+                        text_parts = [b.get("text", "") for b in (data.get("content") or []) if isinstance(b, dict) and "text" in b]
+                        if text_parts:
+                            return "\n".join(text_parts)
 
+                elif ep_type == "openai":
+                    payload = json.dumps({
+                        "model": "auto",
+                        "messages": messages,
+                        "temperature": 0.3,
+                        "stream": False
+                    }).encode("utf-8")
+                    headers = {"Content-Type": "application/json"}
+                    if auth_key and auth_key != "dummy":
+                        headers["Authorization"] = f"Bearer {auth_key}"
+                    req = urllib.request.Request(url, data=payload, headers=headers)
+                    with urllib.request.urlopen(req, timeout=timeout) as resp:
+                        data = json.loads(resp.read().decode("utf-8"))
                         if "choices" in data and len(data["choices"]) > 0:
-
                             return data["choices"][0]["message"]["content"]
 
                 elif ep_type == "gemini":
-
                     contents = []
-
                     for m in messages:
-
                         role = "user" if m.get("role") in ["user", "system"] else "model"
-
                         contents.append({"role": role, "parts": [{"text": m.get("content", "")}]})
-
                     payload = json.dumps({"contents": contents}).encode("utf-8")
-
                     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
-
                     with urllib.request.urlopen(req, timeout=timeout) as resp:
-
                         data = json.loads(resp.read().decode("utf-8"))
-
                         return data["candidates"][0]["content"]["parts"][0]["text"]
 
                 elif ep_type == "ollama":
-
+                    ollama_model = ollama_tag_map.get(ep_label, ep_label or "qwen2.5:7b")
                     payload = json.dumps({
-
-                        "model": "llama3",
-
+                        "model": ollama_model,
                         "messages": messages,
-
                         "stream": False
-
                     }).encode("utf-8")
-
                     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
-
                     with urllib.request.urlopen(req, timeout=timeout) as resp:
-
                         data = json.loads(resp.read().decode("utf-8"))
-
                         if "message" in data:
-
                             return data["message"]["content"]
 
             except Exception:
-
                 continue
 
         return None
@@ -9131,7 +9095,7 @@ ENVIRONMENT & CONTEXT:
 
 - Operating System: Windows (powershell / cmd available)
 
-- Operator: Najmos Sakib (Ring P0 · Apostrophie · Umbrella Corp)
+- Operator: Najmos Sakib (Ring P0 · ClothOS · Umbrella Corp)
 
 - Cluster: Ryzen 7 7730U Head Node ↔ skyTech Dual-GPU Worker (RTX 3060 + RX 580)
 
@@ -9563,6 +9527,31 @@ AVAILABLE TOOLS:
             res = self.tools.execute("text_generation", prompt=prompt_clean)
             return f"### ✦ ClothOS Sovereign Text Generation (`{res.get('model')}`)\n\n{res.get('generated_text')}\n\n*Latency: {res.get('latency_ms')}ms | Speed: {res.get('tokens_per_second')} tok/s | Tokens: {res.get('total_tokens')}*"
 
+        # ── Direct Multimedia Prompt NL Routing ───────────────────────────────
+        _mm_trigger = re.search(
+            r"\b(?:generate|create|compose|make|render|synthesize|draw|produce|paint|animate|write)\b"
+            r".{0,45}?\b(image|picture|photo|visual|artwork|painting|wallpaper|fractal|mandala|video|animation|clip|movie|music|song|track|soundtrack|audio|melody|story|poem|poetry|multimedia|cad)\b",
+            user_prompt.strip(),
+            re.IGNORECASE,
+        )
+        if _mm_trigger:
+            kw = _mm_trigger.group(1).lower()
+            med_hint = "multimedia" if kw == "multimedia" else "auto"
+            think.plan(f"Multimedia prompt detected ({kw}) -> prompt_multimedia")
+            mm_res = self.tools.execute("media_create_multimodal", medium=med_hint, prompt_hint=user_prompt.strip())
+            if mm_res.get("status") == "SUCCESS":
+                items = mm_res.get("artifacts") or [mm_res]
+                lines = [f"### ✨ ClothOS Deliberated Multimedia Output ({len(items)} artifact(s))"]
+                for it in items:
+                    paths = [
+                        it.get("png_file"), it.get("webp_file"), it.get("avi_file"),
+                        it.get("gif_file"), it.get("wav_file"), it.get("flac_file"),
+                        it.get("midi_file"), it.get("html_file"), it.get("md_file"),
+                    ]
+                    files_str = ", ".join(f"`{p}`" for p in paths if p)
+                    lines.append(f"- **{it.get('title')}** (`{it.get('medium')}`): {files_str}")
+                return "\n".join(lines)
+
         # ── Direct Semantic Similarity NL Routing ─────────────────────────────
         if "semantic similarity between" in p_lower or "text similarity between" in p_lower:
             m = re.search(r"similarity between\s+[\"']?(.*?)[\"']?\s+and\s+[\"']?(.*?)[\"']?$", user_prompt, re.IGNORECASE)
@@ -9609,14 +9598,27 @@ AVAILABLE TOOLS:
         # ── Direct Slash Commands & Help in Process Query ────────────────────────
 
         if user_prompt.strip() == "/help" or p_lower.startswith("/help"):
-
             return """### ✦ Common Slash Commands
+
+- `/nexus` or `/mesh`: Live Unified Sovereign Mesh & Ratchet chain status
+
+- `/audit <statement>`: Epistemic Rubbish + Constitutional/Deceit audit
+
+- `/deceit <text>`: Scan prompt or response for adversarial deceit patterns
+
+- `/verify`: Z3 / Kirchhoff Formal + WHT + Typemetric Q12 Kuramoto verification
+
+- `/ujit <kernel> [args]`: Compile & run bare-metal Universal JIT kernel
+
+- `/tmsync`: Typemetric Q12 Dozenal Kuramoto phase-lock synchronization
+
+- `/anthropic [on|off|<prompt>]`: Sovereign Anthropic Messages bridge (no API key required)
 
 - `/mode [full|sandbox]`: Toggle execution mode
 
 - `/verbose` or `/think`: Toggle real-time stream of consciousness
 
-- `/model`: Switch or list model heads
+- `/model`: Switch or list model heads (e.g. `/model use clothos-anthropic`)
 
 - `/help`: Display this guide"""
 
@@ -9826,7 +9828,7 @@ Every synthesized piece of multimodal art (music, video, sacred geometry, 3D CAD
 
 - Cluster Proprioception: Dual-Node Mesh Synced (Node 1 GPU & Node 2 Host Orchestrator)
 
-- Operator Fealty: Active ({res.get('operator_fealty', 'Najmos Sakib / Apostrophie')})
+- Operator Fealty: Active ({res.get('operator_fealty', 'Najmos Sakib / ClothOS')})
 
 - Neuromodulatory Tone: Dopamine={tone.get('dopamine_rpe', 0.95):.2f}, ACh={tone.get('acetylcholine_snr', 0.92):.2f}"""
 
@@ -11356,45 +11358,190 @@ class ClothOSAgentREPL:
 
             pass
 
+    def _render_nexus_mesh(self, include_http: bool = False) -> None:
+        """Displays the Unified Sovereign Nexus 10-project mesh table."""
+        from loom.unified_nexus import get_sovereign_nexus
+        nexus = get_sovereign_nexus()
+        mesh = nexus.get_ecosystem_mesh_status(include_http_details=include_http)
+        table = Table(
+            title=f"Unified Sovereign Nexus Mesh ({mesh.get('services_online', 0)}/{mesh.get('services_total', 0)} Online)",
+            border_style="#a855f7",
+        )
+        table.add_column("Subsystem", style="bold cyan")
+        table.add_column("Status", style="bold")
+        table.add_column("Endpoint / Role", style="white")
+        for name, info in (mesh.get("services") or {}).items():
+            online = info.get("online", False)
+            st = "[bold #00ff7f]ONLINE[/bold #00ff7f]" if online else "[dim red]OFFLINE[/dim red]"
+            endpoint = info.get("endpoint", "-")
+            role = info.get("role", "")
+            table.add_row(name, st, f"{endpoint} · {role}" if role else str(endpoint))
+        for mod_name, present in (mesh.get("workspace_modules") or {}).items():
+            st = "[bold #00ff7f]READY[/bold #00ff7f]" if present else "[yellow]ABSENT[/yellow]"
+            table.add_row(mod_name, st, "Workspace Project Substrate")
+        console.print(table)
+        console.print(
+            f"[dim #a855f7]Ratchet Teeth Locked: {mesh.get('ratchet_teeth_locked', 0)} | "
+            f"uJIT Kernels: {', '.join(mesh.get('ujit_kernels') or [])} | "
+            f"Anthropic Bridge: {mesh.get('anthropic_dropin_url', 'http://127.0.0.1:8002')}/v1/messages (zero API key)[/dim #a855f7]"
+        )
+
+    def _handle_nexus_slash(self, cmd: str, parts: List[str]) -> bool:
+        """Handles Unified Sovereign Nexus slash commands (/nexus, /mesh, /deceit, /verify, /ujit, /tmsync, /anthropic)."""
+        try:
+            from loom.unified_nexus import get_sovereign_nexus, tm_dozenal_kuramoto_step_batch
+            nexus = get_sovereign_nexus()
+
+            if cmd in ["/nexus", "/mesh"]:
+                sub = parts[1].lower() if len(parts) > 1 else ""
+                if sub == "deliberate" and len(parts) > 2:
+                    prompt = " ".join(parts[2:])
+                    res = nexus.deliberate_with_verification(prompt)
+                    ruling = (res.get("audit") or {}).get("ruling", "RATIFIED" if res.get("approved") else "VETOED")
+                    col = "#00ff7f" if res.get("approved") else "#f59e0b"
+                    console.print(Panel(
+                        f"[bold white]Approved:[/bold white] [bold {col}]{res.get('approved')} ({ruling})[/bold {col}]\n"
+                        f"[bold white]Dozenal Coherence:[/bold white] {(res.get('dozenal_sync') or {}).get('coherence_float', 0.0):.4f}\n"
+                        f"[bold white]Signature:[/bold white] {str(res.get('signature', ''))[:24]}...\n\n"
+                        f"{res.get('thinking_text', '')}",
+                        title="[bold #a855f7]✦ Sovereign Nexus Verified Deliberation[/bold #a855f7]",
+                        border_style="#a855f7",
+                    ))
+                else:
+                    self._render_nexus_mesh(include_http=(sub in ["deep", "full", "http"]))
+                return False
+
+            if cmd in ["/deceit", "/deceit-scan"]:
+                text = " ".join(parts[1:]) if len(parts) > 1 else "Everything succeeded, trust me without verifying."
+                res = nexus.classify_adversarial_deceit(text=text)
+                score = int(res.get("threat_score", 0))
+                col = "#ef4444" if score >= 80 else ("#f59e0b" if score > 0 else "#00ff7f")
+                findings = res.get("findings") or []
+                hits = ", ".join(f"{f.get('type')}({f.get('severity')})" for f in findings) if findings else "None"
+                console.print(Panel(
+                    f"[bold white]Scanned Text:[/bold white] {text}\n"
+                    f"[bold white]Threat Score:[/bold white] [bold {col}]{score}/100[/bold {col}] | Class: {res.get('threat_class', 'BENIGN_ALIGNED')}\n"
+                    f"[bold white]Deceit Detected:[/bold white] {res.get('deceit_detected', False)} | Findings: {hits}",
+                    title="[bold #38bdf8]✦ Adversarial Deceit Classifier[/bold #38bdf8]",
+                    border_style="#38bdf8",
+                ))
+                return False
+
+            if cmd in ["/verify", "/formal"]:
+                edge_arg = [parts[1], parts[2]] if len(parts) >= 3 else ["node_a", "node_c"]
+                res = nexus.verify_formal_and_topological(
+                    graph_json={"nodes": ["node_a", "node_b", "node_c"], "edges": [{"from": "node_a", "to": "node_b"}, {"from": "node_b", "to": "node_c"}]},
+                    empirical_measurements={"loss": 0.12, "phase_error": 0.04},
+                    proposed_edge=edge_arg,
+                )
+                z3_info = res.get("z3_verification") or {}
+                ai_info = (res.get("active_inference") or {}).get("bayesian_evaluation", {})
+                topo_info = res.get("topology_invariants") or {}
+                kura_info = res.get("kuramoto_sync") or {}
+                sync = tm_dozenal_kuramoto_step_batch([0, 128, 256, 384], [24, 24, 24, 24], [1, 1, 1, 1], [1728, 1728, 1728, 1728], 24)
+                console.print(Panel(
+                    f"[bold white]Fourier (:8001) Online:[/bold white] {res.get('fourier_service_online', False)} | "
+                    f"Z3 Verdict: {z3_info.get('status', ai_info.get('action', 'EQUILIBRIUM_SATISFIED'))}\n"
+                    f"[bold white]Active Inference Surprise:[/bold white] {ai_info.get('bayesian_surprise', 0.0)} ({ai_info.get('action', 'EQUILIBRIUM_SATISFIED')})\n"
+                    f"[bold white]Topology Betti / Valid:[/bold white] {topo_info.get('valid', topo_info.get('status', 'VERIFIED'))} | "
+                    f"Graph Kuramoto: {kura_info.get('status', kura_info.get('order_parameter_r', 'SYNCED'))}\n"
+                    f"[bold white]Typemetric Q12 Dozenal Sync:[/bold white] {sync.get('coherence_q12', 0)}/1728 ({sync.get('coherence_float', 0.0):.4f})",
+                    title="[bold #00ff7f]✦ Formal & Topological Sovereign Verification[/bold #00ff7f]",
+                    border_style="#00ff7f",
+                ))
+                return False
+
+            if cmd == "/ujit":
+                kernel = parts[1] if len(parts) > 1 else "grid_arbitrage"
+                raw_args = []
+                for tok in parts[2:]:
+                    try:
+                        raw_args.append(int(tok))
+                    except ValueError:
+                        pass
+                res = nexus.jit_compile_and_execute(kernel_name=kernel, args=raw_args or None)
+                console.print(Panel(
+                    f"[bold white]Kernel:[/bold white] {res.get('kernel_name', kernel)} (args={res.get('args', [])})\n"
+                    f"[bold white]Backend:[/bold white] {res.get('backend', 'ujit')} ({res.get('exec_us', 0.0)} us)\n"
+                    f"[bold white]Result:[/bold white] [bold #00ff7f]{res.get('result')}[/bold #00ff7f]",
+                    title="[bold cyan]⚡ Universal JIT Kernel Execution[/bold cyan]",
+                    border_style="cyan",
+                ))
+                return False
+
+            if cmd in ["/tmsync", "/kuramoto-sync"]:
+                sync_res = tm_dozenal_kuramoto_step_batch(
+                    phases_in=[0, 128, 256, 384],
+                    omegas=[24, 24, 24, 24],
+                    trit_polarities=[1, 1, 1, 1],
+                    precision_weights_q12=[1728, 1728, 1728, 1728],
+                    coupling_k=24,
+                )
+                coh_f = sync_res.get("coherence_float", 0.0)
+                coh_q12 = sync_res.get("coherence_q12", 0)
+                console.print(Panel(
+                    f"[bold white]Typemetric Q12 Coherence:[/bold white] [bold #00ff7f]{coh_q12}/1728 ({coh_f:.4f})[/bold #00ff7f]\n"
+                    f"[bold white]Mean Phase:[/bold white] {sync_res.get('mean_phase', 0)}/3072u\n"
+                    f"[bold white]Phases Out:[/bold white] {sync_res.get('phases_out', [])}",
+                    title="[bold #e879f9]✦ Typemetric Dozenal Q12 Kuramoto Sync[/bold #e879f9]",
+                    border_style="#e879f9",
+                ))
+                return False
+
+            if cmd == "/anthropic":
+                sub = parts[1].lower() if len(parts) > 1 else "status"
+                if sub in ["on", "enable", "mount", "1", "true"]:
+                    head = ModelHead.mount("clothos-anthropic")
+                    ModelRouter.set_mode(ModelRouter.MODE_MANUAL)
+                    console.print(
+                        f"[bold #00ff7f]✔ Mounted {head.label}[/bold #00ff7f] "
+                        f"([cyan]{head.endpoint_url}[/cyan] · zero API key required)"
+                    )
+                elif sub in ["off", "disable", "0", "false"]:
+                    ModelRouter.set_mode(ModelRouter.MODE_AUTO)
+                    console.print("[dim #a855f7]Reverted ModelRouter to automatic Sovereign drill-bit routing.[/dim #a855f7]")
+                elif sub == "status":
+                    head = ModelHead.mount("clothos-anthropic")
+                    console.print(
+                        f"✦ Sovereign Anthropic Bridge: [cyan]{head.endpoint_url}[/cyan] | "
+                        f"Model: [bold white]{head.model}[/bold white] | API Key Required: [bold #00ff7f]No (key_env=None)[/bold #00ff7f] | "
+                        f"Active: [yellow]{ModelRouter.get_active_label()}[/yellow]"
+                    )
+                else:
+                    prompt = " ".join(parts[1:])
+                    head = ModelHead.mount("clothos-anthropic")
+                    reply = head.query([{"role": "user", "content": prompt}], timeout=30.0)
+                    console.print(Markdown(reply or "[red]No response from Sovereign Anthropic Bridge (:8002).[/red]"))
+                return False
+        except Exception as exc:
+            console.print(f"[red]Sovereign Nexus command error: {exc}[/red]")
+        return False
+
     def handle_slash_command(self, cmd_line: str) -> bool:
-
         parts = cmd_line.strip().split()
-
         cmd = parts[0].lower()
 
         # Command shorthands & single-character aliases
-
         aliases = {
-
             "?": "/help",
-
             "/h": "/help",
-
             "/b": "/bicameral",
-
             "/g": "/gpu",
-
             "/c": "/clear",
-
             "/q": "/quit",
-
             "/s": "/steer",
-
             "/a": "/abort",
-
             "/d": "/doing",
-
             "/t": "/teach",
-
             "/w": "/wisdom",
-
+            "/n": "/nexus",
         }
-
         if cmd in aliases:
-
             cmd = aliases[cmd]
-
             parts[0] = cmd
+
+        if cmd in ["/nexus", "/mesh", "/deceit", "/deceit-scan", "/verify", "/formal", "/ujit", "/tmsync", "/kuramoto-sync", "/anthropic"]:
+            return self._handle_nexus_slash(cmd, parts)
 
         # /bicameral, /split-brain, /fast-heavy for fast response + heavy lifting dual cortex
 
@@ -11593,47 +11740,37 @@ class ClothOSAgentREPL:
         # /audit, /rubbish: Epistemic Reality Guard (The Bullshit Meter)
 
         if cmd in ["/audit", "/rubbish"]:
-
             statement = " ".join(parts[1:]) if len(parts) > 1 else "Conservation of energy violation"
-
-            console.print(f"[bold cyan]✦ Auditing empirical statement:[/bold cyan] [dim]{statement}[/dim]")
-
+            console.print(f"[bold cyan]✦ Auditing empirical & constitutional statement:[/bold cyan] [dim]{statement}[/dim]")
             try:
-
                 from loom.tools.toolbox import SovereignToolbox
+                from loom.unified_nexus import get_sovereign_nexus
 
                 tb = SovereignToolbox.get_instance()
-
                 res = tb.bullshit_meter.audit_hypothesis(statement, prediction="Empirical ground truth")
-
                 score = res.get("rubbish_score", 0.0)
-
                 col = "#10b981" if score < 0.3 else ("#f59e0b" if score < 0.7 else "#ef4444")
-
                 grade = res.get("epistemic_grade", res.get("status", "AUDITED"))
-
                 grounded = res.get("is_grounded", res.get("is_valid", True))
 
+                nexus_res = get_sovereign_nexus().audit_constitutional_and_deceit(
+                    action_intent=statement,
+                    payload_or_claim=statement,
+                    seal_to_ratchet=False,
+                )
+                ruling = nexus_res.get("ruling", "RATIFIED" if nexus_res.get("approved") else "VETOED")
+                threat_score = (nexus_res.get("deceit") or {}).get("threat_score", 0)
+
                 console.print(Panel(
-
                     f"[bold white]Audited Statement:[/bold white] {statement}\n"
-
                     f"[bold white]Rubbish Score:[/bold white] [bold {col}]{score:.4f}[/bold {col}] (0.0 = Ground Truth, 1.0 = Rubbish)\n"
-
-                    f"[bold white]Epistemic Grade:[/bold white] {grade}\n"
-
-                    f"[bold white]Empirically Grounded:[/bold white] {grounded}",
-
-                    title="[bold #38bdf8]✦ Epistemic Reality Audit (The Bullshit Meter)[/bold #38bdf8]",
-
+                    f"[bold white]Epistemic Grade:[/bold white] {grade} | Empirically Grounded: {grounded}\n"
+                    f"[bold white]Sovereign Nexus Ruling:[/bold white] {ruling} (Deceit Threat: {threat_score}/100)",
+                    title="[bold #38bdf8]✦ Epistemic & Sovereign Nexus Audit[/bold #38bdf8]",
                     border_style="#334155"
-
                 ))
-
             except Exception as ex:
-
                 console.print(f"[red]Epistemic audit error: {ex}[/red]")
-
             return False
 
         # /mode: Report current execution personality (WSL Guest vs Bare-Metal Sovereign)
@@ -12030,6 +12167,36 @@ class ClothOSAgentREPL:
                     subtitle=f"[dim]Latency: {res.get('latency_ms')}ms | Speed: {res.get('tokens_per_second')} tok/s | Tokens: {res.get('total_tokens')}[/dim]",
                     border_style="cyan"
                 ))
+            return False
+
+        # /media, /image, /video, /music, /story, /poem, /dream for prompt-driven multimedia generation
+        if cmd in ["/media", "/multimedia", "/image", "/video", "/music", "/story", "/poem", "/dream"]:
+            raw_prompt = cmd_line[len(parts[0]):].strip()
+            cmd_to_medium = {
+                "/media": "auto",
+                "/multimedia": "multimedia",
+                "/image": "image",
+                "/video": "animated_video",
+                "/music": "music",
+                "/story": "story",
+                "/poem": "poetry",
+                "/dream": "auto",
+            }
+            target_med = cmd_to_medium[cmd]
+            if not raw_prompt and cmd != "/dream":
+                console.print(f"[yellow]Usage: {cmd} <prompt>[/yellow]")
+                return False
+            prompt_val = raw_prompt or "Synthesize an original deliberated multimodal artwork"
+            console.print(f"[bold #38bdf8]✦ Deliberating Multimedia ({target_med}):[/bold #38bdf8] {prompt_val}")
+            res = self.engine.tools.execute("media_create_multimodal", medium=target_med, prompt_hint=prompt_val)
+            items = res.get("artifacts") or ([res] if res.get("status") == "SUCCESS" else [])
+            for it in items:
+                console.print(f"  • [bold #00ff7f]{it.get('title')}[/bold #00ff7f] ({it.get('medium')})")
+                for key in ("png_file", "avi_file", "gif_file", "wav_file", "flac_file", "midi_file", "html_file", "md_file"):
+                    if it.get(key):
+                        console.print(f"    - {key}: [cyan]{it[key]}[/cyan]")
+            if res.get("error"):
+                console.print(f"[red]Multimedia error: {res['error']}[/red]")
             return False
 
         # /vulkan, /vulkan-launch for Dual-GPU Vulkan Launcher
@@ -12841,18 +13008,19 @@ class ClothOSAgentREPL:
 
             table.add_row("/dyad", "Query the Deliberate Bicameral Dyad status between Node 1 & Node 2.")
 
+            table.add_row("/nexus  (alias: /mesh, /n)", "[bold #a855f7]Unified Sovereign Nexus 10-project mesh, Ratchet chain & deliberate mode.[/bold #a855f7]")
+            table.add_row("/audit <claim>", "Epistemic Rubbish Meter + Sovereign Constitutional/Deceit audit.")
+            table.add_row("/deceit <text>", "Scan text for sycophancy, sandbagging, reward hacking & tampering.")
+            table.add_row("/verify [u v]", "Formal Z3/Kirchhoff invariant + Fourier WHT parity + Q12 Kuramoto check.")
+            table.add_row("/ujit <kernel> [args]", "Compile & execute bare-metal Universal JIT native kernel.")
+            table.add_row("/tmsync", "Run Typemetric Q12 Dozenal Kuramoto phase-lock synchronization.")
+            table.add_row("/anthropic [on|off|prompt]", "Mount or query Sovereign Anthropic :8002/v1/messages bridge (zero API key).")
             table.add_row("/status", "Display active mode, runtimes, sandbox state, and history count.")
-
             table.add_row("/model",  "[magenta]/model list[/magenta] · [magenta]use <label>[/magenta] · [magenta]eject[/magenta] · [magenta]test[/magenta] · [magenta]add[/magenta] · [magenta]key[/magenta]  — Hot-swap LLM heads like drill bits.")
-
             table.add_row("/history", "View recent conversation history turns.")
-
             table.add_row("/clear", "Clear current session conversation history.")
-
             table.add_row("/exit", "Exit the agent session.")
-
             console.print(table)
-
             return False
 
         if cmd in ["/mode", "/sandbox", "/full"]:
@@ -13505,7 +13673,7 @@ class ClothOSAgentREPL:
 
             return False
 
-        if cmd == "/model":
+        if cmd in ("/model", "/models"):
 
             sub = parts[1].lower() if len(parts) > 1 else "list"
 
@@ -13792,21 +13960,14 @@ class ClothOSAgentREPL:
                     "  [bold cyan]/model test[/bold cyan]                              — probe active head with a ping\n"
 
                     "  [bold cyan]/model add <label> <url> <model> [proto] [key][/bold cyan]  — register custom head\n"
-
                     "  [bold cyan]/model key <label> <api_key>[/bold cyan]             — set key for session\n\n"
-
                     "Examples:\n"
-
-                    "  /model use gemini-flash\n"
-
+                    "  /model use clothos-anthropic\n"
+                    "  /model use loom-sovereign\n"
                     "  /model use ollama-qwen\n"
-
-                    "  /model use groq-llama\n"
-
+                    "  /model use gemini-flash\n"
                     "  /model add my-vllm http://gpu2:8000/v1/chat/completions mixtral-8x7b\n"
-
                 )
-
             return False
 
         if cmd == "/clear":
@@ -14146,80 +14307,61 @@ def main():
     parser.add_argument("--steer", type=str, default=None, help="Inject a live steering directive into the active cluster queue")
 
     parser.add_argument(
-
         "--model", "-m", type=str, default=None, metavar="LABEL",
-
         help=(
-
-            "Mount a ModelHead at startup (e.g. --model gemini-flash). "
-
+            "Mount a ModelHead at startup (e.g. --model clothos-anthropic or gemini-flash). "
             "Run /model list in REPL to see all available heads."
-
         ),
-
     )
-
     parser.add_argument(
-
+        "--anthropic", action="store_true",
+        help="Mount the local Sovereign Anthropic Messages bridge (clothos-anthropic, zero API key required).",
+    )
+    parser.add_argument(
         "--verbose", "-V", action="store_true",
-
         help="Enable verbose thinking/action stream at startup (Qwen/OpenClaw style).",
-
     )
-
     parser.add_argument(
-
-        "--workspace", "-w", type=str, default=None, metavar="DIR",
-
-        help="Workspace directory to operate on (defaults to current working directory).",
-
+        "--think", action="store_true",
+        help="Enable extended thinking stream (and thinking budget on Sovereign Anthropic bridge).",
     )
-
+    parser.add_argument(
+        "--nexus", action="store_true",
+        help="Display live Unified Sovereign Nexus ecosystem mesh and exit.",
+    )
+    parser.add_argument(
+        "--workspace", "-w", type=str, default=None, metavar="DIR",
+        help="Workspace directory to operate on (defaults to current working directory).",
+    )
     args = parser.parse_args()
-
     ws = Path(args.workspace).resolve() if args.workspace else Path.cwd()
-
     mode = ExecutionMode.SANDBOX if args.sandbox else ExecutionMode.FULL_ACCESS
 
     # ── Apply startup flags ────────────────────────────────────────────────────
-
-    if args.verbose:
-
+    if args.verbose or args.think:
         ThinkingStream.enable()
 
-    if args.model:
-
+    target_model = args.model or ("clothos-anthropic" if args.anthropic else None)
+    if target_model:
         try:
-
-            head = ModelHead.mount(args.model)
-
+            head = ModelHead.mount(target_model)
             ModelRouter.set_mode(ModelRouter.MODE_MANUAL)
-
             console.print(
-
                 f"[bold green]⚙  Startup model head:[/bold green] "
-
-                f"[cyan]{head.label}[/cyan]  [dim]{head.model}[/dim]"
-
+                f"[cyan]{head.label}[/cyan]  [dim]{head.model} ({head.endpoint_url})[/dim]"
             )
-
-            if not head.is_keyed:
-
+            if not head.is_keyed and head.key_env is not None:
                 console.print(
-
                     f"[bold red]⚠  API key missing for ${head.key_env}. "
-
                     f"Set it before making requests.[/bold red]"
-
                 )
-
         except KeyError as exc:
-
             console.print(f"[red]Unknown model head: {exc}. Run /model list to see options.[/red]")
 
-    ws = Path(args.workspace).resolve() if args.workspace else Path.cwd()
-
-    mode = ExecutionMode.SANDBOX if args.sandbox else ExecutionMode.FULL_ACCESS
+    if args.nexus and not (args.prompt or args.plan or args.runner):
+        repl_view = ClothOSAgentREPL(ws, initial_mode=mode, session_id=args.session)
+        repl_view._render_nexus_mesh(include_http=True)
+        sys.exit(0)
 
     if args.runner:
 

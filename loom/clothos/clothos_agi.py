@@ -198,12 +198,12 @@ class ClothosUmbrellaAGI:
         with self._lock:
             # 1. Determine optimal arithmetic base
             radix_rec: RadixRecommendation = self.radix_engine.select_optimal_radix(
-                task_description.lower(), tensor_dims=tensor_dims
+                task_description.lower(), tensor_dimensions=tensor_dims
             )
 
             # 2. Hardware offload planning via Progenetic evolutionary genome
             hw_plan: HardwareAllocationPlan = self.progenetic_agent.plan_hardware_offload(
-                task_description, target_model="qwen2.5:32b"
+                task_description, task_type="umbrella_reasoning"
             )
 
             # 3. Assess if workload warrants RISC-V TPU systolic emulation
@@ -217,6 +217,7 @@ class ClothosUmbrellaAGI:
                     "pe_allocation": f"{self.tpu_emulator.ARRAY_DIM}x{self.tpu_emulator.ARRAY_DIM} PEs",
                 }
 
+            spacer_count = len(getattr(self.progenetic_agent.crispr, "spacers", {}))
             plan = {
                 "agi_agent": self.name,
                 "task": task_description,
@@ -229,7 +230,7 @@ class ClothosUmbrellaAGI:
                 "hardware_allocation": asdict(hw_plan),
                 "tpu_systolic_offload": tpu_plan,
                 "umbrella_residency": "100% On-Device / Zero Cloud Leaks",
-                "crispr_protection": f"Protected by {self.progenetic_agent.crispr.spacer_count} immune memory spacers",
+                "crispr_protection": f"Protected by {spacer_count} immune memory spacers",
             }
 
             return plan

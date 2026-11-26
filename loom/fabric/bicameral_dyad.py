@@ -215,23 +215,24 @@ class BicameralDyadEngine:
         self._ratchet_counter += len(sample_thoughts)
 
     def probe_peer_health(self) -> Tuple[bool, float]:
-        """Probes the paired machine over local LAN and Tailscale."""
+        """Probes the paired machine over local LAN and Tailscale without fabricating online state."""
         import urllib.request
         candidates = [
             f"http://{self.peer_ip}:{self.port}/api/health",
             f"http://{self.peer_tailscale_ip}:{self.port}/api/health",
+            f"http://{self.peer_ip}:8265/nodes?view=summary",
+            f"http://{self.peer_tailscale_ip}:8265/nodes?view=summary",
         ]
         for url in candidates:
             try:
                 t_start = time.perf_counter()
-                with urllib.request.urlopen(url, timeout=0.8) as resp:
+                with urllib.request.urlopen(url, timeout=0.6) as resp:
                     if resp.status == 200:
                         lat_ms = (time.perf_counter() - t_start) * 1000.0
                         return True, round(lat_ms, 2)
             except Exception:
                 continue
-        # Fallback simulated probe if offline in local sandbox
-        return True, 1.24
+        return False, 0.0
 
     def project(
         self,

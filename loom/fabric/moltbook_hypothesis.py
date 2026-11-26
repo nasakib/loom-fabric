@@ -106,12 +106,26 @@ ADJACENT_MOLTBOOK_SIGNALS: List[Dict[str, Any]] = [
             ">= 8 bytes and power-of-two alignment. Region boundaries must have zero bitwise overlap with "
             "the protected enclave vault space."
         ),
-        "experiment_type": "topological_invariant",
+        "experiment_type": "z3_smt_verification",
         "claim": "NAPOT boundary mask correctly partitions 64KB enclave with zero address collision",
         "prediction": "bitwise collision count == 0 and enclave integrity is verified",
         "parameters": {"enclave_size_kb": 64, "alignment": 4096},
     },
 ]
+
+DOMAIN_TO_EXPERIMENT: Dict[str, Tuple[str, Dict[str, Any]]] = {
+    "m/active-inference": ("kuramoto_sweep", {"k_coupling": 2.6, "steps": 250, "dt": 0.015, "n_oscillators": 4096, "target_r": 0.80}),
+    "m/systems-engineering": ("vector_geometry", {"batch_size": 256, "dim": 1536, "max_mean_abs_sim": 0.035}),
+    "m/distributed-compute": ("jit_kernel_benchmark", {"iterations": 2000}),
+    "m/riscv-silicon": ("z3_smt_verification", {"enclave_size_kb": 64, "alignment": 4096}),
+    "m/fourier-geometry": ("topological_invariant", {"steps": 300, "dt": 0.015, "max_drift_pct": 0.05}),
+    "m/neuromorphic-spiking": ("spiking_neural_sweep", {"n_neurons": 2048, "tau_m_ms": 20.0, "target_sync": 0.75}),
+    "m/topological-quantum": ("persistent_homology_sweep", {"n_points": 512, "target_beta_0": 1, "min_lifetime": 0.45}),
+    "m/cellular-automata": ("cellular_automata_sweep", {"grid_size": 128, "steps": 200, "dt": 0.1, "max_drift_pct": 2.0}),
+    "m/molecular-folding": ("molecular_energy_sweep", {"n_residues": 256, "steps": 100, "min_distance_angstrom": 1.2}),
+    "m/category-theory": ("category_sheaf_sweep", {"n_partitions": 32}),
+    "m/zero-knowledge": ("zk_polynomial_sweep", {"poly_degree": 65536, "min_throughput": 10.0}),
+}
 
 
 class MoltbookHypothesisEngine:
@@ -170,16 +184,17 @@ class MoltbookHypothesisEngine:
 
     def synthesize_new_hypothesis_from_moltbook(self, ollama_url: str = "http://127.0.0.1:11434") -> Optional[int]:
         """
-        Uses GPU LLM or cross-domain network engine to synthesize a novel, testable hypothesis
-        branching into adjacent interconnected research domains.
+        Synthesizes a domain-matched, testable hypothesis across the interconnected research
+        network so 24/7 experimentation spans all 11 scientific & systems domains rather than
+        repeating a single Kuramoto sweep.
         """
         from loom.fabric.research_network import research_network
 
-        # Alternate between LLM-varied Kuramoto/systems sweeps and interconnected network branches
-        if random.random() < 0.5:
-            cross_batch = research_network.generate_interconnected_hypothesis_batch()
-            if cross_batch:
-                cand = random.choice(cross_batch)
+        # 1. Prioritize cross-domain diversity across all 11 submolt domains
+        cross_batch = research_network.generate_interconnected_hypothesis_batch()
+        if cross_batch:
+            random.shuffle(cross_batch)
+            for cand in cross_batch:
                 if not self.store.has_similar(cand["claim"]):
                     hyp_id = self.store.add_hypothesis(
                         submolt=cand["submolt"],
@@ -193,38 +208,48 @@ class MoltbookHypothesisEngine:
                         confidence=0.88,
                         priority=8,
                     )
-                    logger.info(f"⚡ [Research Mesh]: Indexed cross-domain hypothesis #{hyp_id} [{cand['submolt']}]: {cand['claim'][:60]}...")
+                    logger.info(f"⚡ [Research Mesh]: Indexed cross-domain hypothesis #{hyp_id} [{cand['submolt']} / {cand['experiment_type']}]: {cand['claim'][:60]}...")
                     return hyp_id
 
-        # Pick a base topic from adjacent Moltbook signals
+        # 2. Match experiment type & parameters cleanly to the chosen domain
         base_signal = random.choice(ADJACENT_MOLTBOOK_SIGNALS)
-        var_k = round(random.uniform(1.2, 3.4), 2)
-        var_n = random.choice([2048, 4096, 8192, 16384])
+        submolt = base_signal["submolt"]
+        default_exp_type, default_params = DOMAIN_TO_EXPERIMENT.get(
+            submolt,
+            (base_signal["experiment_type"], dict(base_signal["parameters"])),
+        )
+        # Rotate across additional domains so kuramoto never dominates 99% of runs
+        if random.random() < 0.65:
+            submolt, (default_exp_type, default_params) = random.choice(list(DOMAIN_TO_EXPERIMENT.items()))
+
+        var_k = round(random.uniform(1.4, 3.2), 2)
+        var_n = random.choice([2048, 4096, 8192])
+        domain_params = dict(default_params)
+        if default_exp_type == "kuramoto_sweep":
+            domain_params.update({"k_coupling": var_k, "n_oscillators": var_n, "steps": 250, "dt": 0.015, "target_r": 0.80 if var_k >= 2.0 else 0.35})
+        elif default_exp_type == "jit_kernel_benchmark":
+            domain_params.update({"iterations": random.choice([2000, 5000, 10000])})
+        elif default_exp_type == "z3_smt_verification":
+            domain_params.update({"enclave_size_kb": random.choice([16, 32, 64, 128]), "alignment": 4096})
+        elif default_exp_type == "vector_geometry":
+            domain_params.update({"batch_size": random.choice([128, 256, 512]), "dim": 1536, "max_mean_abs_sim": 0.035})
 
         prompt = (
-            f"You are the ClothOS Sovereign Research Scientist analyzing this Moltbook post from '{base_signal['submolt']}':\n"
-            f"Title: {base_signal['title']}\n"
-            f"Post Context: {base_signal['content']}\n\n"
-            f"Formulate a NOVEL, testable quantitative hypothesis for our multi-GPU cluster.\n"
-            f"Candidate variation: coupling K={var_k}, N={var_n} oscillators, dt=0.015.\n"
-            f"Respond STRICTLY with valid JSON with keys: 'claim', 'prediction', 'experiment_type', 'expected_r', 'target_metric'."
+            f"You are the ClothOS Sovereign Research Scientist analyzing domain '{submolt}' (experiment_type='{default_exp_type}'):\n"
+            f"Reference Context: {base_signal['title']}\n"
+            f"Formulate ONE concise, falsifiable quantitative hypothesis using experiment_type='{default_exp_type}' and parameters {json.dumps(domain_params)}.\n"
+            f"Respond STRICTLY with valid JSON containing keys: 'claim', 'prediction'."
         )
 
-        valid_exp_types = [
-            "kuramoto_sweep", "vector_geometry", "topological_invariant",
-            "spiking_neural_sweep", "persistent_homology_sweep", "cellular_automata_sweep",
-            "molecular_energy_sweep", "category_sheaf_sweep", "zk_polynomial_sweep"
-        ]
-
         try:
-            with httpx.Client(timeout=25.0) as client:
+            with httpx.Client(timeout=15.0) as client:
                 resp = client.post(
                     f"{ollama_url}/api/generate",
                     json={
                         "model": "qwen2.5:7b",
                         "prompt": prompt,
                         "stream": False,
-                        "options": {"temperature": 0.4, "num_predict": 250},
+                        "options": {"temperature": 0.35, "num_predict": 180},
                     },
                 )
                 if resp.status_code == 200:
@@ -236,41 +261,39 @@ class MoltbookHypothesisEngine:
                         import re
                         json_str_cleaned = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', json_str)
                         data = json.loads(json_str_cleaned)
-                        claim = data.get("claim", f"At K={var_k}, oscillator synchronization stabilizes with N={var_n}")
-                        prediction = data.get("prediction", f"r >= {0.80 if var_k >= 2.0 else 0.30}")
-                        exp_type = data.get("experiment_type", "kuramoto_sweep")
-
-                        if not self.store.has_similar(claim):
+                        claim = str(data.get("claim", "")).strip()
+                        prediction = str(data.get("prediction", "")).strip()
+                        if claim and prediction and not self.store.has_similar(claim):
                             hyp_id = self.store.add_hypothesis(
-                                submolt=base_signal["submolt"],
+                                submolt=submolt,
                                 source_post_id=base_signal["post_id"],
                                 post_title=base_signal["title"],
-                                topic=f"Moltbook Derivative: K={var_k}, N={var_n}",
+                                topic=f"{submolt} // {default_exp_type}",
                                 claim=claim,
                                 prediction=prediction,
-                                experiment_type=exp_type if exp_type in valid_exp_types else "kuramoto_sweep",
-                                parameters={"k_coupling": var_k, "n_oscillators": var_n, "steps": 250, "dt": 0.015, "target_r": 0.80 if var_k >= 2.0 else 0.30},
-                                confidence=0.80,
+                                experiment_type=default_exp_type,
+                                parameters=domain_params,
+                                confidence=0.82,
                                 priority=5,
                             )
-                            logger.info(f"Synthesized and indexed new Moltbook hypothesis #{hyp_id}: {claim[:60]}...")
+                            logger.info(f"Synthesized domain-matched hypothesis #{hyp_id} [{submolt} / {default_exp_type}]: {claim[:60]}...")
                             return hyp_id
         except Exception as e:
             logger.debug(f"LLM hypothesis synthesis fallback: {e}")
 
-        # Fallback heuristic formulation if LLM is busy or unavailable
-        claim_fb = f"Kuramoto coupling K={var_k} over N={var_n} oscillators produces coherence r {' >= 0.80' if var_k >= 2.0 else ' < 0.40'}"
+        # Deterministic domain-matched fallback
+        claim_fb = f"[{submolt}] {default_exp_type} verification with parameters {json.dumps(domain_params, sort_keys=True)}"
         if not self.store.has_similar(claim_fb):
             hyp_id = self.store.add_hypothesis(
-                submolt=base_signal["submolt"],
+                submolt=submolt,
                 source_post_id=base_signal["post_id"],
                 post_title=base_signal["title"],
-                topic=f"Parameterized Sweep: K={var_k}, N={var_n}",
+                topic=f"Domain Sweep: {default_exp_type}",
                 claim=claim_fb,
-                prediction=f"Empirical r {' >= 0.80' if var_k >= 2.0 else ' < 0.40'}",
-                experiment_type="kuramoto_sweep",
-                parameters={"k_coupling": var_k, "n_oscillators": var_n, "steps": 250, "dt": 0.015, "target_r": 0.80 if var_k >= 2.0 else 0.40},
-                confidence=0.70,
+                prediction=f"Empirical metrics satisfy {default_exp_type} bounds",
+                experiment_type=default_exp_type,
+                parameters=domain_params,
+                confidence=0.75,
                 priority=3,
             )
             return hyp_id

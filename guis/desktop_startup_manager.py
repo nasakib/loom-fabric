@@ -7,7 +7,7 @@ Responsibilities:
 1. Cleans up legacy desktop shortcuts (.lnk), batch files (.bat), and old startup scripts (.vbs).
 2. Deploys modern Antigravity Desktop shortcuts for Web App Command Center, Desktop HUD, and Screensaver.
 3. Configures Windows Startup (shell:startup) to launch the relevant desktop GUIs on user logon.
-4. Spawns and monitors underlying ClothOS daemon (8087) and GUI server (8090).
+4. Spawns and monitors the single unified ClothOS Master App (8087).
 5. Opens the relevant desktop GUIs in clean, borderless app-window mode.
 """
 
@@ -30,7 +30,7 @@ if hasattr(sys.stdout, 'reconfigure'):
         pass
 
 PORT_CLOTHOS_DAEMON = 8087
-PORT_GUI_SERVER = 8090
+PORT_GUI_SERVER = 8087  # Unified single-port master application
 
 
 def get_workspace_root() -> Path:
@@ -252,7 +252,7 @@ def uninstall_startup():
 
 
 def ensure_backend_services():
-    """Verifies that the ClothOS daemon (8087) and GUI server (8090) are running."""
+    """Verifies that the single-port Unified ClothOS Master App (8087) is running."""
     ws = get_workspace_root()
     py_exe = ws / ".venv" / "Scripts" / "python.exe"
     if not py_exe.exists():
@@ -260,54 +260,14 @@ def ensure_backend_services():
 
     detach_flags = 0x00000008 | 0x00000200 if os.name == 'nt' else 0
 
-    # 1. ClothOS Daemon (port 8087)
+    # 1. Unified ClothOS Master Application (port 8087 — Dashboard, Visuals, GUIs, Gateway, File & Media Studio)
     if not is_port_listening(PORT_CLOTHOS_DAEMON):
-        print(f"[*] Starting ClothOS daemon on port {PORT_CLOTHOS_DAEMON}...")
+        print(f"[*] Starting Unified ClothOS Master App on port {PORT_CLOTHOS_DAEMON}...")
         cmd_daemon = f'"{py_exe}" -m uvicorn loom.fabric.dashboard_server:app --host 0.0.0.0 --port {PORT_CLOTHOS_DAEMON}'
         subprocess.Popen(cmd_daemon, cwd=str(ws), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, close_fds=True, creationflags=detach_flags)
         time.sleep(1.5)
     else:
-        print(f"[OK] ClothOS daemon active on port {PORT_CLOTHOS_DAEMON}.")
-
-    # 2. GUI Suite Server (port 8090)
-    if not is_port_listening(PORT_GUI_SERVER):
-        print(f"[*] Starting Antigravity GUI server on port {PORT_GUI_SERVER}...")
-        serve_script = ws / "guis" / "serve_guis.py"
-        cmd_gui = f'"{py_exe}" "{serve_script}" --port {PORT_GUI_SERVER}'
-        subprocess.Popen(cmd_gui, cwd=str(ws), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, close_fds=True, creationflags=detach_flags)
-        time.sleep(1.2)
-    else:
-        print(f"[OK] Antigravity GUI server active on port {PORT_GUI_SERVER}.")
-
-    # 3. Stitch Bridge Daemon (port 5555)
-    PORT_STITCH_BRIDGE = 5555
-    if not is_port_listening(PORT_STITCH_BRIDGE):
-        stitch_dir = Path.home() / "Documents" / "stitch-core"
-        if not stitch_dir.exists():
-            stitch_dir = Path.home() / "Documents" / "fabric-core"
-        if stitch_dir.exists():
-            print(f"[*] Starting Stitch Bridge on port {PORT_STITCH_BRIDGE}...")
-            cmd_bridge = f'"{py_exe}" -m uvicorn bridge.server:app --host 0.0.0.0 --port {PORT_STITCH_BRIDGE}'
-            subprocess.Popen(cmd_bridge, cwd=str(stitch_dir), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, close_fds=True, creationflags=detach_flags)
-            time.sleep(1.5)
-    else:
-        print(f"[OK] Stitch Bridge active on port {PORT_STITCH_BRIDGE}.")
-
-    # 4. Ray Distributed Cluster Head / Worker Daemon
-    PORT_RAY_HEAD = 6379
-    hostname_clean = socket.gethostname().lower()
-    is_decider_node = "win-7cmaqlvp8mv" in hostname_clean or "node2" in hostname_clean or os.environ.get("FABRIC_ROLE") == "head"
-    ray_exe = Path(r"C:\Users\natsa\AppData\Local\Programs\Python\Python312\Scripts\ray.exe")
-    if not ray_exe.exists():
-        ray_exe = Path(sys.executable).parent / "ray.exe"
-
-    if is_decider_node and ray_exe.exists() and not is_port_listening(PORT_RAY_HEAD):
-        print(f"[*] Starting Ray Cluster Head Node on port {PORT_RAY_HEAD}...")
-        cmd_ray = f'"{ray_exe}" start --head --node-ip-address=192.168.99.2 --port=6379 --dashboard-host=0.0.0.0 --dashboard-port=8265 --disable-usage-stats'
-        subprocess.Popen(cmd_ray, cwd=str(ws), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, close_fds=True, creationflags=detach_flags)
-        time.sleep(2.0)
-    elif is_port_listening(PORT_RAY_HEAD):
-        print(f"[OK] Ray Cluster Head active on port {PORT_RAY_HEAD}.")
+        print(f"[OK] Unified ClothOS Master App active on port {PORT_CLOTHOS_DAEMON}.")
 
 
 def launch_desktop_gui(url: str, app_name: str, window_size: str = "1280,820", window_pos: str = ""):
@@ -344,41 +304,35 @@ def launch_desktop_gui(url: str, app_name: str, window_size: str = "1280,820", w
 
 
 def launch_relevant_guis(mode: str = "all"):
-    """Opens the relevant desktop interfaces."""
-    print("\n--- [4/4] Launching Relevant Desktop Interfaces ---")
+    """Opens the unified ClothOS Master Application on port 8087."""
+    print("\n--- [4/4] Launching Unified Master Interface (:8087) ---")
     ensure_backend_services()
 
-    base_url = f"http://localhost:{PORT_GUI_SERVER}"
+    base_url = f"http://localhost:{PORT_CLOTHOS_DAEMON}"
 
     if mode in ["all", "web", "command"]:
-        # Primary Command Center
         launch_desktop_gui(
-            url=f"{base_url}/web-app/index.html",
-            app_name="ClothOS Command Center",
-            window_size="1340,860",
-            window_pos="100,50"
+            url=f"{base_url}/",
+            app_name="ClothOS Master Command Center",
+            window_size="1380,880",
+            window_pos="80,40"
         )
-        time.sleep(0.4)
-
-    if mode in ["all", "hud"]:
-        # Desktop Floating Glassmorphic HUD
+    elif mode == "hud":
         launch_desktop_gui(
-            url=f"{base_url}/desktop-hud/index.html",
+            url=f"{base_url}/guis/desktop-hud/index.html",
             app_name="Desktop Glassmorphic HUD",
             window_size="440,110",
             window_pos="50,30"
         )
-
-    if mode == "portal":
+    elif mode == "portal":
         launch_desktop_gui(
-            url=f"{base_url}/index.html",
-            app_name="ClothOS Master Portal",
+            url=f"{base_url}/guis/index.html",
+            app_name="ClothOS Antigravity Portal",
             window_size="1240,800"
         )
-
-    if mode == "screensaver":
+    elif mode == "screensaver":
         launch_desktop_gui(
-            url=f"{base_url}/neuro-screensaver/index.html",
+            url=f"{base_url}/guis/neuro-screensaver/index.html",
             app_name="ClothOS 60fps Neuro-Screensaver",
             window_size="1280,720"
         )

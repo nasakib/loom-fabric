@@ -21,6 +21,10 @@ import json
 import logging
 import os
 from pathlib import Path
+import re
+import socket
+import subprocess
+import sys
 import time
 from typing import Any, Dict, List, Optional
 
@@ -129,18 +133,30 @@ class SuccessGauge:
             },
         )
 
-        # 4. Thermodynamic Landauer Bound (Weight: 0.15)
+        # 4. Thermodynamic Landauer Bound & Resource Headroom (Weight: 0.15)
         hal_prof = self.hal.get_profile()
         budget_j = hal_prof.landauer_budget_joules
+        thermo_score = 100.0
+        ram_pct = 0.0
+        try:
+            import psutil
+            ram_pct = float(psutil.virtual_memory().percent)
+            if ram_pct >= 95.0:
+                thermo_score = 65.0
+            elif ram_pct >= 90.0:
+                thermo_score = 82.0
+        except Exception:
+            pass
         dims["thermodynamics"] = MetricDimension(
             name="Thermodynamic Landauer Budget",
             weight=0.15,
-            score_pct=100.0,
-            status="COMPLIANT",
+            score_pct=thermo_score,
+            status="COMPLIANT" if thermo_score >= 85.0 else "PRESSURE",
             details={
                 "global_budget_joules": budget_j,
                 "per_task_ceiling_joules": 25.0,
                 "thermal_power_ceiling_watts": hal_prof.power_ceiling_watts,
+                "host_ram_percent": round(ram_pct, 1),
             },
         )
 
@@ -150,6 +166,13 @@ class SuccessGauge:
             from loom.clothos.sdk import kuramoto_sync
             kuramoto_r = kuramoto_sync()
         except Exception:
+            pass
+
+        node2_online = False
+        try:
+            with socket.create_connection(("192.168.99.2", 5555), timeout=0.2):
+                node2_online = True
+        except OSError:
             pass
 
         cluster_score = min(100.0, max(0.0, (kuramoto_r / 0.85) * 100.0))
@@ -162,32 +185,82 @@ class SuccessGauge:
                 "kuramoto_order_r": kuramoto_r,
                 "phase_locked": kuramoto_r >= 0.85,
                 "node1_skytech": "ONLINE (RTX 3060 + RX 580)",
-                "node2_ryzen7": "SYNCHRONIZED (100.74.98.21)",
-                "pooled_vram_gb": 103.7,
+                "node2_ryzen7": "ONLINE (192.168.99.2)" if node2_online else "STANDBY (192.168.99.2 unreachable)",
+                "node2_online": node2_online,
             },
         )
 
-        # 6. Automated Test Suite (Weight: 0.15)
-        test_score = 98.0
-        test_details = {"pass_rate_pct": 98.0, "status": "VERIFIED"}
+        # 6. Automated Test Suite & Static Code Health (Weight: 0.15)
+        useful_state_file = Path.home() / ".loom" / "24x7_useful_state.json"
+        cached_useful: Dict[str, Any] = {}
+        if useful_state_file.exists():
+            try:
+                cached_useful = json.loads(useful_state_file.read_text(encoding="utf-8"))
+            except Exception:
+                cached_useful = {}
+
+        syntax_errs = len(cached_useful.get("code_audit", {}).get("syntax_errors", []))
+        test_score = float(cached_useful.get("real_test_pass_rate_pct", 98.0))
+        test_details: Dict[str, Any] = {
+            "pass_rate_pct": round(test_score, 2),
+            "cached_passed": cached_useful.get("real_tests_passed", 0),
+            "cached_failed": cached_useful.get("real_tests_failed", 0),
+            "code_syntax_errors": syntax_errs,
+            "status": "CACHED_VERIFIED" if cached_useful else "BASELINE",
+        }
         if run_tests:
-            # Quick smoke test of SDK
             try:
                 from loom.clothos import P0, energy_budget, ring
                 @ring(P0)
                 def _quick_smoke():
                     return True
                 assert _quick_smoke() is True
-                test_score = 100.0
-                test_details["smoke_test"] = "PASSED"
+
+                # Execute real fast unit verification suite in clean subprocess
+                venv_py = WORKSPACE_ROOT / ".venv" / "Scripts" / "python.exe"
+                py_exe = str(venv_py) if venv_py.exists() else sys.executable
+                env = dict(os.environ)
+                for k in ("PYTHONHOME", "PYTHONPATH", "VIRTUAL_ENV"):
+                    env.pop(k, None)
+                env["PYTHONPATH"] = str(WORKSPACE_ROOT)
+                extra_flags = 0x08000000 if sys.platform == "win32" else 0
+                proc = subprocess.run(
+                    [py_exe, "-m", "pytest", "tests/test_allocator.py", "-q"],
+                    cwd=str(WORKSPACE_ROOT),
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=20.0,
+                    creationflags=extra_flags,
+                )
+                out = (proc.stdout or "") + "\n" + (proc.stderr or "")
+                m_p = re.search(r"(\d+)\s+passed", out)
+                m_f = re.search(r"(\d+)\s+failed", out)
+                p_cnt = int(m_p.group(1)) if m_p else 0
+                f_cnt = int(m_f.group(1)) if m_f else (0 if proc.returncode == 0 else 1)
+                if p_cnt + f_cnt > 0:
+                    test_score = round((p_cnt / (p_cnt + f_cnt)) * 100.0, 2)
+                else:
+                    test_score = 100.0 if proc.returncode == 0 else 70.0
+                test_details.update({
+                    "real_pytest_target": "tests/test_allocator.py",
+                    "real_passed": p_cnt,
+                    "real_failed": f_cnt,
+                    "pass_rate_pct": test_score,
+                    "smoke_test": "PASSED" if proc.returncode == 0 else "FAILED",
+                    "status": "VERIFIED" if proc.returncode == 0 else "FAILING",
+                })
             except Exception as exc:
                 test_score = 70.0
                 test_details["smoke_test_error"] = str(exc)
 
+        if syntax_errs > 0:
+            test_score = max(0.0, test_score - min(30.0, syntax_errs * 10.0))
+
         dims["test_suite"] = MetricDimension(
             name="Automated Test Suite & Verification",
             weight=0.15,
-            score_pct=test_score,
+            score_pct=round(test_score, 2),
             status="PASSING" if test_score >= 90 else "FAILING",
             details=test_details,
         )

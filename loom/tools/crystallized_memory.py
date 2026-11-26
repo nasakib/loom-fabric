@@ -381,6 +381,23 @@ class CrystallizedMemoryVault:
         target.write_text(entry.model_dump_json(indent=2), encoding="utf-8")
         return entry
 
+    def store(
+        self,
+        memory_id: str,
+        label: str,
+        vector: Sequence[float],
+        energy_basin: float = -1.0,
+        lipschitz_bound: float = 0.9,
+    ) -> CrystallizedMemoryEntry:
+        """Alias for crystallize_memory() for backward compatibility."""
+        return self.crystallize_memory(
+            memory_id=memory_id,
+            label=label,
+            vector=vector,
+            energy_basin=energy_basin,
+            lipschitz_bound=lipschitz_bound,
+        )
+
     def get_memory(self, memory_id: str) -> Optional[CrystallizedMemoryEntry]:
         return self.memories.get(memory_id)
 

@@ -104,7 +104,7 @@ class ThreadRegistry:
                 "WARP-01",
                 "Kernel System Integrity",
                 WarpType.KERNEL_SYSTEM_INTEGRITY,
-                "Operator Fealty (Najmos Sakib > Apostrophie > USA > Allies > Commons) & Zero-Malignancy Invariant.",
+                "Operator Fealty (Najmos Sakib > ClothOS > USA > Allies > Commons) & Zero-Malignancy Invariant.",
             ),
             (
                 "WARP-02",

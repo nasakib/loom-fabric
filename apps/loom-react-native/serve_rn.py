@@ -3,9 +3,9 @@
 """
 ClothOS React Native Universal App Server (`apps/loom-react-native/serve_rn.py`).
 
-Serves the pre-compiled universal React Native web build on dedicated port 8086:
-- Zero port collisions with ClothOS Dashboard (8085) or Ray (8265).
-- Compatible with Chrome/Edge standalone app container mode (`--app=http://127.0.0.1:8086`).
+Serves the pre-compiled universal React Native web build (unified on port 8087 by default):
+- Zero port collisions with Unified ClothOS Master Hub (8087).
+- Compatible with Chrome/Edge standalone app container mode (`--app=http://127.0.0.1:8087/guis/react-native-app/`).
 - Serves living mind screensaver geometries, Task Manager telemetry, and Torque scrubbing.
 """
 
@@ -20,7 +20,7 @@ import subprocess
 import sys
 import webbrowser
 
-PORT = 8086
+PORT = 8087
 DIST_DIR = Path(__file__).resolve().parent / "dist"
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s %(message)s")

@@ -102,7 +102,7 @@ class LoomFabricModem:
             total_tflops=22.8,
             distance_meters=1.5,
             link_quality=link_skytech,
-            ip_endpoint="192.168.99.1:8002",
+            ip_endpoint="192.168.99.1:8087",
             supports_nvidia=True,
             pure_amd_open=False,
             pricing_usd_hr=0.0,
@@ -120,7 +120,7 @@ class LoomFabricModem:
             total_tflops=8.4,
             distance_meters=2.8,
             link_quality=link_ryzen,
-            ip_endpoint="192.168.99.2:8002",
+            ip_endpoint="192.168.99.2:8087",
             supports_nvidia=False,
             pure_amd_open=True, # Node 2 Purity guaranteed
             pricing_usd_hr=0.0,
@@ -138,7 +138,7 @@ class LoomFabricModem:
             total_tflops=36.0,
             distance_meters=12.0,
             link_quality=link_edge,
-            ip_endpoint="192.168.99.45:8002",
+            ip_endpoint="192.168.99.45:8087",
             supports_nvidia=False,
             pure_amd_open=False,
             pricing_usd_hr=0.35, # Community compute rate

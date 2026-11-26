@@ -228,7 +228,7 @@ def test_{clean_name}_service():
     # ── 3. AGI Skill Scaffolder ─────────────────────────────────────────────
 
     def scaffold_skill(self, name: str, description: str = "") -> ScaffoldingResult:
-        """Generates a standard Antigravity & ClothOS agent skill."""
+        """Generates a standard ClothOS agent skill."""
         clean_name = re.sub(r"[^a-zA-Z0-9_-]", "", name.lower().replace("_", "-"))
         skill_dir = self.workspace_root / ".agents" / "skills" / clean_name
         skill_dir.mkdir(parents=True, exist_ok=True)

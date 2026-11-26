@@ -61,7 +61,7 @@ class P2PInferenceDispatcher:
     def __init__(
         self,
         bank_vault: VectorCoreBankVault,
-        local_gateway_url: str = "http://127.0.0.1:8002",
+        local_gateway_url: str = "http://127.0.0.1:8087",
         local_node_id: str = "sl-csp-skytech-01",
     ):
         self.bank_vault = bank_vault

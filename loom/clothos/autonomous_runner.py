@@ -101,8 +101,8 @@ class AutonomousTaskRunner:
             except Exception as e:
                 logger.error(f"Error updating task {task_id}: {e}")
 
-    def execute_next_task(self, agent_engine: Any) -> Optional[Dict[str, Any]]:
-        """Claims and executes the next pending task in the queue."""
+    def execute_next_task(self, agent_engine: Any, timeout_s: float = 120.0) -> Optional[Dict[str, Any]]:
+        """Claims and executes the next pending task in the queue with a bounded timeout."""
         tasks = self.list_tasks(limit=100)
         pending = next((t for t in tasks if t.get("status") == "QUEUED"), None)
         if not pending:
@@ -121,8 +121,34 @@ class AutonomousTaskRunner:
         prev_mode = agent_engine.mode
         agent_engine.set_mode(target_mode)
 
+        result_box: Dict[str, Any] = {}
+
+        def _worker():
+            try:
+                result_box["output"] = agent_engine.process_query(prompt)
+            except Exception as exc:
+                result_box["error"] = exc
+
+        worker_thread = threading.Thread(target=_worker, daemon=True, name=f"TaskRunner-{t_id}")
+        worker_thread.start()
+        worker_thread.join(timeout=timeout_s)
+
         try:
-            output = agent_engine.process_query(prompt)
+            if worker_thread.is_alive():
+                duration = round(time.time() - t0, 3)
+                err_msg = f"Task timed out after {timeout_s}s"
+                self._update_task(t_id, {
+                    "status": "FAILED",
+                    "completed_at": time.time(),
+                    "duration_s": duration,
+                    "output_preview": f"Error: {err_msg}",
+                })
+                return {"task_id": t_id, "status": "FAILED", "duration_s": duration, "error": err_msg}
+
+            if "error" in result_box:
+                raise result_box["error"]
+
+            output = result_box.get("output", "")
             duration = round(time.time() - t0, 3)
             preview = output[:200] + ("..." if len(output) > 200 else "")
             self._update_task(t_id, {

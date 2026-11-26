@@ -5,7 +5,7 @@ ClothOS Nervous System: Financial & Macroeconomic Synapse (`loom/nervous_system/
 
 Provides real-time contextual awareness of global markets, equities, and macroeconomic regimes:
 - High-frequency tracking of key indices (S&P 500, NASDAQ, Russell 2000, 10Y Yield, VIX).
-- Strategic tech equities for Apostrophie & Vector Core Holdings (NVDA, AMD, AAPL, MSFT, GOOGL, TSLA).
+- Strategic tech equities for ClothOS & Vector Core Holdings (NVDA, AMD, AAPL, MSFT, GOOGL, TSLA).
 - Autonomous market regime detection (EXPANSION, STAGFLATION, VOLATILITY_SURGE, VALUE_ROTATION).
 """
 
@@ -51,7 +51,7 @@ class FinancialMacroeconomicSynapse:
         self._init_sovereign_watchlist()
 
     def _init_sovereign_watchlist(self) -> None:
-        """Initializes core assets critical to Apostrophie & Vector Core Holdings."""
+        """Initializes core assets critical to ClothOS & Vector Core Holdings."""
         defaults = [
             ("NVDA", "NVIDIA Corp (CUDA Ecosystem)", 138.50, +2.4, 48.2, 52.1, "Semiconductors", "ACCUMULATE"),
             ("AMD", "Advanced Micro Devices (Node 2 Zen3/Vega)", 164.20, +1.8, 28.5, 41.3, "Semiconductors", "ACCUMULATE"),
@@ -98,7 +98,7 @@ class FinancialMacroeconomicSynapse:
                 "vix_volatility_index": self.macro_vix,
                 "us_10y_yield_pct": self.treasury_10y_yield,
                 "fed_funds_rate_pct": self.fed_rate_pct,
-                "portfolio_entity": "Apostrophie / Vector Core Holdings",
+                "portfolio_entity": "ClothOS / Vector Core Holdings",
                 "last_update": self.last_update_timestamp,
                 "tickers": {
                     sym: {

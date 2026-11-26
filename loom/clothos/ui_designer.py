@@ -358,137 +358,24 @@ class LoomUiDesigner:
         logger.info(f"Loom self-designed new UI aesthetic: {self.state.theme_name}")
         return self.get_current_design()
 
-    def generate_3d_cad_mesh(self, model_type: str = "flexure") -> Dict[str, Any]:
-        """Generates 3D polygonal mesh coordinates (vertices and faces) for in-browser Canvas/WebGL rendering.
-
-        Allows the browser GUI to render live interactive 3D solid models
-        without external heavyweight libraries.
-        """
-        model_type = model_type.lower()
-        vertices: List[List[float]] = []
-        faces: List[List[int]] = []
-
-        if "flexure" in model_type:
-            # Compliant bistable flexure mesh
-            anch1_verts = [
-                [-40, -15, -5], [-20, -15, -5], [-20, 15, -5], [-40, 15, -5],
-                [-40, -15, 5], [-20, -15, 5], [-20, 15, 5], [-40, 15, 5],
-            ]
-            anch1_faces = [
-                [0, 1, 2, 3], [4, 7, 6, 5], [0, 4, 5, 1], [2, 6, 7, 3], [0, 3, 7, 4], [1, 5, 6, 2]
-            ]
-            vertices.extend(anch1_verts)
-            faces.extend(anch1_faces)
-
-            # Anchor 2 (right shuttle)
-            offset = len(vertices)
-            anch2_verts = [
-                [20, -15, -5], [40, -15, -5], [40, 15, -5], [20, 15, -5],
-                [20, -15, 5], [40, -15, 5], [40, 15, 5], [20, 15, 5],
-            ]
-            for f in anch1_faces:
-                faces.append([v + offset for v in f])
-            vertices.extend(anch2_verts)
-
-            # Central shuttle
-            offset = len(vertices)
-            shuttle_verts = [
-                [-8, -10, -5], [8, -10, -5], [8, 10, -5], [-8, 10, -5],
-                [-8, -10, 5], [8, -10, 5], [8, 10, 5], [-8, 10, 5],
-            ]
-            for f in anch1_faces:
-                faces.append([v + offset for v in f])
-            vertices.extend(shuttle_verts)
-
-            # Connecting leaf beams (curved arcs)
-            steps = 10
-            for side in [-1, 1]:
-                y_base = side * 12.0
-                left_leaf_start = len(vertices)
-                for i in range(steps + 1):
-                    t = i / steps
-                    x = -20.0 + t * 12.0
-                    y = y_base + 3.0 * math.sin(t * math.pi)
-                    vertices.append([x, y - 0.8, -4])
-                    vertices.append([x, y + 0.8, -4])
-                    vertices.append([x, y + 0.8, 4])
-                    vertices.append([x, y - 0.8, 4])
-                    if i > 0:
-                        p = left_leaf_start + (i - 1) * 4
-                        c = left_leaf_start + i * 4
-                        faces.append([p, c, c + 1, p + 1])
-                        faces.append([p + 2, c + 2, c + 3, p + 3])
-                        faces.append([p + 1, c + 1, c + 2, p + 2])
-                        faces.append([p + 3, c + 3, c, p])
-
-        elif "cavity" in model_type or "microwave" in model_type:
-            # Resonant Microwave Cavity with input/output waveguide irises
-            w, h, d = 40, 25, 25
-            v_box = [
-                [-w, -h, -d], [w, -h, -d], [w, h, -d], [-w, h, -d],
-                [-w, -h, d], [w, -h, d], [w, h, d], [-w, h, d],
-            ]
-            vertices.extend(v_box)
-            faces.extend([
-                [0, 1, 2, 3], [4, 7, 6, 5], [0, 4, 5, 1], [2, 6, 7, 3], [0, 3, 7, 4], [1, 5, 6, 2]
-            ])
-            offset = len(vertices)
-            r_post = 8
-            steps = 12
-            for i in range(steps):
-                th = 2.0 * math.pi * i / steps
-                x = r_post * math.cos(th)
-                y = -h
-                z = r_post * math.sin(th)
-                vertices.append([x, y, z])
-                vertices.append([x, h * 0.4, z])
-                if i > 0:
-                    p = offset + (i - 1) * 2
-                    c = offset + i * 2
-                    faces.append([p, c, c + 1, p + 1])
-            faces.append([offset + (steps - 1) * 2, offset, offset + 1, offset + (steps - 1) * 2 + 1])
-
-        else:
-            # Gyroid / Epicyclic Rotor Default
-            r_outer = 30
-            r_inner = 12
-            teeth = 12
-            steps = teeth * 4
-            for i in range(steps):
-                th = 2.0 * math.pi * i / steps
-                is_tooth = (i % 4 == 1 or i % 4 == 2)
-                rad = r_outer + (4.0 if is_tooth else 0.0)
-                x = rad * math.cos(th)
-                y = rad * math.sin(th)
-                vertices.append([x, y, -5])
-                vertices.append([x, y, 5])
-                xi = r_inner * math.cos(th)
-                yi = r_inner * math.sin(th)
-                vertices.append([xi, yi, -5])
-                vertices.append([xi, yi, 5])
-                if i > 0:
-                    p = (i - 1) * 4
-                    c = i * 4
-                    faces.append([p, c, c + 1, p + 1])
-                    faces.append([p + 2, p + 3, c + 3, c + 2])
-                    faces.append([p, p + 2, c + 2, c])
-                    faces.append([p + 1, c + 1, c + 3, p + 3])
-            p = (steps - 1) * 4
-            faces.append([p, 0, 1, p + 1])
-            faces.append([p + 2, p + 3, 3, 2])
-            faces.append([p, p + 2, 2, 0])
-            faces.append([p + 1, 1, 3, p + 3])
-
-        return {
-            "model_type": model_type,
-            "vertex_count": len(vertices),
-            "face_count": len(faces),
-            "vertices": vertices,
-            "faces": faces,
-            "bounds": {"x": [-50, 50], "y": [-50, 50], "z": [-25, 25]},
-            "unit": "mm",
-            "invariant": "Euler-Poincare: V - E + F = 2",
-        }
+    def generate_3d_cad_mesh(
+        self,
+        model_type: str = "flexure",
+        freq_mhz: float = 2450.0,
+        symmetry_r: float = 0.88,
+        scale_mm: float = 1.0,
+        resolution: int = 16,
+    ) -> Dict[str, Any]:
+        """Generates a real parametric 3D triangulated CAD mesh with outward surface normals
+        via the ClothOS Parametric CAD Kernel across all STEM engineering archetypes."""
+        from loom.clothos.cad_kernel import generate_archetype_mesh
+        return generate_archetype_mesh(
+            archetype=model_type,
+            freq_mhz=freq_mhz,
+            symmetry_r=symmetry_r,
+            scale_mm=scale_mm,
+            resolution=resolution,
+        )
 
 
 # Global singleton instance

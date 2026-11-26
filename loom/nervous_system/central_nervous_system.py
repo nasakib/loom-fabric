@@ -3,7 +3,7 @@
 """
 ClothOS Central Nervous System (CNS) (`loom/nervous_system/central_nervous_system.py`).
 
-The master neuro-sensory integration hub for Apostrophie and Operator Najmos Sakib:
+The master neuro-sensory integration hub for ClothOS and Operator Najmos Sakib:
 - Integrates all 4 afferent sensory pathways:
   1. Financial & Macroeconomic Synapse (Equities, NVDA, AMD, VIX, Yields)
   2. Global Geopolitical & Tech News Radar (Semiconductors, Grid, AI sovereignty)
@@ -83,7 +83,7 @@ class CentralNervousSystem:
                 "total_sweeps": self.total_sensory_sweeps,
                 "integrated_phi": self.consciousness_level,
                 "operator": "Najmos Sakib",
-                "umbrella_corp": "Apostrophie",
+                "umbrella_corp": "ClothOS",
                 "executive_sensory_summary": executive_summary,
                 "proprioception": proprioception,
                 "financial_markets": markets,

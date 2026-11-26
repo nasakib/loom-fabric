@@ -8,7 +8,7 @@ class QuietHandler(SimpleHTTPRequestHandler):
         # Suppress logging to prevent console spam
         pass
 
-def serve(port=8081):
+def serve(port=8087):
     dist_dir = os.path.abspath(r"c:\Users\natsa\Documents\loom-fabric\apps\loom-react-native\dist")
     if not os.path.isdir(dist_dir):
         print(f"Error: Directory not found: {dist_dir}")
@@ -27,5 +27,5 @@ def serve(port=8081):
         print("Server stopped.")
 
 if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8081
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8087
     serve(port)

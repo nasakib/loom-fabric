@@ -132,6 +132,27 @@ assert val > 0
         tests_failed = 1 if tests_passed == 0 else 0
         actions.append(f"Executed sandbox test suite: {tests_passed} passed, {tests_failed} failed.")
 
+        # Step 4b: Real Workspace Code Audit & Test Verification
+        try:
+            from loom.clothos.useful_work_engine import useful_work_engine
+            audit = useful_work_engine.run_code_quality_audit(force=False, min_interval_s=300.0)
+            if audit:
+                syntax_errs = len(audit.get("syntax_errors", []))
+                tests_failed += syntax_errs
+                actions.append(
+                    f"Codebase AST/syntax audit checked {audit.get('files_checked', 0)} files ({syntax_errs} syntax errors)."
+                )
+            test_suite_res = useful_work_engine.run_rotating_test_audit(force=False, min_interval_s=180.0)
+            if test_suite_res:
+                tests_passed += int(test_suite_res.get("passed", 0))
+                tests_failed += int(test_suite_res.get("failed", 0)) + int(test_suite_res.get("errors", 0))
+                actions.append(
+                    f"Real pytest suite [{test_suite_res.get('project')}:{test_suite_res.get('target')}]: "
+                    f"{test_suite_res.get('passed', 0)} passed, {test_suite_res.get('failed', 0) + test_suite_res.get('errors', 0)} failed."
+                )
+        except Exception as exc:
+            logger.debug("Useful work integration note in evolution cycle: %s", exc)
+
         # Step 5: Distill Experience into Memory Continuum & Ratify Wisdom Axioms
         from loom.clothos.memory_continuum import memory_continuum
         from loom.clothos.salience_engine import salience_engine
@@ -180,6 +201,8 @@ assert val > 0
         )
 
         self.ledger.append(asdict(iteration))
+        if len(self.ledger) > 200:
+            self.ledger = self.ledger[-200:]
         self._save_ledger()
 
         logger.info(
