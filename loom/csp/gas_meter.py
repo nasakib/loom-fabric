@@ -167,7 +167,8 @@ class SpotlightLocalGasLedger:
         if not self.persistence_file:
             return
         try:
-            os.makedirs(os.path.dirname(self.persistence_file), exist_ok=True)
+            from pathlib import Path
+            from loom.fabric.state_store import state_store
             data = {
                 "wallets": {
                     k: {
@@ -183,8 +184,7 @@ class SpotlightLocalGasLedger:
                 },
                 "receipts": [r.to_dict() for r in self.receipts[-100:]],
             }
-            with open(self.persistence_file, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
+            state_store.set_state("sl_gas_ledger", data)
         except Exception as e:
             logger.debug(f"Gas Ledger persistence save skipped: {e}")
 
@@ -192,16 +192,16 @@ class SpotlightLocalGasLedger:
         if not self.persistence_file:
             return
         try:
-            if os.path.exists(self.persistence_file) and os.path.getsize(self.persistence_file) > 0:
-                with open(self.persistence_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                if "wallets" in data:
-                    for k, v in data["wallets"].items():
-                        self.wallets[k] = AccountWallet(**v)
-                if "receipts" in data:
-                    self.receipts.clear()
-                    for r in data["receipts"]:
-                        self.receipts.append(PoVCReceipt(**r))
+            from pathlib import Path
+            from loom.fabric.state_store import state_store
+            data = state_store.get_state("sl_gas_ledger", legacy_path=Path(self.persistence_file))
+            if "wallets" in data:
+                for k, v in data["wallets"].items():
+                    self.wallets[k] = AccountWallet(**v)
+            if "receipts" in data:
+                self.receipts.clear()
+                for r in data["receipts"]:
+                    self.receipts.append(PoVCReceipt(**r))
         except Exception as e:
             logger.debug(f"Gas Ledger persistence load skipped: {e}")
 

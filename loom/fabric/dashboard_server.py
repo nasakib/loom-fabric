@@ -664,6 +664,23 @@ def get_health_check() -> Dict[str, Any]:
     }
 
 
+@app.get("/api/state/wal_status")
+def get_state_wal_status() -> Dict[str, Any]:
+    """Phase 2: Returns SQLite WAL state backend health and namespace stats."""
+    from loom.fabric.state_store import state_store
+    return state_store.get_wal_status()
+
+
+@app.get("/api/state/{namespace}")
+def get_state_namespace(namespace: str) -> Dict[str, Any]:
+    """Phase 2: Exposes cluster, fiber_leases, sl_gas_ledger, and learned_patterns via FastAPI."""
+    allowed = {"cluster", "fiber_leases", "sl_gas_ledger", "learned_patterns"}
+    if namespace not in allowed:
+        raise HTTPException(status_code=404, detail=f"Unknown state namespace: {namespace}")
+    from loom.fabric.state_store import state_store
+    return {"namespace": namespace, "data": state_store.get_state(namespace)}
+
+
 @app.get("/api/ports/audit")
 def get_ports_audit() -> Dict[str, Any]:
     """Full CRUD Read: Audits all ports across Node 1, Node 2, and external services."""

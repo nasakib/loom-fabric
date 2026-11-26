@@ -285,13 +285,12 @@ class FiberLeaseManager:
         if not self.persistence_file:
             return
         try:
-            import os
-            os.makedirs(os.path.dirname(self.persistence_file), exist_ok=True)
+            from pathlib import Path
+            from loom.fabric.state_store import state_store
             data = {
                 "active_circuits": {k: asdict(v) for k, v in self.active_circuits.items()}
             }
-            with open(self.persistence_file, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
+            state_store.set_state("fiber_leases", data)
         except Exception as e:
             logger.debug(f"Fiber lease state save skipped: {e}")
 
@@ -299,14 +298,13 @@ class FiberLeaseManager:
         if not self.persistence_file:
             return
         try:
-            import os
-            if os.path.exists(self.persistence_file) and os.path.getsize(self.persistence_file) > 0:
-                with open(self.persistence_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                if "active_circuits" in data:
-                    self.active_circuits.clear()
-                    for k, v in data["active_circuits"].items():
-                        v["lease_type"] = FiberLeaseType(v["lease_type"])
-                        self.active_circuits[k] = LeasedFiberCircuit(**v)
+            from pathlib import Path
+            from loom.fabric.state_store import state_store
+            data = state_store.get_state("fiber_leases", legacy_path=Path(self.persistence_file))
+            if "active_circuits" in data:
+                self.active_circuits.clear()
+                for k, v in data["active_circuits"].items():
+                    v["lease_type"] = FiberLeaseType(v["lease_type"])
+                    self.active_circuits[k] = LeasedFiberCircuit(**v)
         except Exception as e:
             logger.debug(f"Fiber lease state load skipped: {e}")

@@ -592,31 +592,32 @@ if __name__ == '__main__':
 
     @classmethod
     def _ratchet_to_patterns_ledger(cls, skill: ClothOSSkill) -> None:
-        """Records the skill milestone in .clothos_learned_patterns.json."""
+        """Atomically records the skill milestone in SQLite WAL (`learned_patterns`)."""
         try:
-            patterns = {}
-            if PATTERNS_FILE.exists():
-                patterns = json.loads(PATTERNS_FILE.read_text(encoding="utf-8"))
+            from loom.fabric.state_store import state_store
 
-            if "ratified_skills" not in patterns:
-                patterns["ratified_skills"] = []
+            def _mutate(patterns: Dict[str, Any]) -> Dict[str, Any]:
+                if "ratified_skills" not in patterns:
+                    patterns["ratified_skills"] = []
+                existing_entry = next(
+                    (s for s in patterns["ratified_skills"] if s.get("id") == skill.skill_id),
+                    None,
+                )
+                if existing_entry:
+                    existing_entry["version"] = skill.version
+                    existing_entry["validation_count"] = skill.validation_count
+                    existing_entry["updated_at"] = skill.ratified_at
+                else:
+                    patterns["ratified_skills"].append({
+                        "id": skill.skill_id,
+                        "name": skill.name,
+                        "version": skill.version,
+                        "domain": skill.domain,
+                        "validation_count": skill.validation_count,
+                        "ratified_at": skill.ratified_at,
+                    })
+                return patterns
 
-            # Check if already present
-            existing_entry = next((s for s in patterns["ratified_skills"] if s.get("id") == skill.skill_id), None)
-            if existing_entry:
-                existing_entry["version"] = skill.version
-                existing_entry["validation_count"] = skill.validation_count
-                existing_entry["updated_at"] = skill.ratified_at
-            else:
-                patterns["ratified_skills"].append({
-                    "id": skill.skill_id,
-                    "name": skill.name,
-                    "version": skill.version,
-                    "domain": skill.domain,
-                    "validation_count": skill.validation_count,
-                    "ratified_at": skill.ratified_at,
-                })
-
-            PATTERNS_FILE.write_text(json.dumps(patterns, indent=2), encoding="utf-8")
+            state_store.update_state("learned_patterns", _mutate, legacy_path=PATTERNS_FILE)
         except Exception as exc:
             logger.warning(f"Failed to ratchet skill to patterns ledger: {exc}")
